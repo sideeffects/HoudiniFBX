@@ -234,7 +234,12 @@ ROP_FBXExporter::finishExport(void)
 	if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(format_index))
 	{
 	    KString lDesc = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatDescription(format_index);
-	    if (lDesc.Find("ascii")>=0)
+	    if (lDesc.Find("ascii")>=0 && myExportOptions.getExportInAscii())
+	    {
+		out_file_format = format_index;
+		break;
+	    }
+	    else if (lDesc.Find("ascii")<0 && !myExportOptions.getExportInAscii())
 	    {
 		out_file_format = format_index;
 		break;

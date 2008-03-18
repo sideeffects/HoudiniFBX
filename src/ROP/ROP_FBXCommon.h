@@ -65,6 +65,9 @@ public:
     void setVertexCacheFormat(ROP_FBXVertexCacheExportFormatType format_type);
     ROP_FBXVertexCacheExportFormatType getVertexCacheFormat(void);
 
+    bool getExportInAscii(void);
+    void setExportInAscii(bool value);
+
 private:
 
     // Sample every N frames
@@ -72,6 +75,8 @@ private:
     bool myResampleAllAnimation;
 
     ROP_FBXVertexCacheExportFormatType myVertexCacheFormat;
+
+    bool myExportInAscii;
 };
 /********************************************************************************************************/
 #endif

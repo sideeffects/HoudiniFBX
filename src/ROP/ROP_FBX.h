@@ -38,9 +38,12 @@ enum {
     ROP_FBX_RENDER_CTRL,
     ROP_FBX_TRANGE,
     ROP_FBX_FRANGE,
-//    ROP_FBX_TAKE,
+    ROP_FBX_TAKE,
     ROP_FBX_SOPOUTPUT,
 //    ROP_FBX_INITSIM,
+
+    ROP_FBX_EXPORTASCII,
+
     ROP_FBX_TPRERENDER,
     ROP_FBX_PRERENDER,
     ROP_FBX_LPRERENDER,
@@ -107,6 +110,9 @@ private:
 
 //    int		INITSIM(void)
 //		    { INT_PARM("initsim", 3, 0, 0) }
+
+    int EXPORTASCII(void)
+	{ INT_PARM("exportkind", 0, 0, 0) }
 
     // Script commands
     void	PRERENDER(UT_String &str, float t)

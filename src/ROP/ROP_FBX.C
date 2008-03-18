@@ -35,12 +35,15 @@
 CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
+static PRM_Name		exportKind("exportkind", "Export in ASCII");
+static PRM_Default	exportKindDefault(1);
 static PRM_Default	sopOutputDefault(0, "$HIP/$F.fbx");
 static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 					 &ROP_FBX::buildGeoSaveMenu);
 
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,  1, &sopOutput, &sopOutputDefault, NULL),
+    PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -60,9 +63,12 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_RENDER_CTRL] = theRopTemplates[ROP_RENDERDIALOG_TPLATE];
     theTemplate[ROP_FBX_TRANGE] = theRopTemplates[ROP_TRANGE_TPLATE];
     theTemplate[ROP_FBX_FRANGE] = theRopTemplates[ROP_FRAMERANGE_TPLATE];
-//    theTemplate[ROP_FBX_TAKE] = theRopTemplates[ROP_TAKENAME_TPLATE];
+    theTemplate[ROP_FBX_TAKE] = theRopTemplates[ROP_TAKENAME_TPLATE];
     theTemplate[ROP_FBX_SOPOUTPUT] = geoTemplates[0];
 //    theTemplate[ROP_FBX_INITSIM] = theRopTemplates[ROP_IFD_INITSIM_TPLATE];
+
+    theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[1];
+
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
     theTemplate[ROP_FBX_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
     theTemplate[ROP_FBX_LPRERENDER] = theRopTemplates[ROP_LPRERENDER_TPLATE];
@@ -159,6 +165,7 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
 
     OUTPUT(mySavePath, tstart);
     ROP_FBXExportOptions export_options;
+    export_options.setExportInAscii(EXPORTASCII());
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
 

@@ -29,40 +29,60 @@ ROP_FBXExportOptions::~ROP_FBXExportOptions()
 
 }
 /********************************************************************************************************/
-void ROP_FBXExportOptions::reset(void)
+void 
+ROP_FBXExportOptions::reset(void)
 {
     myResampleAllAnimation = false;
     myResampleIntervalInFrames = 1.0;
+    myExportInAscii = false;
     myVertexCacheFormat = ROP_FBXVertexCacheExportFormatMaya;
 }
 /********************************************************************************************************/
-bool ROP_FBXExportOptions::getResampleAllAnimation(void)
+bool 
+ROP_FBXExportOptions::getResampleAllAnimation(void)
 {
     return myResampleAllAnimation;
 }
 /********************************************************************************************************/
-void ROP_FBXExportOptions::setResampleAllAnimation(bool value)
+void 
+ROP_FBXExportOptions::setResampleAllAnimation(bool value)
 {
     myResampleAllAnimation = value;
 }
 /********************************************************************************************************/
-float ROP_FBXExportOptions::getResampleIntervalInFrames(void)
+float 
+ROP_FBXExportOptions::getResampleIntervalInFrames(void)
 {
     return myResampleIntervalInFrames;
 }
 /********************************************************************************************************/
-void ROP_FBXExportOptions::setResampleIntervalInFrames(float frames)
+void 
+ROP_FBXExportOptions::setResampleIntervalInFrames(float frames)
 {
     myResampleIntervalInFrames = frames;
 }
 /********************************************************************************************************/
-void ROP_FBXExportOptions::setVertexCacheFormat(ROP_FBXVertexCacheExportFormatType format_type)
+void 
+ROP_FBXExportOptions::setVertexCacheFormat(ROP_FBXVertexCacheExportFormatType format_type)
 {
     myVertexCacheFormat = format_type;
 }
 /********************************************************************************************************/
-ROP_FBXVertexCacheExportFormatType ROP_FBXExportOptions::getVertexCacheFormat(void)
+ROP_FBXVertexCacheExportFormatType 
+ROP_FBXExportOptions::getVertexCacheFormat(void)
 {
     return myVertexCacheFormat;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXExportOptions::getExportInAscii(void)
+{
+    return myExportInAscii;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setExportInAscii(bool value)
+{
+    myExportInAscii = value;
 }
 /********************************************************************************************************/
