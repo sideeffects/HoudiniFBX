@@ -126,6 +126,12 @@ ROP_FBXExporter::doExport(void)
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
 
+    // Global light settings - disable global ambient.
+    KFbxColor fbx_col;
+    fbx_col.Set(0,0,0);
+    KFbxGlobalLightSettings& global_light_settings = myScene->GetGlobalLightSettings();
+    global_light_settings.SetAmbientColor(fbx_col);
+
     KFbxGlobalTimeSettings& scene_time_setting = myScene->GetGlobalTimeSettings();
 
     bool exporting_single_frame = !getExportingAnimation();
@@ -265,7 +271,6 @@ ROP_FBXExporter::finishExport(void)
 	export_options->SetOption(KFBXSTREAMOPT_FBX_ANIMATION, true);
 	export_options->SetOption(KFBXSTREAMOPT_FBX_GLOBAL_SETTINGS, true); */
     }
-
 
     // Export the scene.
     bool exp_status = fbx_exporter->Export(*myScene, export_options); 

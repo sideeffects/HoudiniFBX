@@ -131,6 +131,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     }
     else
     {
+
 	// Translations
 	curr_fbx_curve = curr_fbx_take->GetTranslationX();
 	exportChannel(curr_fbx_curve, node, "t", 0);
@@ -159,7 +160,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	exportChannel(curr_fbx_curve, node, "s", 1);
 
 	curr_fbx_curve = curr_fbx_take->GetScaleZ();
-	exportChannel(curr_fbx_curve, node, "s", 2);
+	exportChannel(curr_fbx_curve, node, "s", 2); 
 
 	if(node_type == "geo")
 	{
@@ -179,6 +180,24 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
 #endif
 	    }
+	}
+	else if(node_type == "hlight")
+	{
+	    // Output its colour, intensity, and cone angle channels
+	    curr_fbx_curve = curr_fbx_take->GetLightIntensity();
+	    exportChannel(curr_fbx_curve, node, "light_intensity", 0, 100.0);
+
+	    curr_fbx_curve = curr_fbx_take->GetLightConeAngle();
+	    exportChannel(curr_fbx_curve, node, "coneangle", 0);
+
+	    curr_fbx_curve = curr_fbx_take->GetColorR();
+	    exportChannel(curr_fbx_curve, node, "light_color", 0);
+
+	    curr_fbx_curve = curr_fbx_take->GetColorG();
+	    exportChannel(curr_fbx_curve, node, "light_color", 1);
+
+	    curr_fbx_curve = curr_fbx_take->GetColorB();
+	    exportChannel(curr_fbx_curve, node, "light_color", 2);
 	}
     }
 
@@ -200,7 +219,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	return;
 
     ch = parm->getChannel(parm_idx);
-    if(!ch)
+    if(!ch || ch->getLastSegment() == NULL || ch->getLastSegment()->getLength() <= 0.0)
 	return;
 
     float	     start_frame;
@@ -381,7 +400,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 
     float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
     float time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
-    float curr_time, end_time;
+    float curr_time, end_time = 0.0;
     int end_idx;
     bool is_last;
     int fbx_key_idx;
@@ -421,7 +440,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	}
     }
 
-    if(curr_time >= end_time && start_array_idx < end_array_idx)
+    if(start_array_idx < end_array_idx && curr_time >= end_time)
     {
 	CH_FullKey full_key;
 
