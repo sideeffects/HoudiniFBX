@@ -199,6 +199,11 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    curr_fbx_curve = curr_fbx_take->GetColorB();
 	    exportChannel(curr_fbx_curve, node, "light_color", 2);
 	}
+	else if(node_type == "cam")
+	{
+	    curr_fbx_curve = curr_fbx_take->GetCameraFocalLength();
+	    exportChannel(curr_fbx_curve, node, "focal", 0);
+	}
     }
 
     return res_type;

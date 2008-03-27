@@ -36,6 +36,7 @@ ROP_FBXExportOptions::reset(void)
     myResampleIntervalInFrames = 1.0;
     myExportInAscii = false;
     myVertexCacheFormat = ROP_FBXVertexCacheExportFormatMaya;
+    myStartNodePath = "/obj";
 }
 /********************************************************************************************************/
 bool 
@@ -84,5 +85,18 @@ void
 ROP_FBXExportOptions::setExportInAscii(bool value)
 {
     myExportInAscii = value;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setStartNodePath(const char* node_path)
+{
+    if(node_path)
+	myStartNodePath = node_path;
+}
+/********************************************************************************************************/
+const char* 
+ROP_FBXExportOptions::getStartNodePath(void)
+{
+    return myStartNodePath.c_str();
 }
 /********************************************************************************************************/

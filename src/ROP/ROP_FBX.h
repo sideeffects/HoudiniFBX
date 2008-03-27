@@ -42,6 +42,7 @@ enum {
     ROP_FBX_SOPOUTPUT,
 //    ROP_FBX_INITSIM,
 
+    ROP_FBX_STARTNODE,
     ROP_FBX_EXPORTASCII,
 
     ROP_FBX_TPRERENDER,
@@ -113,6 +114,9 @@ private:
 
     int EXPORTASCII(void)
 	{ INT_PARM("exportkind", 0, 0, 0) }
+
+    void STARTNODE(UT_String& str)
+    { STR_PARM("startnode",  0, 0, 0); }
 
     // Script commands
     void	PRERENDER(UT_String &str, float t)

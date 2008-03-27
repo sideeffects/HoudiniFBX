@@ -68,6 +68,9 @@ public:
     bool getExportInAscii(void);
     void setExportInAscii(bool value);
 
+    void setStartNodePath(const char* node_path);
+    const char* getStartNodePath(void);
+
 private:
 
     // Sample every N frames
@@ -77,6 +80,8 @@ private:
     ROP_FBXVertexCacheExportFormatType myVertexCacheFormat;
 
     bool myExportInAscii;
+
+    string myStartNodePath;
 };
 /********************************************************************************************************/
 #endif

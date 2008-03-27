@@ -54,6 +54,9 @@ ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter)
 
     myNodeManager = myParentExporter->getNodeManager();
     myActionManager = myParentExporter->getActionManager();
+
+    myAmbientColor.setRGB(0,0,0);
+    
 }
 /********************************************************************************************************/
 ROP_FBXMainVisitor::~ROP_FBXMainVisitor()
@@ -123,6 +126,24 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	{
 	    // Export bones
 	    res_new_node = outputBoneNode(node, node_info, fbx_parent_node, bone_length);
+	    res_type = ROP_FBXVisitorResultSkipSubnet;
+	}
+	else if(node_type == "ambient")
+	{
+	    int is_enabled = ROP_FBXUtil::getIntOPParm(node, "light_enable");
+	    if(is_enabled)
+	    {
+		float amb_intensity;
+		float amb_light_col[3];
+		amb_intensity = ROP_FBXUtil::getFloatOPParm(node, "light_intensity");
+		amb_light_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0);
+		amb_light_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1);
+		amb_light_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2);
+
+		UT_Color this_amb_color;
+		this_amb_color.setRGB(amb_light_col[0] * amb_intensity, amb_light_col[1] * amb_intensity, amb_light_col[2] * amb_intensity);
+		myAmbientColor += this_amb_color;
+	    }
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 	}
     }
@@ -427,7 +448,8 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     }
 
     // Now do attributes, or at least some of them
-
+    exportAttributes(gdp, mesh_attr);
+/*
     int attr_offset;
     attr_offset = gdp->findPointAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL), sizeof(UT_Vector3), GB_ATTRIB_VECTOR);
     if(attr_offset >= 0)
@@ -437,7 +459,6 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     }
     else
     {
-	// NOTE: We currently reverse polygon directions, which means vertex attributes will not map properly.
 	attr_offset = gdp->findVertexAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL), sizeof(UT_Vector3), GB_ATTRIB_VECTOR);
 	if(attr_offset >= 0)
 	{
@@ -445,11 +466,573 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 	    exportVertexNormals(mesh_attr, gdp, attr_offset);
 	}
     }
-
+*/
 
     return mesh_attr;
 }
 /********************************************************************************************************/
+ROP_FBXAttributeType 
+ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_name)
+{
+    ROP_FBXAttributeType curr_type = ROP_FBXAttributeUser;
+
+    // Get the name without any numerical suffixes
+    UT_String curr_attr_name(attr_name);
+    UT_String *base_name = curr_attr_name.base();
+
+    // Now compare the base name against known standard names 
+    if(strcmp(gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL, 1), attr_name) == 0)
+	curr_type = ROP_FBXAttributeNormal;
+    else if(strcmp(gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE, 1), attr_name) == 0)
+	curr_type = ROP_FBXAttributeUV;
+    else if(strcmp(gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE, 1), attr_name) == 0)
+	curr_type = ROP_FBXAttributeVertexColor;
+
+    delete base_name;
+    return curr_type;
+}
+/********************************************************************************************************/
+// Template support functions
+inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, KFbxVector4& fbx_vec4)
+{
+    fbx_vec4.Set(hd_vec3[0],hd_vec3[1],hd_vec3[2]);
+}
+inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, KFbxVector2& fbx_vec2)
+{
+    fbx_vec2.Set(hd_vec3[0],hd_vec3[1]);
+}
+inline void ROP_FBXassignValues(const UT_Vector3& hd_col, KFbxColor& fbx_col)
+{
+    fbx_col.Set(hd_col[0],hd_col[1],hd_col[2]);
+}
+/********************************************************************************************************/
+template <class HD_TYPE, class FBX_TYPE>
+void exportPointAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+{
+    if(!gdp || !layer_elem)
+	return;
+
+    // Go over all points
+    const GEO_Point* ppt;
+    const HD_TYPE* hd_type;
+    FBX_TYPE fbx_type;
+
+    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
+    {
+	hd_type = ppt->template castAttribData<HD_TYPE>(attr_offset);
+
+	if(hd_type)
+	{
+	    ROP_FBXassignValues(*hd_type, fbx_type);
+	    layer_elem->GetDirectArray().Add(fbx_type);
+	}
+    }
+}
+/********************************************************************************************************/
+template <class HD_TYPE, class FBX_TYPE>
+void exportVertexAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+{
+    if(!gdp || !layer_elem)
+	return;
+
+    // Go over all vertices
+    const GEO_Point* ppt;
+    const HD_TYPE* hd_type;
+    FBX_TYPE fbx_type;
+    const GEO_Primitive* prim;
+
+    int curr_vert, num_verts;
+    FOR_ALL_PRIMITIVES(gdp, prim)
+    {
+	num_verts = prim->getVertexCount();
+	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+	{
+	    hd_type = prim->getVertex(curr_vert).template castAttribData<HD_TYPE>(attr_offset);
+	    if(hd_type)
+	    {
+		ROP_FBXassignValues(*hd_type, fbx_type);
+		layer_elem->GetDirectArray().Add(fbx_type);
+	    }
+	}
+    }
+}
+/********************************************************************************************************/
+template <class HD_TYPE, class FBX_TYPE>
+void exportPrimitiveAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+{
+    if(!gdp || !layer_elem)
+	return;
+
+    // Go over all vertices
+    const GEO_Point* ppt;
+    const HD_TYPE* hd_type;
+    FBX_TYPE fbx_type;
+    const GEO_Primitive* prim;
+
+    FOR_ALL_PRIMITIVES(gdp, prim)
+    {
+	hd_type = prim->template castAttribData<HD_TYPE>(attr_offset);
+	if(hd_type)
+	{
+	    ROP_FBXassignValues(*hd_type, fbx_type);
+	    layer_elem->GetDirectArray().Add(fbx_type);
+	}
+    }
+}
+/********************************************************************************************************/
+template <class HD_TYPE, class FBX_TYPE>
+void exportDetailAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+{
+    if(!gdp || !layer_elem)
+	return;
+
+    // Go over all vertices
+    const GEO_Point* ppt;
+    const HD_TYPE* hd_type;
+    FBX_TYPE fbx_type;
+    const GEO_Primitive* prim;
+
+    hd_type = gdp->attribs().template castAttribData<HD_TYPE>(attr_offset);
+    if(hd_type)
+    {
+	ROP_FBXassignValues(*hd_type, fbx_type);
+	layer_elem->GetDirectArray().Add(fbx_type);
+    }
+}
+/********************************************************************************************************/
+KFbxLayerElement* 
+ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, int attr_offset, 
+					     KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerElement::EReferenceMode ref_mode)
+{
+    KFbxLayerElement* new_elem = NULL;
+    if(attr_type == ROP_FBXAttributeNormal)
+    {
+	KFbxLayerElementNormal* temp_layer = mySDKManager->CreateKFbxLayerElementNormal("");
+	temp_layer->SetMappingMode(mapping_mode);
+	temp_layer->SetReferenceMode(ref_mode);
+	attr_layer->SetNormals(temp_layer);
+	new_elem = temp_layer;
+
+	if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
+	    exportPointAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
+	    exportVertexAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
+	    exportPrimitiveAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eALL_SAME)
+	    exportDetailAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+    }
+    else if(attr_type == ROP_FBXAttributeUV)
+    {
+	KFbxLayerElementUV* temp_layer = mySDKManager->CreateKFbxLayerElementUV("");
+	temp_layer->SetMappingMode(mapping_mode);
+	temp_layer->SetReferenceMode(ref_mode);
+	attr_layer->SetUVs(temp_layer);
+	new_elem = temp_layer;
+
+	if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
+	    exportPointAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
+	    exportVertexAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
+	    exportPrimitiveAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eALL_SAME)
+	    exportDetailAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+
+    }
+    else if(attr_type == ROP_FBXAttributeVertexColor)
+    {
+	KFbxLayerElementVertexColor* temp_layer = mySDKManager->CreateKFbxLayerElementVertexColor("");
+	temp_layer->SetMappingMode(mapping_mode);
+	temp_layer->SetReferenceMode(ref_mode);
+	attr_layer->SetVertexColors(temp_layer);
+	new_elem = temp_layer;
+
+	if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
+	    exportPointAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
+	    exportVertexAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
+	    exportPrimitiveAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	else if(mapping_mode == KFbxLayerElement::eALL_SAME)
+	    exportDetailAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+
+    }
+
+    return new_elem;
+}
+/********************************************************************************************************/
+template < class SIMPLE_TYPE >
+void exportUserPointAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+{
+    if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
+	return;
+
+    // Go over all points
+    const GEO_Point* ppt;
+    SIMPLE_TYPE const * hd_type;
+    int array_pos = 0;
+    SIMPLE_TYPE val_copy;
+
+    layer_elem->ResizeAllDirectArrays(gdp->points().entries());
+    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
+    {
+	hd_type = ppt->template castAttribData<SIMPLE_TYPE>(attr_offset);
+
+	if(hd_type)
+	    fbx_direct_array[array_pos] = hd_type[attr_subindex];
+	else
+	    fbx_direct_array[array_pos] = 0;
+	array_pos++;
+    }
+}
+/********************************************************************************************************/
+template < class SIMPLE_TYPE >
+void exportUserVertexAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+{
+    if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
+	return;
+
+    // Go over all vertices
+    const GEO_Primitive* prim;
+    const GEO_Point* ppt;
+    SIMPLE_TYPE const * hd_type;
+    int array_pos = 0;
+    int total_verts = 0;
+    int curr_vert, num_verts;
+
+    FOR_ALL_PRIMITIVES(gdp, prim)
+    {
+	num_verts = prim->getVertexCount();
+	total_verts += num_verts;
+    }
+
+    layer_elem->ResizeAllDirectArrays(total_verts);
+    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+
+    FOR_ALL_PRIMITIVES(gdp, prim)
+    {
+	num_verts = prim->getVertexCount();
+	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+	{
+	    hd_type = prim->getVertex(curr_vert).template castAttribData<SIMPLE_TYPE>(attr_offset);
+	    if(hd_type)
+		fbx_direct_array[array_pos] = hd_type[attr_subindex];
+	    else
+		fbx_direct_array[array_pos] = 0;
+	    array_pos++;
+	}
+    }
+}
+/********************************************************************************************************/
+template < class SIMPLE_TYPE >
+void exportUserPrimitiveAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+{
+    if(!gdp || !layer_elem)
+	return;
+
+    // Go over all vertices
+    const GEO_Primitive* prim;
+    const GEO_Point* ppt;
+    SIMPLE_TYPE const * hd_type;
+    int array_pos = 0;
+
+    layer_elem->ResizeAllDirectArrays(gdp->primitives().entries());
+    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+
+    FOR_ALL_PRIMITIVES(gdp, prim)
+    {
+	hd_type = prim->template castAttribData<SIMPLE_TYPE>(attr_offset);
+	if(hd_type)
+	    fbx_direct_array[array_pos] = hd_type[attr_subindex];
+	else
+	    fbx_direct_array[array_pos] = 0;
+	array_pos++;
+    }
+}
+/********************************************************************************************************/
+template < class SIMPLE_TYPE >
+void exportUserDetailAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+{
+    if(!gdp || !layer_elem)
+	return;
+
+    // Go over all vertices
+    const GEO_Primitive* prim;
+    const GEO_Point* ppt;
+    SIMPLE_TYPE const * hd_type;
+    int array_pos = 0;
+
+    layer_elem->ResizeAllDirectArrays(1);
+    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+
+    hd_type = gdp->attribs().template castAttribData<SIMPLE_TYPE>(attr_offset);
+    if(hd_type)
+	fbx_direct_array[array_pos] = hd_type[attr_subindex];
+    else
+	fbx_direct_array[array_pos] = 0;
+    array_pos++;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager,
+				KFbxMesh* mesh_attr, KFbxLayerElement::EMappingMode mapping_mode )
+{
+
+    if(hd_attribs.size() <= 0)
+	return;
+
+    // Arrays for custom attributes
+    KArrayTemplate<KFbxDataType> custom_types_array;
+    KArrayTemplate<const char*> custom_names_array;
+    UT_String full_name(UT_String::ALWAYS_DEEP);
+    UT_String suffix(UT_String::ALWAYS_DEEP);
+    const char* vec_comps[] = { "x", "y", "z"};
+    int curr_pos;
+    GB_AttribType attr_type;
+    int attr_size;
+    const char* orig_name;
+    GB_Attribute* attr;
+    TStringVector attr_names;
+    int attr_offset;
+    char* temp_name;
+
+    // Iterate once, adding attribute names and types
+    int num_supported_attribs = 0;
+    int curr_hd_attr, num_hd_attrs = hd_attribs.size();
+    for(curr_hd_attr = 0; curr_hd_attr < num_hd_attrs; curr_hd_attr++)
+    {
+	attr = hd_attribs[curr_hd_attr];
+
+	// Get the attribute type
+	attr_type = attr->getType();
+	attr_size = attr->getSize();
+	orig_name = attr->getName();
+
+	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
+	{
+	    // Convert it to the appropriate FBX type.
+	    // Note that apparent FBX doesn't support strings here. Ugh.
+	    // We also have to break apart things like vectors.
+	    suffix = "";
+	    full_name = "";
+	    if(attr_type == GB_ATTRIB_INT)
+	    {
+		custom_types_array.Add(DTInteger);
+		suffix.sprintf("_%d", curr_pos);
+	    }
+	    else if(attr_type == GB_ATTRIB_FLOAT) 
+	    {
+		custom_types_array.Add(DTFloat);
+		suffix.sprintf("_%d", curr_pos);
+	    }
+	    else if(attr_type == GB_ATTRIB_VECTOR)
+	    {
+		UT_ASSERT(attr_size <= 3);
+		custom_types_array.Add(DTFloat);
+		suffix.sprintf("_%s", vec_comps[curr_pos]);
+	    }
+
+	    if(suffix.length() > 0)
+	    {
+		// Construct a full name and add it
+		full_name = orig_name + suffix;
+
+		// NOTE: This is highly incovenient. The FBX array only stores a pointer
+		// to a string; however, we need this pointer up until we export to the actual
+		// file on disk, which happens in a separate function call. Thus, we allocate it here,
+		// queue it up to be deallocated later, and do the actual deallocation in 
+		// ROP_FBXExporter::finishExport().
+		temp_name =  new char[full_name.length()+1];
+		strcpy(temp_name, (const char*)full_name);
+		myParentExporter->queueStringToDeallocate(temp_name);
+		custom_names_array.Add( temp_name);
+
+		num_supported_attribs++;
+	    }
+	    attr_names.push_back((const char*)full_name);
+
+	}
+    } // over all attributes
+
+    if(num_supported_attribs <= 0)
+	return;
+
+    // Now create the actual layer
+    KFbxLayer* attr_layer;
+    int layer_idx;
+    UT_String layer_name(UT_String::ALWAYS_DEEP);
+    attr_layer = attr_manager.getAttributeLayer(ROP_FBXAttributeUser, &layer_idx);
+    layer_name.sprintf("UserDataLayer%d", layer_idx);
+    KFbxLayerElementUserData *layer_elem = mySDKManager->CreateKFbxLayerElementUserData( (const char*)layer_name, layer_idx, custom_types_array, custom_names_array);
+    layer_elem->SetMappingMode(mapping_mode);
+    attr_layer->SetUserData(layer_elem);
+    int attr_name_pos = 0;
+
+    // Add data to it
+    for(curr_hd_attr = 0; curr_hd_attr < num_hd_attrs; curr_hd_attr++)
+    {
+	attr = hd_attribs[curr_hd_attr];
+
+	// Get the attribute type
+	attr_type = attr->getType();
+	attr_size = attr->getSize();
+	orig_name = attr->getName();
+	attr_offset = gdp->findPointAttrib(attr);
+
+	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
+	{
+	    if(attr_type == GB_ATTRIB_INT)
+	    {
+		if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
+		    exportUserPointAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
+		    exportUserVertexAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
+		    exportUserPrimitiveAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		else if(mapping_mode == KFbxLayerElement::eALL_SAME)
+		    exportUserDetailAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);		
+	    }
+	    else if(attr_type == GB_ATTRIB_FLOAT || attr_type == GB_ATTRIB_VECTOR)  
+	    {
+		if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
+		    exportUserPointAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
+		    exportUserVertexAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
+		    exportUserPrimitiveAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		else if(mapping_mode == KFbxLayerElement::eALL_SAME)
+		    exportUserDetailAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+	    }
+
+	    attr_name_pos++;
+	}
+    }
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
+{
+    ROP_FBXAttributeLayerManager attr_manager(mesh_attr);
+    GB_Attribute* attr;
+    ROP_FBXAttributeType curr_attr_type;
+    KFbxLayer* attr_layer;
+    int attr_offset;
+    KFbxLayerElement* res_elem;
+    THDAttributeVector user_attribs;
+
+    // Go through point attributes first.
+    if(gdp->points().entries() > 0)
+    {
+	attr = gdp->pointAttribs().getHead();
+	while(attr)
+	{
+	    // Determine the proper attribute type
+	    curr_attr_type = getAttrTypeByName(gdp, attr->getName());
+
+	    if(curr_attr_type != ROP_FBXAttributeUser)
+	    {
+		// Get the appropriate layer
+		attr_layer = attr_manager.getAttributeLayer(curr_attr_type);
+		UT_ASSERT(attr_layer);
+
+		// Create an appropriate layer element and fill it with values
+		attr_offset = gdp->findPointAttrib(attr);
+		res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_CONTROL_POINT, KFbxLayerElement::eDIRECT);
+	    }
+	    else
+		user_attribs.push_back(attr);
+	    attr = (GB_Attribute *) attr->next();
+	}
+    }
+
+    // Process all custom attributes
+    addUserData(gdp, user_attribs, attr_manager, mesh_attr, KFbxLayerElement::eBY_CONTROL_POINT);
+    user_attribs.clear();
+
+    // Go through vertex attributes
+    attr = gdp->vertexAttribs().getHead();
+    while(attr)
+    {
+	// Determine the proper attribute type
+	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
+
+	if(curr_attr_type != ROP_FBXAttributeUser)
+	{
+	    // Get the appropriate layer
+	    attr_layer = attr_manager.getAttributeLayer(curr_attr_type);
+	    UT_ASSERT(attr_layer);
+
+	    // Create an appropriate layer element
+	    attr_offset = gdp->findVertexAttrib(attr);
+	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX, KFbxLayerElement::eDIRECT);
+	}
+	else
+	    user_attribs.push_back(attr);
+
+	attr = (GB_Attribute *) attr->next();
+    }
+
+    // Process all custom attributes
+    addUserData(gdp, user_attribs, attr_manager, mesh_attr, KFbxLayerElement::eBY_POLYGON_VERTEX);
+    user_attribs.clear();
+
+    // Primitive attributes
+    attr = gdp->primitiveAttribs().getHead();
+    while(attr)
+    {
+	// Determine the proper attribute type
+	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
+
+	if(curr_attr_type != ROP_FBXAttributeUser)
+	{
+	    // Get the appropriate layer
+	    attr_layer = attr_manager.getAttributeLayer(curr_attr_type);
+	    UT_ASSERT(attr_layer);
+
+	    // Create an appropriate layer element
+	    attr_offset = gdp->findPrimAttrib(attr);
+	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON, KFbxLayerElement::eDIRECT);
+	}
+	else
+	    user_attribs.push_back(attr);
+
+	attr = (GB_Attribute *) attr->next();
+    }
+
+    // Process all custom attributes
+    addUserData(gdp, user_attribs, attr_manager, mesh_attr, KFbxLayerElement::eBY_POLYGON);
+    user_attribs.clear();
+
+    // Detail attributes
+    attr = gdp->attribs().getHead();
+    while(attr)
+    {
+	// Determine the proper attribute type
+	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
+
+	if(curr_attr_type != ROP_FBXAttributeUser)
+	{
+	    // Get the appropriate layer
+	    attr_layer = attr_manager.getAttributeLayer(curr_attr_type);
+	    UT_ASSERT(attr_layer);
+
+	    // Create an appropriate layer element
+	    attr_offset = gdp->findAttrib(attr);
+	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eALL_SAME, KFbxLayerElement::eDIRECT);
+	}
+	else
+	    user_attribs.push_back(attr);
+
+	attr = (GB_Attribute *) attr->next();
+    }
+
+    // Process all custom attributes
+    addUserData(gdp, user_attribs, attr_manager, mesh_attr, KFbxLayerElement::eALL_SAME);
+    user_attribs.clear();
+}
+/********************************************************************************************************
 void 
 ROP_FBXMainVisitor::exportPointNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp, int attr_offset)
 {
@@ -476,7 +1059,7 @@ ROP_FBXMainVisitor::exportPointNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp
     
     attr_layer->SetNormals(layer_elem);
 }
-/********************************************************************************************************/
+/********************************************************************************************************
 void 
 ROP_FBXMainVisitor::exportVertexNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp, int attr_offset)
 {
@@ -694,6 +1277,12 @@ ROP_FBXMainVisitor::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, 
     fbx_node->SetDefaultS(fbx_vec4);
 
     fbx_node->SetRotationOrder(KFbxNode::eDESTINATION_SET, eEULER_XYZ);
+}
+/********************************************************************************************************/
+UT_Color 
+ROP_FBXMainVisitor::getAccumAmbientColor(void)
+{
+    return myAmbientColor;
 }
 /********************************************************************************************************/
 // ROP_FBXMainNodeVisitInfo

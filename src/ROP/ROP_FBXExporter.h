@@ -38,6 +38,8 @@ class FBX_FILMBOX_NAMESPACE::KFbxSdkManager;
 class FBX_FILMBOX_NAMESPACE::KFbxScene;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
+
+typedef vector < char* > TCharPtrVector;
 /********************************************************************************************************/
 // Note: When adding public members, make sure to add an equivalent to dummy exporter for cases when FBX is
 // disabled.
@@ -65,6 +67,11 @@ public:
     float getEndTime(void);
     bool getExportingAnimation(void);
 
+    void queueStringToDeallocate(char* string_ptr);
+
+private:
+    void deallocateQueuedStrings(void);
+
 private:
 
     ROP_FBXExportOptions myExportOptions;
@@ -78,6 +85,8 @@ private:
     string myOutputFile;
 
     float myStartTime, myEndTime;
+
+    TCharPtrVector myStringsToDeallocate;
 
 #ifdef UT_DEBUG
     // Timing variables
@@ -119,6 +128,8 @@ public:
     float getStartTime(void) { return 0; }
     float getEndTime(void) { return 0; }
     bool getExportingAnimation(void) { return false; }
+
+    void queueStringToDeallocate(const char* string_ptr) { }
 };
 
 #endif // FBX_SUPPORTED

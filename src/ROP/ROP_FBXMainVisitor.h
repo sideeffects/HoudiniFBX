@@ -20,16 +20,63 @@
 #ifndef __ROP_FBXMainVisitor_h__
 #define __ROP_FBXMainVisitor_h__
 
+#include <UT/UT_Color.h>
+#include <UT/UT_Assert.h>
 #include <fbx/fbxsdk.h>
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 
 class ROP_FBXExporter;
 class GU_Detail;
+class GB_Attribute;
 class ROP_FBXErrorManager;
 class ROP_FBXGDPCache;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
+/********************************************************************************************************/
+enum ROP_FBXAttributeType
+{
+    ROP_FBXAttributeNormal = 0,
+    ROP_FBXAttributeUV,
+    ROP_FBXAttributeVertexColor,
+    ROP_FBXAttributeUser,
+
+    ROP_FBXAttributeLastPlaceholder
+};
+/********************************************************************************************************/
+typedef vector < GB_Attribute* > THDAttributeVector;
+/********************************************************************************************************/
+class ROP_API ROP_FBXAttributeLayerManager
+{
+public:
+    ROP_FBXAttributeLayerManager(KFbxLayerContainer* attr_node) 
+    { 
+	memset(myNextLayerIndex, 0, sizeof(int)*ROP_FBXAttributeLastPlaceholder); 
+	myAttrNode = attr_node;
+	UT_ASSERT(attr_node);
+    }
+    ~ROP_FBXAttributeLayerManager() { } 
+
+    KFbxLayer* getAttributeLayer(ROP_FBXAttributeType attr_type, int *index_out = NULL)
+    {
+	UT_ASSERT(attr_type >= 0 && attr_type < ROP_FBXAttributeLastPlaceholder);
+	KFbxLayer* attr_layer = myAttrNode->GetLayer(myNextLayerIndex[attr_type]);
+	if (attr_layer == NULL)
+	{
+	    myAttrNode->CreateLayer();
+	    attr_layer = myAttrNode->GetLayer(myNextLayerIndex[attr_type]);
+	}
+	if(index_out)
+	    *index_out = myNextLayerIndex[attr_type];
+        myNextLayerIndex[attr_type]++;
+	return attr_layer;
+    }
+
+private:
+
+    int myNextLayerIndex[ROP_FBXAttributeLastPlaceholder];
+    KFbxLayerContainer* myAttrNode;
+};
 /********************************************************************************************************/
 class ROP_API ROP_FBXMainNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
 {
@@ -55,6 +102,8 @@ public:
     ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node);
     ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info);
 
+    UT_Color getAccumAmbientColor(void);
+
 protected:
     KFbxNode* outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out);
     KFbxNode* outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
@@ -64,9 +113,13 @@ protected:
     void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length);
 
     KFbxNodeAttribute* outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method);
+    void addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager, KFbxMesh* mesh_attr, KFbxLayerElement::EMappingMode mapping_mode );
 
-    void exportPointNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp, int attr_offset);
-    void exportVertexNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp, int attr_offset);
+    void exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr);
+
+    ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
+    KFbxLayerElement* getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
+	const GU_Detail* gdp, int attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerElement::EReferenceMode ref_mode);
 
 private:
 
@@ -76,6 +129,8 @@ private:
     ROP_FBXErrorManager* myErrorManager;
     ROP_FBXNodeManager* myNodeManager;
     ROP_FBXActionManager* myActionManager; 
+
+    UT_Color myAmbientColor;
 };
 /********************************************************************************************************/
 #endif

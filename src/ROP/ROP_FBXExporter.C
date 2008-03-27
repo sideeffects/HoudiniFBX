@@ -74,6 +74,8 @@ ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float t
     if(!output_name)
 	return false;
 
+    deallocateQueuedStrings();
+
 #ifdef UT_DEBUG
     ROP_FBXdb_vcacheExportTime = 0;
     ROP_FBXdb_maxVertsCountingTime = 0;
@@ -126,12 +128,6 @@ ROP_FBXExporter::doExport(void)
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
 
-    // Global light settings - disable global ambient.
-    KFbxColor fbx_col;
-    fbx_col.Set(0,0,0);
-    KFbxGlobalLightSettings& global_light_settings = myScene->GetGlobalLightSettings();
-    global_light_settings.SetAmbientColor(fbx_col);
-
     KFbxGlobalTimeSettings& scene_time_setting = myScene->GetGlobalTimeSettings();
 
     bool exporting_single_frame = !getExportingAnimation();
@@ -170,13 +166,36 @@ ROP_FBXExporter::doExport(void)
 	scene_time_setting.SetTimeMode(time_mode);
 	KTime::SetGlobalTimeMode(time_mode);
     }
+
     // Note: what about geom networks in other parts of the scene?
     OP_Node* geom_node;
-    geom_node = OPgetDirector()->findNode("/obj");
+    geom_node = OPgetDirector()->findNode(myExportOptions.getStartNodePath());
+
+    if(!geom_node)
+    {
+	// Issue a warning and quit.
+	myErrorManager->addError("Could not find the start node specified [ ",myExportOptions.getStartNodePath()," ]",true);
+	return;
+    }
+
     OP_Network* op_net = dynamic_cast<OP_Network*>(geom_node);
+    if(!op_net)
+    {
+	myErrorManager->addError("Start node has to be a network. Aborting export. [ ",myExportOptions.getStartNodePath()," ]",true);
+	return;
+    }
 
     geom_visitor.addVisitableNetworkType("subnet");
     geom_visitor.visitScene(op_net);
+
+    // Global light settings - set the global ambient.
+    KFbxColor fbx_col;
+    float amb_col[3];
+    UT_Color amb_color = geom_visitor.getAccumAmbientColor();
+    amb_color.getRGB(&amb_col[0], &amb_col[1], &amb_col[2]);
+    fbx_col.Set(amb_col[0],amb_col[1],amb_col[2]);
+    KFbxGlobalLightSettings& global_light_settings = myScene->GetGlobalLightSettings();
+    global_light_settings.SetAmbientColor(fbx_col);
 
     // Export animation if applicable
     if(!exporting_single_frame)
@@ -290,6 +309,7 @@ ROP_FBXExporter::finishExport(void)
 	mySDKManager->DestroyKFbxSdkManager();
     mySDKManager = NULL;
 
+    deallocateQueuedStrings();
 
 #ifdef UT_DEBUG
     write_time_end = clock();
@@ -306,6 +326,7 @@ ROP_FBXExporter::finishExport(void)
     if(myErrorManager)
 	delete myErrorManager;
     myErrorManager = NULL;
+
 
 
 #ifdef UT_DEBUG
@@ -389,6 +410,23 @@ bool
 ROP_FBXExporter::getExportingAnimation(void)
 {
     return !SYSisEqual(myStartTime, myEndTime);
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExporter::queueStringToDeallocate(char* string_ptr)
+{
+    myStringsToDeallocate.push_back(string_ptr);
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExporter::deallocateQueuedStrings(void)
+{
+    int curr_str_idx, num_strings = myStringsToDeallocate.size();
+    for(curr_str_idx = 0; curr_str_idx < num_strings; curr_str_idx++)
+    {
+	delete[] myStringsToDeallocate[curr_str_idx];
+    }
+    myStringsToDeallocate.clear();
 }
 /********************************************************************************************************/
 #endif // FBX_SUPPORTED
