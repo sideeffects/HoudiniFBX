@@ -38,7 +38,6 @@ class FBX_FILMBOX_NAMESPACE::KFbxSdkManager;
 class FBX_FILMBOX_NAMESPACE::KFbxScene;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
-class KFbxNode;
 
 typedef vector < char* > TCharPtrVector;
 /********************************************************************************************************/
