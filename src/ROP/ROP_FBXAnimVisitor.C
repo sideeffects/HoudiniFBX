@@ -98,7 +98,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXNodeInfo* stored_node_info_ptr = myNodeManager->findNodeInfo(node);
     if(!stored_node_info_ptr || !stored_node_info_ptr->getFbxNode())
     {
-	_ASSERT(0);
+	UT_ASSERT(0);
 	return res_type;
     }
 
@@ -408,7 +408,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 			string expr_string(", expression: ");
 			expr_string += (const char *)hd_seg_expr;
 			myErrorManager->addError("Unsupported segment type found. This segment will be resampled. Node: ", source_node->getName(), expr_string.c_str(), false );
-			_ASSERT(0);
+			UT_ASSERT(0);
 
 			fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 
@@ -500,7 +500,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	    fbx_curve->KeySetValue(fbx_key_idx, full_key.k[1].myV[CH_VALUE]);
 	else
 	{
-	    _ASSERT(0);
+	    UT_ASSERT(0);
 	}
 
     }
