@@ -56,7 +56,7 @@ public:
     static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, bool use_world_transform = false);
 
     template < class FBX_MATRIX >
-    static void convertHdMatrixToFbxMatrix(UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
+    static void convertHdMatrixToFbxMatrix(const UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
     {
 	double *data_ptr = (double*)fbx_matrix.mData;
 
