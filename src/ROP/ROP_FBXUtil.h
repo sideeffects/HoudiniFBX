@@ -60,25 +60,25 @@ public:
     {
 	double *data_ptr = (double*)fbx_matrix.mData;
 
-	data_ptr[0] = hd_matrix[0][0];
-	data_ptr[1] = hd_matrix[0][1];
-	data_ptr[2] = hd_matrix[0][2];
-	data_ptr[3] = hd_matrix[0][3];
+	data_ptr[0] = hd_matrix(0, 0);
+	data_ptr[1] = hd_matrix(0, 1);
+	data_ptr[2] = hd_matrix(0, 2);
+	data_ptr[3] = hd_matrix(0, 3);
 
-	data_ptr[4] = hd_matrix[1][0];
-	data_ptr[5] = hd_matrix[1][1];
-	data_ptr[6] = hd_matrix[1][2];
-	data_ptr[7] = hd_matrix[1][3];
+	data_ptr[4] = hd_matrix(1, 0);
+	data_ptr[5] = hd_matrix(1, 1);
+	data_ptr[6] = hd_matrix(1, 2);
+	data_ptr[7] = hd_matrix(1, 3);
 
-	data_ptr[8] = hd_matrix[2][0];
-	data_ptr[9] = hd_matrix[2][1];
-	data_ptr[10] = hd_matrix[2][2];
-	data_ptr[11] = hd_matrix[2][3];
+	data_ptr[8] = hd_matrix(2, 0);
+	data_ptr[9] = hd_matrix(2, 1);
+	data_ptr[10] = hd_matrix(2, 2);
+	data_ptr[11] = hd_matrix(2, 3);
 
-	data_ptr[12] = hd_matrix[3][0];
-	data_ptr[13] = hd_matrix[3][1];
-	data_ptr[14] = hd_matrix[3][2];
-	data_ptr[15] = hd_matrix[3][3];
+	data_ptr[12] = hd_matrix(3, 0);
+	data_ptr[13] = hd_matrix(3, 1);
+	data_ptr[14] = hd_matrix(3, 2);
+	data_ptr[15] = hd_matrix(3, 3);
     }
 
 };
