@@ -22,8 +22,8 @@
 
 #include "ROP_FBXDerivedActions.h"
 /********************************************************************************************************/
-ROP_FBXActionManager::ROP_FBXActionManager(ROP_FBXNodeManager& node_manager, ROP_FBXErrorManager& error_manager) 
-    : myNodeManager(node_manager), myErrorManager(error_manager)
+ROP_FBXActionManager::ROP_FBXActionManager(ROP_FBXNodeManager& node_manager, ROP_FBXErrorManager& error_manager, ROP_FBXExporter& parent_exporter) 
+    : myNodeManager(node_manager), myErrorManager(error_manager), myExporter(parent_exporter)
 {
     myCurrentAction = NULL;
 }
@@ -37,6 +37,14 @@ ROP_FBXLookAtAction*
 ROP_FBXActionManager::addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_node)
 {
     ROP_FBXLookAtAction* new_action = new ROP_FBXLookAtAction(acted_on_node, look_at_node, *this);
+    myPostActions.push_back(new_action);
+    return new_action;
+}
+/********************************************************************************************************/
+ROP_FBXSkinningAction* 
+ROP_FBXActionManager::addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, float capture_frame)
+{
+    ROP_FBXSkinningAction* new_action = new ROP_FBXSkinningAction(acted_on_node, deform_node, capture_frame, *this);
     myPostActions.push_back(new_action);
     return new_action;
 }
@@ -81,5 +89,11 @@ ROP_FBXBaseAction*
 ROP_FBXActionManager::getCurrentAction(void)
 {
     return myCurrentAction;
+}
+/********************************************************************************************************/
+ROP_FBXExporter& 
+ROP_FBXActionManager::getExporter(void)
+{
+    return myExporter;
 }
 /********************************************************************************************************/

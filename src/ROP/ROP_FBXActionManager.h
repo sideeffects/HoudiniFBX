@@ -27,9 +27,11 @@ class ROP_FBXErrorManager;
 class ROP_FBXNodeManager;
 
 class ROP_FBXLookAtAction;
+class ROP_FBXSkinningAction;
 class ROP_FBXApplyVertexCacheAction;
 class ROP_FBXApplySkinningAction;
 class ROP_FBXApplyBlendAction;
+class ROP_FBXExporter;
 
 class OP_Node;
 class ROP_FBXIntTranslator;
@@ -39,10 +41,11 @@ typedef vector <ROP_FBXBaseAction *> TActionsVector;
 class ROP_FBXActionManager
 {
 public:
-    ROP_FBXActionManager(ROP_FBXNodeManager& node_manager, ROP_FBXErrorManager& error_manager);
+    ROP_FBXActionManager(ROP_FBXNodeManager& node_manager, ROP_FBXErrorManager& error_manager, ROP_FBXExporter& parent_exporter);
     virtual ~ROP_FBXActionManager();
 
     ROP_FBXLookAtAction* addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_node);
+    ROP_FBXSkinningAction* addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, float capture_frame);
 
     void performPostActions(void);
 
@@ -52,11 +55,13 @@ public:
     ROP_FBXErrorManager& getErrorManager(void);
     ROP_FBXNodeManager& getNodeManager(void);
     ROP_FBXBaseAction* getCurrentAction(void);
+    ROP_FBXExporter& getExporter(void);
 
 private:
     TActionsVector myPostActions;
     ROP_FBXNodeManager& myNodeManager;
     ROP_FBXErrorManager& myErrorManager;
+    ROP_FBXExporter& myExporter;
 
     ROP_FBXBaseAction* myCurrentAction;
 

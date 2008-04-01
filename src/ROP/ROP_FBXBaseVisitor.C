@@ -89,6 +89,9 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 	{
 	    visitNodeAndChildren(node->getOutput(curr_child), thisNodeInfo);
 	}
+
+	if(num_children == 0)
+	    onEndHierarchyBranchVisiting(node, thisNodeInfo);
     }
 
     if(thisNodeInfo)

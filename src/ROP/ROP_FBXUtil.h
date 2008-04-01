@@ -24,6 +24,7 @@
 #include <GU/GU_Detail.h>
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"
+#include "ROP_FBXBaseVisitor.h"
 
 class GU_DetailHandle;
 class GU_Detail;
@@ -50,6 +51,36 @@ public:
 
     static bool getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in,
 	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation);
+
+    static OP_Node* findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool &did_find_allowed_only, int rec_level = 0);
+    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, bool use_world_transform = false);
+
+    template < class FBX_MATRIX >
+    static void convertHdMatrixToFbxMatrix(UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
+    {
+	double *data_ptr = (double*)fbx_matrix.mData;
+
+	data_ptr[0] = hd_matrix[0][0];
+	data_ptr[1] = hd_matrix[0][1];
+	data_ptr[2] = hd_matrix[0][2];
+	data_ptr[3] = hd_matrix[0][3];
+
+	data_ptr[4] = hd_matrix[1][0];
+	data_ptr[5] = hd_matrix[1][1];
+	data_ptr[6] = hd_matrix[1][2];
+	data_ptr[7] = hd_matrix[1][3];
+
+	data_ptr[8] = hd_matrix[2][0];
+	data_ptr[9] = hd_matrix[2][1];
+	data_ptr[10] = hd_matrix[2][2];
+	data_ptr[11] = hd_matrix[2][3];
+
+	data_ptr[12] = hd_matrix[3][0];
+	data_ptr[13] = hd_matrix[3][1];
+	data_ptr[14] = hd_matrix[3][2];
+	data_ptr[15] = hd_matrix[3][3];
+    }
+
 };
 /********************************************************************************************************/
 class ROP_FBXNodeInfo
@@ -62,6 +93,9 @@ public:
     KFbxNode* getFbxNode(void) const;
     void setFbxNode(KFbxNode* node);
 
+    OP_Node* getHdNode(void) const;
+    void setHdNode(OP_Node* node);
+
     int getMaxObjectPoints(void);
     void setMaxObjectPoints(int num_points);
 
@@ -71,6 +105,9 @@ public:
     ROP_FBXGDPCache* getVertexCache(void);
     void setVertexCache(ROP_FBXGDPCache* v_cache);
 
+    ROP_FBXVisitorResultType getVisitResultType(void);
+    void  setVisitResultType(ROP_FBXVisitorResultType res_type);
+
 private:
     KFbxNode* myFbxNode;
 
@@ -78,8 +115,12 @@ private:
     int myMaxObjectPoints;
     ROP_FBXVertexCacheMethodType myVertexCacheMethod;
     ROP_FBXGDPCache* myVertexCache;
+    OP_Node* myHdNode;
+
+    ROP_FBXVisitorResultType myVisitResultType;
 };
-typedef map < OP_Node* , ROP_FBXNodeInfo > THDToFbxNodeMap;
+typedef map < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
+typedef map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
 /********************************************************************************************************/
 class ROP_FBXNodeManager
 {
@@ -89,11 +130,13 @@ public:
 
     KFbxNode* findFbxNode(OP_Node* hd_node);
     ROP_FBXNodeInfo* findNodeInfo(OP_Node* hd_node);
+    ROP_FBXNodeInfo* findNodeInfo(KFbxNode* fbx_node);
 
     ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, KFbxNode* fbx_node);
 
 private:
-    THDToFbxNodeMap myHdToFbxNodeMap;
+    THDToNodeInfoMap myHdToNodeInfoMap;
+    TFbxToNodeInfoMap myFbxToNodeInfoMap;
 };
 /********************************************************************************************************/
 class ROP_FBXGDPCacheItem

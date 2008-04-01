@@ -68,6 +68,7 @@ public:
     bool getExportingAnimation(void);
 
     void queueStringToDeallocate(char* string_ptr);
+    KFbxNode* GetFBXRootNode(void);
 
 private:
     void deallocateQueuedStrings(void);
@@ -87,6 +88,7 @@ private:
     float myStartTime, myEndTime;
 
     TCharPtrVector myStringsToDeallocate;
+    KFbxNode* myDummyRootNullNode;
 
 #ifdef UT_DEBUG
     // Timing variables
@@ -130,6 +132,7 @@ public:
     bool getExportingAnimation(void) { return false; }
 
     void queueStringToDeallocate(const char* string_ptr) { }
+    KFbxNode* GetFBXRootNode(void) { return NULL; }
 };
 
 #endif // FBX_SUPPORTED

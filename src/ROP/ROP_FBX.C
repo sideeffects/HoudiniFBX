@@ -173,7 +173,7 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
     OUTPUT(mySavePath, tstart);
     STARTNODE(str_start_node);
 
-    if(str_start_node.length())
+    if(str_start_node.length() <= 0)
 	str_start_node = "/obj";
 
     ROP_FBXExportOptions export_options;

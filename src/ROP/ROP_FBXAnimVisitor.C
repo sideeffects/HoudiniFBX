@@ -102,21 +102,17 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	return res_type;
     }
 
+    if(stored_node_info_ptr)
+	res_type = stored_node_info_ptr->getVisitResultType();
 
     KFbxNode *fbx_node = stored_node_info_ptr->getFbxNode();
     node_info_in->setMaxObjectPoints(stored_node_info_ptr->getMaxObjectPoints());
     node_info_in->setVertexCacheMethod(stored_node_info_ptr->getVertexCacheMethod());
 
     // Create take nodes
-    string hd_take_name;
-    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
-    hd_take_name = curr_hd_take->getName();
     KFbxTakeNode* curr_fbx_take;
     KFCurve* curr_fbx_curve;
-
-    fbx_node->CreateTakeNode(const_cast<char*>(hd_take_name.c_str()));
-    fbx_node->SetCurrentTakeNode(const_cast<char*>(hd_take_name.c_str()));
-    curr_fbx_take = fbx_node->GetCurrentTakeNode();    
+    curr_fbx_take = addFBXTakeNode(fbx_node);
 
     if(!curr_fbx_take)
 	return res_type;
@@ -127,40 +123,17 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     {
 	// Bones are special, since we have to force-resample them and
 	// output all channels at the same time.
+
+	// Also, we have to put the bone animation onto the parent of the fbx node,
+	// since this FBX node corresponds to the end tip of the bone.
+	//KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
+	//exportBonesAnimation(curr_fbx_bone_take, node);
 	exportBonesAnimation(curr_fbx_take, node);
     }
     else
     {
 
-	// Translations
-	curr_fbx_curve = curr_fbx_take->GetTranslationX();
-	exportChannel(curr_fbx_curve, node, "t", 0);
-
-	curr_fbx_curve = curr_fbx_take->GetTranslationY();
-	exportChannel(curr_fbx_curve, node, "t", 1);
-
-	curr_fbx_curve = curr_fbx_take->GetTranslationZ();
-	exportChannel(curr_fbx_curve, node, "t", 2);
-
-	// Rotations
-	curr_fbx_curve = curr_fbx_take->GetEulerRotationX();
-	exportChannel(curr_fbx_curve, node, "r", 0);
-
-	curr_fbx_curve = curr_fbx_take->GetEulerRotationY();
-	exportChannel(curr_fbx_curve, node, "r", 1);
-
-	curr_fbx_curve = curr_fbx_take->GetEulerRotationZ();
-	exportChannel(curr_fbx_curve, node, "r", 2);
-
-	// Scaling
-	curr_fbx_curve = curr_fbx_take->GetScaleX();
-	exportChannel(curr_fbx_curve, node, "s", 0);
-
-	curr_fbx_curve = curr_fbx_take->GetScaleY();
-	exportChannel(curr_fbx_curve, node, "s", 1);
-
-	curr_fbx_curve = curr_fbx_take->GetScaleZ();
-	exportChannel(curr_fbx_curve, node, "s", 2); 
+	exportTRSAnimation(node, curr_fbx_take);
 
 	if(node_type == "geo")
 	{
@@ -174,7 +147,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		double vc_start_time, vc_end_time;
 		vc_start_time = clock();
 #endif
-		outputVertexCache(fbx_node, geo_net->getDisplayNodePtr(), myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
+		outputVertexCache(fbx_node, geo_net->getRenderNodePtr(), myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
 #ifdef UT_DEBUG
 		vc_end_time = clock();
 		ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
@@ -207,6 +180,67 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     }
 
     return res_type;
+}
+/********************************************************************************************************/
+KFbxTakeNode* 
+ROP_FBXAnimVisitor::addFBXTakeNode(KFbxNode *fbx_node)
+{
+    string hd_take_name;
+    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
+    hd_take_name = curr_hd_take->getName();
+    KFbxTakeNode* curr_fbx_take;
+
+    fbx_node->CreateTakeNode(const_cast<char*>(hd_take_name.c_str()));
+    fbx_node->SetCurrentTakeNode(const_cast<char*>(hd_take_name.c_str()));
+    curr_fbx_take = fbx_node->GetCurrentTakeNode();    
+
+    return curr_fbx_take;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take)
+{
+    KFCurve* curr_fbx_curve;
+
+    if(!node || !curr_fbx_take)
+	return;
+
+    // Translations
+    curr_fbx_curve = curr_fbx_take->GetTranslationX();
+    exportChannel(curr_fbx_curve, node, "t", 0);
+
+    curr_fbx_curve = curr_fbx_take->GetTranslationY();
+    exportChannel(curr_fbx_curve, node, "t", 1);
+
+    curr_fbx_curve = curr_fbx_take->GetTranslationZ();
+    exportChannel(curr_fbx_curve, node, "t", 2);
+
+    // Rotations
+    curr_fbx_curve = curr_fbx_take->GetEulerRotationX();
+    exportChannel(curr_fbx_curve, node, "r", 0);
+
+    curr_fbx_curve = curr_fbx_take->GetEulerRotationY();
+    exportChannel(curr_fbx_curve, node, "r", 1);
+
+    curr_fbx_curve = curr_fbx_take->GetEulerRotationZ();
+    exportChannel(curr_fbx_curve, node, "r", 2);
+
+    // Scaling
+    curr_fbx_curve = curr_fbx_take->GetScaleX();
+    exportChannel(curr_fbx_curve, node, "s", 0);
+
+    curr_fbx_curve = curr_fbx_take->GetScaleY();
+    exportChannel(curr_fbx_curve, node, "s", 1);
+
+    curr_fbx_curve = curr_fbx_take->GetScaleZ();
+    exportChannel(curr_fbx_curve, node, "s", 2); 
+
+}
+/********************************************************************************************************/
+void 
+ROP_FBXAnimVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info)
+{
+    // Nothing to do for now.
 }
 /********************************************************************************************************/
 void 
@@ -841,11 +875,17 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
     float bone_length;
     UT_Vector3 t_out, r_out, s_out;
 
+    OP_Node* parent_node;
+
     // Walk the time, compute the final transform matrix at each time, and break it.
     for(curr_time = start_time; curr_time < end_time; curr_time += time_step)
     {
-	bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, curr_time, t_out, r_out, s_out, NULL);
+	bone_length = 0;
+	parent_node = source_node->getInput(source_node->getConnectedInputIndex(-1));
+	if(parent_node)
+	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
+	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
+	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, curr_time, t_out, r_out, s_out, NULL); // , true, parent_node);
 
 	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
@@ -867,8 +907,12 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
 
     if(curr_time >= end_time)
     {
-	bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, end_time, t_out, r_out, s_out, NULL);
+	bone_length = 0;
+	parent_node = source_node->getInput(source_node->getConnectedInputIndex(-1));
+	if(parent_node)
+	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
+	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
+	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, end_time, t_out, r_out, s_out, NULL); // , true, parent_node);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)

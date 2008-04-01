@@ -81,6 +81,8 @@ public:
 
     virtual ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info) = 0;
 
+    virtual void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info) = 0;
+
     /// Calls visitNodeAndChildren() on the root (given) node.
     void visitScene(OP_Network* start_net);
 

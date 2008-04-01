@@ -52,8 +52,12 @@ public:
 
     ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node);
     ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info);
+    void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info);
 
     void reset(void);
+
+    void exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take);
+    static KFbxTakeNode* addFBXTakeNode(KFbxNode *fbx_node);
 
 protected:
 

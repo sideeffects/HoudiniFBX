@@ -33,6 +33,7 @@
 #include <GU/GU_Detail.h>
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
+#include <OP/OP_Utils.h>
 
 #include "ROP_FBXActionManager.h"
 
@@ -77,13 +78,13 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     if(!node)
 	return res_type;
 
-    float bone_length = 0.0;
     KFbxNode* res_new_node = NULL;
     KFbxNode* fbx_parent_node = NULL;
     if(node_info_in && node_info_in->getParentInfo() != NULL)
 	fbx_parent_node = node_info_in->getParentInfo()->getFbxNode();
     else
-	fbx_parent_node = myScene->GetRootNode();
+	fbx_parent_node = myParentExporter->GetFBXRootNode();
+
     if(!fbx_parent_node)
 	return ROP_FBXVisitorResultSkipSubtreeAndSubnet;
 
@@ -125,7 +126,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	else if(node_type == "bone")
 	{
 	    // Export bones
-	    res_new_node = outputBoneNode(node, node_info, fbx_parent_node, bone_length);
+	    res_new_node = outputBoneNode(node, node_info, fbx_parent_node);
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 	}
 	else if(node_type == "ambient")
@@ -167,13 +168,17 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	res_new_node->SetVisibility(node->getDisplay());
 
 	// Set the standard transformations
-	setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length );
+	float bone_length = 0.0;
+	if(node_info_in && node_info_in->getParentInfo())
+	    bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info_in->getParentInfo())->getBoneLength();
+	ROP_FBXUtil::setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length );
 
 	// Add nodes to the map
 	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(node, res_new_node);
 	stored_node_pair.setVertexCacheMethod(node_info->getVertexCacheMethod());
 	stored_node_pair.setMaxObjectPoints(node_info->getMaxObjectPoints());
 	stored_node_pair.setVertexCache(v_cache);
+	stored_node_pair.setVisitResultType(res_type);
 
 	// If there's a lookat object, queue up the action
 	if(lookatobjectpath.length() > 0)
@@ -187,10 +192,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 
 	// Add it to the hierarchy
-	if(node_info->GetSkeletonRootNode())
-	    node_info->GetSkeletonRootNode()->AddChild(res_new_node);
-	else
-	    fbx_parent_node->AddChild(res_new_node);
+	fbx_parent_node->AddChild(res_new_node);
 	node_info_in->setFbxNode(res_new_node);
 	
     }
@@ -198,8 +200,34 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     return res_type;
 }
 /********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info)
+{
+    // We have to check if our previous bone length is not zero. If it isn't, that means we
+    // have an end effector to create.
+    ROP_FBXMainNodeVisitInfo* cast_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(last_node_info);
+    if(cast_info && cast_info->getBoneLength() > 0.0)
+    {
+	// Create the end effector
+	UT_String node_name = last_node->getName();
+	node_name += "_end_effector";
+
+	KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
+	KFbxSkeleton *res_attr = KFbxSkeleton::Create(mySDKManager, (const char*)node_name);
+	res_node->SetNodeAttribute(res_attr);
+	res_attr->SetSkeletonType(KFbxSkeleton::eLIMB_NODE);
+
+	res_node->SetVisibility(last_node->getDisplay());
+
+	ROP_FBXUtil::setStandardTransforms(NULL, res_node, false, cast_info->getBoneLength() );
+
+	if(last_node_info->getFbxNode())
+	    last_node_info->getFbxNode()->AddChild(res_node);
+    }
+}
+/********************************************************************************************************/
 KFbxNode* 
-ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, float& bone_length_out)
+ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node)
 {
     UT_String node_name = node->getName();
 
@@ -208,40 +236,21 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     res_node->SetNodeAttribute(res_attr);
 
     bool is_root = false;
-    if(!parent_node || !parent_node->GetNodeAttribute())
-	is_root = true;
-    else
+
+    if(node_info && node_info->getParentInfo())
     {
-        if(parent_node->GetNodeAttribute()->GetAttributeType() != KFbxNodeAttribute::eSKELETON)
+	if(dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info)->getBoneLength() <= 0.0)
 	    is_root = true;
     }
-    
+
     if(is_root)
-    {
-	// NOTE: We need to create an extra node here that will serve as a root.
-	// In the future, we could possibly check for an existing null node root in the hierarchy.
-	UT_String root_node_name(UT_String::ALWAYS_DEEP, node_name);
-	root_node_name += "_root";
-
-	KFbxNode* root_res_node = KFbxNode::Create(mySDKManager, (const char*)root_node_name);
-	KFbxSkeleton *root_res_attr = KFbxSkeleton::Create(mySDKManager, (const char*)root_node_name);
-	root_res_node->SetNodeAttribute(root_res_attr);
-
-	root_res_attr->SetSkeletonType(KFbxSkeleton::eROOT);
-
-	parent_node->AddChild(root_res_node);
-	node_info->SetSkeletonRootNode(root_res_node);
-    }
-
-    res_attr->SetSkeletonType(KFbxSkeleton::eLIMB_NODE);
-
+	res_attr->SetSkeletonType(KFbxSkeleton::eROOT);
+    else
+	res_attr->SetSkeletonType(KFbxSkeleton::eLIMB_NODE);
+   
     // Get the bone's length
-    bone_length_out = ROP_FBXUtil::getFloatOPParm(node, "length");
-
-    // The transform on the node. We need to take the pre-transform transform (at the moment of bone creation)
-    // multiply it by the actual transform, and then set it. We need to pass this bone length as the translation
-    // in negative z to the code that will be setting the transform.
-
+    float bone_length = ROP_FBXUtil::getFloatOPParm(node, "length");
+    node_info->setBoneLength(bone_length);
 
     return res_node;
 }
@@ -262,6 +271,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     bool temp_bool, found_particles;
     bool is_vertex_cacheable = false;
+    OP_Node* skin_deform_node = NULL;
 
     temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, found_particles);
     if(myParentExporter->getExportingAnimation() || found_particles)
@@ -270,6 +280,50 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     int max_vc_verts = 0;
     float start_time = myParentExporter->getStartTime();
     float end_time = myParentExporter->getEndTime();
+
+    // For now, only export skinning if we're not vertex cacheable.
+    float geom_export_time = start_time;
+    float capture_frame = 1.0;
+    if(!is_vertex_cacheable)
+    {
+	// For now, only export skinning if we're not vertex cacheable.
+	bool did_find_allowed_nodes_only = false;
+	const char *skin_node_types[] = { "deform", 0};
+	const char *allowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
+	    "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
+	    "attribpromote", "attribstringedit", "attribute", 0};
+	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, allowed_inbetween_node_types, did_find_allowed_nodes_only);
+
+	if(!did_find_allowed_nodes_only && skin_deform_node)
+	{
+	    // We've found a deform node, but also other nodes that deform the mesh between this node and the deform node.
+	    // Output as a vertex cache instead.
+	    is_vertex_cacheable = true;
+	    skin_deform_node = NULL;
+
+	    // TODO: Set a flag here telling the vertex cache not to break up the mesh into individual triangles.
+	}
+	else if(skin_deform_node)
+	{
+	    // We're skinnable.
+	    // Find the capture frame.
+	    bool temp_did_find_allowed_nodes_only = false;
+	    const char *capt_skin_node_types[] = { "capture", 0};
+	    OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, temp_did_find_allowed_nodes_only);
+	    if(capture_node)
+	    {
+		if(ROP_FBXUtil::getIntOPParm(capture_node, "usecaptpose") == false)
+		{
+		    capture_frame = ROP_FBXUtil::getFloatOPParm(capture_node, "captframe");
+		}	
+	    }
+
+	    geom_export_time = CHgetManager()->getTime(capture_frame);
+	}
+    }
+
+    // Check that we don't output skinning and vertex caching at the same time
+    UT_ASSERT( ! (skin_deform_node && is_vertex_cacheable));
 
     // We need this here so that the number of points in the static geometry
     // matches the number of points in the vertex cache files. Otherwise Maya
@@ -281,7 +335,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	max_vert_cnt_start = clock();
 #endif
 	v_cache_out = new ROP_FBXGDPCache();
-	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node, start_time, end_time, v_cache_out);
+	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node, geom_export_time, end_time, v_cache_out); // start_time
 #ifdef UT_DEBUG
 	max_vert_cnt_end = clock();
 	ROP_FBXdb_maxVertsCountingTime += (max_vert_cnt_end - max_vert_cnt_start);
@@ -291,7 +345,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	v_cache_out = NULL;
 
     GU_DetailHandle gdh;
-    if (!ROP_FBXUtil::getGeometryHandle(sop_node, start_time, gdh))
+    if (!ROP_FBXUtil::getGeometryHandle(sop_node, geom_export_time, gdh))
 	return res_node;
 
     GU_DetailHandleAutoReadLock	 gdl(gdh);
@@ -363,6 +417,11 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     {	
 	res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
 	res_node->SetNodeAttribute(res_attr);
+
+	if(skin_deform_node)
+	{
+	    myActionManager->addSkinningAction(res_node, skin_deform_node, capture_frame);
+	}
     }
 
     return res_node;
@@ -404,17 +463,6 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 
     if(num_points > 2 && max_points > num_points)
     {
-/*
-	UT_Vector4 pts[3];
-	pts[0] = gdp->points()(0)->getPos();
-	pts[1] = gdp->points()(1)->getPos();
-	pts[2] = gdp->points()(2)->getPos();
-	for(;curr_point < max_points; curr_point++)
-	{
-	    fbx_control_points[curr_point].Set(pts[ (curr_point-num_points)%3 ][0],pts[(curr_point-num_points)%3][1],
-		pts[(curr_point-num_points)%3][2],pts[(curr_point-num_points)%3][3]);
-	}
-	*/
 	for(;curr_point < max_points; curr_point++)
 	{
 	    //pos = gdp->points()(( curr_point - num_points) % num_points)->getPos();
@@ -449,24 +497,6 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 
     // Now do attributes, or at least some of them
     exportAttributes(gdp, mesh_attr);
-/*
-    int attr_offset;
-    attr_offset = gdp->findPointAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL), sizeof(UT_Vector3), GB_ATTRIB_VECTOR);
-    if(attr_offset >= 0)
-    {
-	// We have per-point normals
-	exportPointNormals(mesh_attr, gdp, attr_offset);
-    }
-    else
-    {
-	attr_offset = gdp->findVertexAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL), sizeof(UT_Vector3), GB_ATTRIB_VECTOR);
-	if(attr_offset >= 0)
-	{
-	    // We have per-vertex normals
-	    exportVertexNormals(mesh_attr, gdp, attr_offset);
-	}
-    }
-*/
 
     return mesh_attr;
 }
@@ -481,11 +511,11 @@ ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_nam
     UT_String *base_name = curr_attr_name.base();
 
     // Now compare the base name against known standard names 
-    if(strcmp(gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL, 1), attr_name) == 0)
+    if(*base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL, 1))
 	curr_type = ROP_FBXAttributeNormal;
-    else if(strcmp(gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE, 1), attr_name) == 0)
+    else if(*base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE, 1))
 	curr_type = ROP_FBXAttributeUV;
-    else if(strcmp(gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE, 1), attr_name) == 0)
+    else if(*base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE, 1))
 	curr_type = ROP_FBXAttributeVertexColor;
 
     delete base_name;
@@ -663,7 +693,7 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttri
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserPointAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -673,6 +703,11 @@ void exportUserPointAttribute(const GU_Detail* gdp, int attr_offset, int attr_su
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
     SIMPLE_TYPE val_copy;
+
+    int attr_offset = gdp->findPointAttrib(attr);
+    UT_ASSERT(attr_offset >= 0);
+    if(attr_offset < 0)
+	return;
 
     layer_elem->ResizeAllDirectArrays(gdp->points().entries());
     SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
@@ -689,7 +724,7 @@ void exportUserPointAttribute(const GU_Detail* gdp, int attr_offset, int attr_su
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserVertexAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -701,6 +736,11 @@ void exportUserVertexAttribute(const GU_Detail* gdp, int attr_offset, int attr_s
     int array_pos = 0;
     int total_verts = 0;
     int curr_vert, num_verts;
+
+    int attr_offset = gdp->findVertexAttrib(attr);
+    UT_ASSERT(attr_offset >= 0);
+    if(attr_offset < 0)
+	return;
 
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
@@ -727,7 +767,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, int attr_offset, int attr_s
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserPrimitiveAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -737,6 +777,11 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, int attr_offset, int att
     const GEO_Point* ppt;
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
+
+    int attr_offset = gdp->findPrimAttrib(attr);
+    UT_ASSERT(attr_offset >= 0);
+    if(attr_offset < 0)
+	return;
 
     layer_elem->ResizeAllDirectArrays(gdp->primitives().entries());
     SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
@@ -753,9 +798,14 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, int attr_offset, int att
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserDetailAttribute(const GU_Detail* gdp, int attr_offset, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem)
+	return;
+
+    int attr_offset = gdp->findAttrib(attr);
+    UT_ASSERT(attr_offset >= 0);
+    if(attr_offset < 0)
 	return;
 
     // Go over all vertices
@@ -795,7 +845,6 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     const char* orig_name;
     GB_Attribute* attr;
     TStringVector attr_names;
-    int attr_offset;
     char* temp_name;
 
     // Iterate once, adding attribute names and types
@@ -879,31 +928,30 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	attr_type = attr->getType();
 	attr_size = attr->getSize();
 	orig_name = attr->getName();
-	attr_offset = gdp->findPointAttrib(attr);
 
 	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
 	{
 	    if(attr_type == GB_ATTRIB_INT)
 	    {
 		if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
-		    exportUserPointAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserPointAttribute<int>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
-		    exportUserVertexAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserVertexAttribute<int>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
-		    exportUserPrimitiveAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserPrimitiveAttribute<int>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 		else if(mapping_mode == KFbxLayerElement::eALL_SAME)
-		    exportUserDetailAttribute<int>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);		
+		    exportUserDetailAttribute<int>(gdp, attr,curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);		
 	    }
 	    else if(attr_type == GB_ATTRIB_FLOAT || attr_type == GB_ATTRIB_VECTOR)  
 	    {
 		if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
-		    exportUserPointAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserPointAttribute<float>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
-		    exportUserVertexAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserVertexAttribute<float>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 		else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
-		    exportUserPrimitiveAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserPrimitiveAttribute<float>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 		else if(mapping_mode == KFbxLayerElement::eALL_SAME)
-		    exportUserDetailAttribute<float>(gdp, attr_offset, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
+		    exportUserDetailAttribute<float>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
 	    }
 
 	    attr_name_pos++;
@@ -1031,67 +1079,6 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     // Process all custom attributes
     addUserData(gdp, user_attribs, attr_manager, mesh_attr, KFbxLayerElement::eALL_SAME);
     user_attribs.clear();
-}
-/********************************************************************************************************
-void 
-ROP_FBXMainVisitor::exportPointNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp, int attr_offset)
-{
-    KFbxLayer* attr_layer = mesh_attr->GetLayer(0);
-    if (attr_layer == NULL)
-    {
-	mesh_attr->CreateLayer();
-	attr_layer = mesh_attr->GetLayer(0);
-    }
-    KFbxLayerElementNormal* layer_elem = mySDKManager->CreateKFbxLayerElementNormal("");
-    layer_elem->SetMappingMode(KFbxLayerElement::eBY_CONTROL_POINT);
-    layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
-
-    // Go over all points
-    const GEO_Point* ppt;
-    const UT_Vector3* vec3;
-    KFbxVector4 fbx_vec4;
-    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
-    {
-	vec3 = ppt->castAttribData<UT_Vector3>(attr_offset);
-	fbx_vec4.Set(vec3->x(),vec3->y(),vec3->z());
-	layer_elem->GetDirectArray().Add(fbx_vec4);
-    }
-    
-    attr_layer->SetNormals(layer_elem);
-}
-/********************************************************************************************************
-void 
-ROP_FBXMainVisitor::exportVertexNormals(KFbxMesh* mesh_attr, const GU_Detail *gdp, int attr_offset)
-{
-    KFbxLayer* attr_layer = mesh_attr->GetLayer(0);
-    if (attr_layer == NULL)
-    {
-	mesh_attr->CreateLayer();
-	attr_layer = mesh_attr->GetLayer(0);
-    }
-    KFbxLayerElementNormal* layer_elem = mySDKManager->CreateKFbxLayerElementNormal("");
-    layer_elem->SetMappingMode(KFbxLayerElement::eBY_POLYGON_VERTEX);
-    layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
-
-    // Go over all vertices
-    const GEO_Point* ppt;
-    const UT_Vector3* vec3;
-    KFbxVector4 fbx_vec4;
-    const GEO_Primitive* prim;
-
-    int curr_vert, num_verts;
-    FOR_ALL_PRIMITIVES(gdp, prim)
-    {
-	num_verts = prim->getVertexCount();
-	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
-	{
-	    vec3 = prim->getVertex(curr_vert).castAttribData<UT_Vector3>(attr_offset);
-	    fbx_vec4.Set(vec3->x(),vec3->y(),vec3->z());
-	    layer_elem->GetDirectArray().Add(fbx_vec4);
-	}
-    }
-
-    attr_layer->SetNormals(layer_elem);
 }
 /********************************************************************************************************/
 KFbxNode* 
@@ -1255,30 +1242,6 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     return res_node;
 }
 /********************************************************************************************************/
-void 
-ROP_FBXMainVisitor::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length)
-{
-
-    UT_Vector3 t,r,s;
-    KFbxVector4 post_rotate, fbx_vec4;
-    if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, 0.0, t,r,s, &post_rotate))
-    {
-	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
-	fbx_node->SetRotationActive(true);
-    }
-
-    fbx_vec4.Set(r[0], r[1], r[2]);
-    fbx_node->SetDefaultR(fbx_vec4);
-    
-    fbx_vec4.Set(t[0],t[1],t[2]);
-    fbx_node->SetDefaultT(fbx_vec4);
-
-    fbx_vec4.Set(s[0],s[1],s[2]);
-    fbx_node->SetDefaultS(fbx_vec4);
-
-    fbx_node->SetRotationOrder(KFbxNode::eDESTINATION_SET, eEULER_XYZ);
-}
-/********************************************************************************************************/
 UT_Color 
 ROP_FBXMainVisitor::getAccumAmbientColor(void)
 {
@@ -1289,7 +1252,7 @@ ROP_FBXMainVisitor::getAccumAmbientColor(void)
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo::ROP_FBXMainNodeVisitInfo(OP_Node* hd_node) : ROP_FBXBaseNodeVisitInfo(hd_node)
 {
-    mySkeletonRootNode = NULL;
+    myBoneLength = 0.0;
 }
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo::~ROP_FBXMainNodeVisitInfo()
@@ -1297,13 +1260,15 @@ ROP_FBXMainNodeVisitInfo::~ROP_FBXMainNodeVisitInfo()
 
 }
 /********************************************************************************************************/
-KFbxNode* ROP_FBXMainNodeVisitInfo::GetSkeletonRootNode(void)
+double 
+ROP_FBXMainNodeVisitInfo::getBoneLength(void)
 {
-    return mySkeletonRootNode;
+    return myBoneLength;
 }
 /********************************************************************************************************/
-void ROP_FBXMainNodeVisitInfo::SetSkeletonRootNode(KFbxNode* node)
+void 
+ROP_FBXMainNodeVisitInfo::setBoneLength(double b_length)
 {
-    mySkeletonRootNode = node;
+    myBoneLength = b_length;
 }
 /********************************************************************************************************/

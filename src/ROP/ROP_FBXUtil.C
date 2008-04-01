@@ -21,6 +21,7 @@
 #include <GU/GU_DetailHandle.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Node.h>
+#include <OP/OP_Director.h>
 #include <CH/CH_Manager.h>
 #include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_Point.h>
@@ -354,12 +355,15 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation)
 {
     bool set_post_rotation = false;
-    OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(hd_node);
-    if(!obj_node)
-	return set_post_rotation;
+
+    OBJ_Node* obj_node = NULL;
+    if(hd_node)
+	obj_node = dynamic_cast<OBJ_Node*>(hd_node);
 
     bool do_special_rotate = false;
-    UT_String node_type = hd_node->getOperator()->getName();
+    UT_String node_type(UT_String::ALWAYS_DEEP, "");
+    if(hd_node)
+	node_type = hd_node->getOperator()->getName();
 
     if(node_type == "hlight" || node_type == "cam")
 	do_special_rotate = true;
@@ -368,10 +372,19 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
     // Get and set transforms
     UT_Matrix4 full_xform, pre_xform, xform;
     OP_Context op_context(time_in);
-    obj_node->getPreLocalTransform(op_context, pre_xform);
-    obj_node->getParmTransform(op_context, xform);
 
-    full_xform = xform * pre_xform;
+    if(obj_node)
+    {
+	obj_node->getPreLocalTransform(op_context, pre_xform);
+	obj_node->getParmTransform(op_context, xform);
+    }
+    else
+    {
+	pre_xform.identity();
+	xform.identity();
+    }
+
+    full_xform = xform * pre_xform; // normal
 
     if(SYSequalZero(bone_length) == false)
     {
@@ -384,13 +397,13 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 	    1.0,1.0,1.0,
 	    0.0,0.0,0.0,
 	    0);
-	full_xform = bone_trans * full_xform;
+
+	full_xform = full_xform * bone_trans;
     }
 
     if(do_special_rotate && !has_lookat_node && post_rotation)
     {
 	// Set post-transform instead
-	//KFbxVector4 fbx_rot_vec;
 	if(node_type == "hlight")
 	    post_rotation->Set(-90,0,0);
 	else // if(node_type == "cam")
@@ -406,6 +419,140 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
     return set_post_rotation;
 }
 /********************************************************************************************************/
+OP_Node*
+ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool &did_find_allowed_only, int rec_level)
+{
+    OP_Node *	found = NULL;
+    int		i;
+    bool did_is_allowed_only_local;
+    bool child_did_find_allowed_types_only;
+
+    if(rec_level == 0)
+	did_find_allowed_only = true;
+
+    // Check if the node we are checking is already on the stack. If so,
+    // we're at risk of recursion, so bail out.
+    if( op != NULL && !op->flags().getRecursion()) // Don't care about locks: && !op->getHardLock() )
+    {
+	op->flags().setRecursion( true );
+
+	if( include_me )
+	{
+	    // See if this op is one of the types we are looking for.
+	    for( i = 0; !found && find_op_types[i]; i++ )
+		if( op->getOperator()->getName() == find_op_types[i] )
+		    found = op;
+
+	    // See if this op, if not found, is one of the allowed types
+	    if(allowed_node_types && !found)
+	    {
+		did_is_allowed_only_local = false; 
+
+		for( i = 0; !did_is_allowed_only_local && allowed_node_types[i]; i++ )
+		{
+		    if( op->getOperator()->getName() == allowed_node_types[i] )
+		    {
+			did_is_allowed_only_local = true;
+			break;
+		    }
+		}
+
+		if(!did_is_allowed_only_local)
+		    did_find_allowed_only = false;
+
+	    }
+	    else if(found)
+		did_find_allowed_only = true;
+
+	}
+
+	// If we are a subnet, try to find an appropriate node within the
+	// subnet, starting with the subnet's display node.
+	if( !found && op->isSubNetwork(false) )
+	{
+	    child_did_find_allowed_types_only = false;
+	    found = ROP_FBXUtil::findOpInput(((OP_Network *)op)->getDisplayNodePtr(),
+				   find_op_types, true, allowed_node_types, child_did_find_allowed_types_only, rec_level+1);
+	    if(found && !child_did_find_allowed_types_only)
+		did_find_allowed_only = false;
+	}
+
+	// if we're a switch SOP, then look up the appropriate input chain
+	if( !found && op->getOperator()->getName() == "switch" )
+	{
+	    PRM_Parm *	parm;
+	    
+	    parm = op->getParmList()->getParmPtr( "input" );
+	    if( parm != NULL )
+	    {
+		parm->getValue(
+			OPgetDirector()->getChannelManager()->getEvaluateTime(),
+			i, 0 );
+		if( op->getInput(i) != NULL )
+		{
+	    	    child_did_find_allowed_types_only = false;
+		    found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, child_did_find_allowed_types_only, rec_level+1 );
+		    if(found && !child_did_find_allowed_types_only)
+			did_find_allowed_only = false;
+		}
+	    }
+	}
+
+	for( i = op->getConnectedInputIndex(-1); !found && i >= 0;
+	     i = op->getConnectedInputIndex(i) )
+	{
+	    // Only traverse up real inputs, not reference inputs. But we
+	    // do want to search up out of subnets, which getInput() does.
+	    if( op->getInput(i) && !op->isRefInput(i) )
+	    {
+        	child_did_find_allowed_types_only = false;
+		found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, child_did_find_allowed_types_only, rec_level+1 );
+		if(found && !child_did_find_allowed_types_only)
+		    did_find_allowed_only = false;
+	    }
+	}
+
+	op->flags().setRecursion( false );
+    }
+
+    return found;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, bool use_world_transform)
+{
+
+    UT_Vector3 t,r,s;
+    KFbxVector4 post_rotate, fbx_vec4;
+
+    if(use_world_transform)
+    {
+	UT_DMatrix4 world_matrix;
+	OP_Context op_context(0.0);
+	world_matrix = hd_node->getWorldTransform(op_context);
+
+	UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+	world_matrix.explode(xform_order, r,s,t);
+	r.radToDeg();
+    }
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, 0.0, t,r,s, &post_rotate))
+    {
+	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
+	fbx_node->SetRotationActive(true);
+    }
+
+    fbx_vec4.Set(r[0], r[1], r[2]);
+    fbx_node->SetDefaultR(fbx_vec4);
+
+    fbx_vec4.Set(t[0],t[1],t[2]);
+    fbx_node->SetDefaultT(fbx_vec4);
+
+    fbx_vec4.Set(s[0],s[1],s[2]);
+    fbx_node->SetDefaultS(fbx_vec4);
+
+    fbx_node->SetRotationOrder(KFbxNode::eDESTINATION_SET, eEULER_XYZ);
+}
+/********************************************************************************************************/
 // ROP_FBXNodeManager
 /********************************************************************************************************/
 ROP_FBXNodeManager::ROP_FBXNodeManager()
@@ -415,7 +562,13 @@ ROP_FBXNodeManager::ROP_FBXNodeManager()
 /********************************************************************************************************/
 ROP_FBXNodeManager::~ROP_FBXNodeManager()
 {
-
+    // Deallocate one of the maps. They should be in sync, objects in both point
+    // to the same thing.
+    THDToNodeInfoMap::iterator mi;
+    for(mi = myHdToNodeInfoMap.begin(); mi != myHdToNodeInfoMap.end(); mi++)
+	delete mi->second;
+    myHdToNodeInfoMap.clear();
+    myFbxToNodeInfoMap.clear();
 }
 /********************************************************************************************************/
 KFbxNode* 
@@ -424,11 +577,11 @@ ROP_FBXNodeManager::findFbxNode(OP_Node* hd_node)
     if(!hd_node)
 	return NULL;
 
-    THDToFbxNodeMap::iterator mi = myHdToFbxNodeMap.find(hd_node);
-    if(mi == myHdToFbxNodeMap.end())
+    THDToNodeInfoMap::iterator mi = myHdToNodeInfoMap.find(hd_node);
+    if(mi == myHdToNodeInfoMap.end())
 	return NULL;
     else
-	return mi->second.getFbxNode();
+	return mi->second->getFbxNode();
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo*
@@ -437,32 +590,55 @@ ROP_FBXNodeManager::findNodeInfo(OP_Node* hd_node)
     if(!hd_node)
 	return NULL;
 
-    THDToFbxNodeMap::iterator mi = myHdToFbxNodeMap.find(hd_node);
-    if(mi == myHdToFbxNodeMap.end())
+    THDToNodeInfoMap::iterator mi = myHdToNodeInfoMap.find(hd_node);
+    if(mi == myHdToNodeInfoMap.end())
 	return NULL;
     else
-	return &(mi->second);
+	return (mi->second);
+}
+/********************************************************************************************************/
+ROP_FBXNodeInfo* 
+ROP_FBXNodeManager::findNodeInfo(KFbxNode* fbx_node)
+{
+    if(!fbx_node)
+	return NULL;
+
+    TFbxToNodeInfoMap::iterator mi = myFbxToNodeInfoMap.find(fbx_node);
+    if(mi == myFbxToNodeInfoMap.end())
+	return NULL;
+    else
+	return (mi->second);
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo& 
 ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, KFbxNode* fbx_node)
 {
-    myHdToFbxNodeMap[hd_node] = fbx_node;
-    return myHdToFbxNodeMap[hd_node];
+    ROP_FBXNodeInfo* new_info = new ROP_FBXNodeInfo();
+    new_info->setFbxNode(fbx_node);
+    new_info->setHdNode(hd_node);
+
+    myHdToNodeInfoMap[hd_node] = new_info;
+    myFbxToNodeInfoMap[fbx_node] = new_info;
+
+    return *new_info;
 }
 /********************************************************************************************************/
 // ROP_FBXNodeInfo
 /********************************************************************************************************/
 ROP_FBXNodeInfo::ROP_FBXNodeInfo()
 {
+    myHdNode = NULL;
     myFbxNode = NULL;
     myMaxObjectPoints = 0;
     myVertexCacheMethod = ROP_FBXVertexCacheMethodNone;
     myVertexCache = NULL;
+
+    myVisitResultType = ROP_FBXVisitorResultOk;
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo::ROP_FBXNodeInfo(KFbxNode* main_node)
 {
+    myHdNode = NULL;
     myFbxNode = main_node;
     myMaxObjectPoints = 0;
     myVertexCacheMethod = ROP_FBXVertexCacheMethodNone;
@@ -476,6 +652,18 @@ ROP_FBXNodeInfo::~ROP_FBXNodeInfo()
     if(myVertexCache)
 	delete myVertexCache;
     myVertexCache = NULL;
+}
+/********************************************************************************************************/
+OP_Node* 
+ROP_FBXNodeInfo::getHdNode(void) const
+{
+    return myHdNode;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXNodeInfo::setHdNode(OP_Node* node)
+{
+    myHdNode = node;
 }
 /********************************************************************************************************/
 KFbxNode* ROP_FBXNodeInfo::getFbxNode(void) const
@@ -522,6 +710,18 @@ void
 ROP_FBXNodeInfo::setVertexCache(ROP_FBXGDPCache* v_cache)
 {
     myVertexCache = v_cache;
+}
+/********************************************************************************************************/
+ROP_FBXVisitorResultType 
+ROP_FBXNodeInfo::getVisitResultType(void)
+{
+    return myVisitResultType;
+}
+/********************************************************************************************************/
+void  
+ROP_FBXNodeInfo::setVisitResultType(ROP_FBXVisitorResultType res_type)
+{
+    myVisitResultType = res_type;
 }
 /********************************************************************************************************/
 // ROP_FBXGDPCached

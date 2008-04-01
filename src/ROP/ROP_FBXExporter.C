@@ -61,6 +61,7 @@ ROP_FBXExporter::ROP_FBXExporter()
     myErrorManager = NULL;
     myNodeManager = NULL;
     myActionManager = NULL;
+    myDummyRootNullNode = NULL;
 }
 /********************************************************************************************************/
 ROP_FBXExporter::~ROP_FBXExporter()
@@ -97,7 +98,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float t
 	myExportOptions.reset();
 
     myNodeManager = new ROP_FBXNodeManager;
-    myActionManager = new ROP_FBXActionManager(*myNodeManager, *myErrorManager);
+    myActionManager = new ROP_FBXActionManager(*myNodeManager, *myErrorManager, *this);
 
     // Initialize the fbx scene manager
     mySDKManager = KFbxSdkManager::CreateKFbxSdkManager();
@@ -111,6 +112,8 @@ ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float t
     // Create the entity that will hold the scene.
     myScene = KFbxScene::Create(mySDKManager,"");
     myOutputFile = output_name;
+
+    myDummyRootNullNode = NULL;
 
     return true;
 }
@@ -209,12 +212,20 @@ ROP_FBXExporter::doExport(void)
 	// TODO: Get the current set take so we can re-set it later. Disable undo?
 	TAKE_Take *init_take = take_mgr->getCurrentTake();
 	ROP_FBXAnimVisitor anim_visitor(this);
+	anim_visitor.addVisitableNetworkType("subnet");
 
 	int curr_take_idx, num_takes = list.entries();
 	for(curr_take_idx = 0; curr_take_idx < num_takes; curr_take_idx++)
 	{
 	    // Set the take, launch the animation visitor
 	    take_mgr->takeSet(list[curr_take_idx]->getName());
+
+	    // Export the main world_root animation if applicable
+	    if(myDummyRootNullNode)
+	    {			
+		KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
+		anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node);
+	    }	    
     	
 	    anim_visitor.reset();
 	    anim_visitor.visitScene(op_net);
@@ -427,6 +438,50 @@ ROP_FBXExporter::deallocateQueuedStrings(void)
 	delete[] myStringsToDeallocate[curr_str_idx];
     }
     myStringsToDeallocate.clear();
+}
+/********************************************************************************************************/
+KFbxNode* 
+ROP_FBXExporter::GetFBXRootNode(void)
+{
+    // If we are exporting one of the standard subnets, such as "/" or "/obj", etc., return the
+    // fbx scene root. Otherwise, create a null node (if it's not created yet), and return that.
+
+    KFbxNode* fbx_scene_root = myScene->GetRootNode();
+
+    UT_String export_path(myExportOptions.getStartNodePath());
+
+    if(export_path == "/")
+	return fbx_scene_root;
+
+    // Try to get the parent network
+    OP_Node* export_node = OPgetDirector()->findNode(export_path);
+    if(!export_node)
+	return fbx_scene_root;
+
+    OP_Network* parent_net = export_node->getParentNetwork();
+    if(!parent_net)
+	return fbx_scene_root;
+
+    parent_net->getFullPath(export_path);
+    if(export_path == "/")
+	return fbx_scene_root;
+
+    if(!myDummyRootNullNode)
+    {
+	myDummyRootNullNode = KFbxNode::Create(mySDKManager, (const char*)"world_root");
+	KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)"world_root");
+	myDummyRootNullNode->SetNodeAttribute(res_attr);
+
+	// Set world transform
+	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, false, 0.0, true );
+	fbx_scene_root->AddChild(myDummyRootNullNode);
+
+	// Add nodes to the map
+	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(export_node, myDummyRootNullNode);
+    }
+
+    UT_ASSERT(myDummyRootNullNode);
+    return myDummyRootNullNode;
 }
 /********************************************************************************************************/
 #endif // FBX_SUPPORTED

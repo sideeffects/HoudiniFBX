@@ -31,6 +31,7 @@ class FBX_FILMBOX_NAMESPACE::KFbxNode;
 enum ROP_FBXActionType
 {
     ROP_FBXActionSetLookAtTarget = 0,
+    ROP_FBXActionApplySkinning
 };
 /********************************************************************************************************/
 class ROP_FBXBaseAction

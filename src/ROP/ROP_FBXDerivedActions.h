@@ -29,9 +29,10 @@ class FBX_FILMBOX_NAMESPACE::KFbxSkin;
 class ROP_FBXMainVisitor;
 class OP_Network;
 class GU_Detail;
+class GEO_CaptureData;
 class ROP_FBXNodeManager;
 class ROP_FBXIntTranslator;
-
+class OP_Context;
 /********************************************************************************************************/
 class ROP_FBXLookAtAction : public ROP_FBXBaseFbxNodeAction
 {
@@ -45,6 +46,26 @@ public:
 
 private:
     OP_Node* myLookAtHdNode;    
+};
+/********************************************************************************************************/
+class ROP_FBXSkinningAction : public ROP_FBXBaseFbxNodeAction
+{
+public:
+
+    ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, float capture_frame, ROP_FBXActionManager& parent_manager);
+    virtual ~ROP_FBXSkinningAction();
+
+    ROP_FBXActionType getType(void);
+    void performAction(void);
+
+private:
+    void createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fbx_deformed_node, KFbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context);
+    void addNodeRecursive(KArrayTemplate<KFbxNode*>& node_array, KFbxNode* curr_node);
+    void storeBindPose(KFbxNode* fbx_node, float capture_frame);
+
+private:
+    OP_Node* myDeformNode;    
+    float myCaptureFrame;
 };
 /********************************************************************************************************/
 #endif // __ROP_FBXDerivedActions_h__

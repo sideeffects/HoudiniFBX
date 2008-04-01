@@ -84,13 +84,12 @@ public:
     ROP_FBXMainNodeVisitInfo(OP_Node* hd_node);
     virtual ~ROP_FBXMainNodeVisitInfo();
 
-    KFbxNode* GetSkeletonRootNode(void);
-    void SetSkeletonRootNode(KFbxNode* node);
+    double getBoneLength(void);
+    void setBoneLength(double b_length);
 
 private:
 
-    KFbxNode* mySkeletonRootNode;
-
+    double myBoneLength;
 };
 /********************************************************************************************************/
 class ROP_API ROP_FBXMainVisitor : public ROP_FBXBaseVisitor
@@ -101,6 +100,7 @@ public:
 
     ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node);
     ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info);
+    void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info);
 
     UT_Color getAccumAmbientColor(void);
 
@@ -109,8 +109,7 @@ protected:
     KFbxNode* outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
     KFbxNode* outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
     KFbxNode* outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
-    KFbxNode* outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, float& bone_length_out);
-    void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length);
+    KFbxNode* outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
 
     KFbxNodeAttribute* outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method);
     void addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager, KFbxMesh* mesh_attr, KFbxLayerElement::EMappingMode mapping_mode );
