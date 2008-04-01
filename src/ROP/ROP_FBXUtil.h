@@ -25,6 +25,7 @@
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
+#include <UT/UT_DMatrix4.h>
 
 class GU_DetailHandle;
 class GU_Detail;
