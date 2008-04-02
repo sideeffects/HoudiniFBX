@@ -553,6 +553,118 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool ha
     fbx_node->SetRotationOrder(KFbxNode::eDESTINATION_SET, eEULER_XYZ);
 }
 /********************************************************************************************************/
+bool 
+ROP_FBXUtil::isJointNullNode(OP_Node* null_node)
+{
+    if(!null_node)
+	return false;
+
+    UT_String node_type = null_node->getOperator()->getName();
+    if(node_type != "null")
+	return false;
+
+    // Find a bone among its children
+    OP_Node* child_bone = NULL;
+    int curr_child, num_children = null_node->nOutputs();
+    for(curr_child = 0; curr_child < num_children; curr_child++)
+    {
+	if(null_node->getOutput(curr_child))
+	{
+	    node_type = null_node->getOutput(curr_child)->getOperator()->getName();
+	    if(node_type == "bone")
+	    {
+		child_bone = null_node->getOutput(curr_child);
+		break;
+	    }
+	}
+    }
+    if(!child_bone)	
+	return false;
+
+    return isDummyBone(child_bone);
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
+{
+    // A bone is a dummy bone iff:
+    // 1) It is a child of a null node
+    // 2) It has no children
+    // 3) It has a look-at node
+    // 4) Its look-at node is a null node which is a child of its parent null-node.
+    // 5) Its length is an expression.
+
+    if(!bone_node)
+	return false;
+
+    UT_String node_type = bone_node->getOperator()->getName();
+    if(node_type != "bone")
+	return false;
+
+    // Get num children
+    if(bone_node->nOutputs() > 0)
+	return false;
+
+    OP_Node* look_at_node = NULL;
+    UT_String look_at_path;
+    ROP_FBXUtil::getStringOPParm(bone_node, "lookatpath", look_at_path);
+    if(look_at_path.isstring() == false)
+	return false;
+
+    look_at_node = OPgetDirector()->findNode(look_at_path);
+    if(!look_at_node)
+	return false;
+
+    // Check if bone length is an expression
+    UT_String bone_length_str;
+    ROP_FBXUtil::getStringOPParm(bone_node, "length", bone_length_str);
+    if(!PRM_Parm::isStringExpression(bone_length_str, CH_OLD_EXPRESSION) && !PRM_Parm::isStringExpression(bone_length_str, CH_PYTHON_EXPRESSION))
+	return false;
+
+    // Look through all its parents
+    int i;
+    OP_Node* parent_null_node = NULL;
+    for( i = bone_node->getConnectedInputIndex(-1); !parent_null_node && i >= 0;
+	i = bone_node->getConnectedInputIndex(i) )
+    {
+	// Only traverse up real inputs, not reference inputs. But we
+	// do want to search up out of subnets, which getInput() does.
+	if( bone_node->getInput(i) && !bone_node->isRefInput(i) )
+	{
+	    node_type = bone_node->getInput(i)->getOperator()->getName();
+	    if(node_type == "null")
+	    {
+		parent_null_node = bone_node->getInput(i);
+		break;
+	    }
+	}
+    }
+    if(!parent_null_node)
+	return false;
+
+    // Look through the parents of our look at node to see if the parent null node is in them.
+    bool found_parent = false;
+    for( i = look_at_node->getConnectedInputIndex(-1); !found_parent && i >= 0;
+	i = look_at_node->getConnectedInputIndex(i) )
+    {
+	// Only traverse up real inputs, not reference inputs. But we
+	// do want to search up out of subnets, which getInput() does.
+	if( look_at_node->getInput(i) && !look_at_node->isRefInput(i) )
+	{
+	    if(look_at_node->getInput(i) == parent_null_node)
+	    {
+		found_parent = true;
+		break;
+	    }
+	}
+    }    
+
+    if(!found_parent)
+	return false;
+
+    return true;
+}
+/********************************************************************************************************/
 // ROP_FBXNodeManager
 /********************************************************************************************************/
 ROP_FBXNodeManager::ROP_FBXNodeManager()

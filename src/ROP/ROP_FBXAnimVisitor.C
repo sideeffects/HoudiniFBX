@@ -98,7 +98,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXNodeInfo* stored_node_info_ptr = myNodeManager->findNodeInfo(node);
     if(!stored_node_info_ptr || !stored_node_info_ptr->getFbxNode())
     {
-	UT_ASSERT(0);
+	// An object may validly be not exported (meaning this will be NULL).
 	return res_type;
     }
 

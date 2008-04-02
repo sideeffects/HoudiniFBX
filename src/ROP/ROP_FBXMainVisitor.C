@@ -89,12 +89,14 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	return ROP_FBXVisitorResultSkipSubtreeAndSubnet;
 
     ROP_FBXMainNodeVisitInfo *node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info_in);
+    ROP_FBXMainNodeVisitInfo *parent_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info_in->getParentInfo());
 
     // Determine which type of Houdini node this is
     string lookat_parm_name("lookatpath");
     UT_String node_type = node->getOperator()->getName();
     bool is_visible = node->getDisplay();
     ROP_FBXGDPCache *v_cache = NULL;
+    bool force_ignore_node = false;
     if(is_visible)
     {
 	if(node_type == "geo")
@@ -107,8 +109,23 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	else if(node_type == "null")
 	{
 	    // Null node
-	    res_new_node = outputNullNode(node, node_info, fbx_parent_node);
-	    res_type = ROP_FBXVisitorResultSkipSubnet;
+	    bool is_joint_null_node = ROP_FBXUtil::isJointNullNode(node);
+	    bool is_last_joint_node = (parent_info && parent_info->getBoneLength() > 0.0);
+	    if(is_joint_null_node || is_last_joint_node)
+	    {
+		// This is really a joint. Export it as such.
+		res_new_node = outputBoneNode(node, node_info, fbx_parent_node, true);
+		res_type = ROP_FBXVisitorResultSkipSubnet;
+
+		if(!is_joint_null_node && is_last_joint_node)
+		    node_info->setBoneLength(0.0);
+	    }
+	    else
+	    {
+		// Regular null node.
+		res_new_node = outputNullNode(node, node_info, fbx_parent_node);
+		res_type = ROP_FBXVisitorResultSkipSubnet;
+	    }
 	}
 	else if(node_type == "hlight")
 	{
@@ -125,9 +142,17 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 	else if(node_type == "bone")
 	{
-	    // Export bones
-	    res_new_node = outputBoneNode(node, node_info, fbx_parent_node);
-	    res_type = ROP_FBXVisitorResultSkipSubnet;
+	    // Export bones - only if this isn't a dummy bone for display only.
+	    if(ROP_FBXUtil::isDummyBone(node) == false)
+	    {
+		res_new_node = outputBoneNode(node, node_info, fbx_parent_node, false);
+		res_type = ROP_FBXVisitorResultSkipSubnet;
+	    }
+	    else
+	    {
+		force_ignore_node = true;
+		res_type = ROP_FBXVisitorResultSkipSubtreeAndSubnet;
+	    }
 	}
 	else if(node_type == "ambient")
 	{
@@ -149,7 +174,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
     }
 
-    if(!res_new_node)
+    if(!res_new_node && !force_ignore_node)
     {
 	// Treat everything else as a null node
 	res_new_node = outputNullNode(node, node_info, fbx_parent_node);
@@ -206,7 +231,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
     // We have to check if our previous bone length is not zero. If it isn't, that means we
     // have an end effector to create.
     ROP_FBXMainNodeVisitInfo* cast_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(last_node_info);
-    if(cast_info && cast_info->getBoneLength() > 0.0)
+    if(cast_info && cast_info->getBoneLength() > 0.0 && ROP_FBXUtil::isDummyBone(last_node) == false && ROP_FBXUtil::isJointNullNode(last_node) == false)
     {
 	// Create the end effector
 	UT_String node_name = last_node->getName();
@@ -227,8 +252,9 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 }
 /********************************************************************************************************/
 KFbxNode* 
-ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node)
+ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, bool is_a_null)
 {
+    // NOTE: This may get called on a null nodes, as well, if they are being exported as joints.
     UT_String node_name = node->getName();
 
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
@@ -236,7 +262,6 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     res_node->SetNodeAttribute(res_attr);
 
     bool is_root = false;
-
     if(node_info && node_info->getParentInfo())
     {
 	if(dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info)->getBoneLength() <= 0.0)
@@ -249,7 +274,11 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 	res_attr->SetSkeletonType(KFbxSkeleton::eLIMB_NODE);
    
     // Get the bone's length
-    float bone_length = ROP_FBXUtil::getFloatOPParm(node, "length");
+    float bone_length = 0.0;
+    if(is_a_null)
+	bone_length = 1.0; // Some dummy value so the next joint knows it's not a root.
+    else
+	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length");
     node_info->setBoneLength(bone_length);
 
     return res_node;

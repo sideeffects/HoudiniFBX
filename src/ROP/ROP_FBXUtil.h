@@ -56,6 +56,9 @@ public:
     static OP_Node* findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool &did_find_allowed_only, int rec_level = 0);
     static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, bool use_world_transform = false);
 
+    static bool isDummyBone(OP_Node* bone_node);
+    static bool isJointNullNode(OP_Node* null_node);
+
     template < class FBX_MATRIX >
     static void convertHdMatrixToFbxMatrix(const UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
     {
