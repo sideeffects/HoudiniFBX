@@ -35,6 +35,9 @@
 #include <SOP/SOP_Node.h>
 #include <OP/OP_Utils.h>
 
+#include <SHOP/SHOP_Node.h>
+#include <SHOP/SHOP_Output.h>
+
 #include "ROP_FBXActionManager.h"
 
 #include "ROP_FBXUtil.h"
@@ -57,7 +60,11 @@ ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter)
     myActionManager = myParentExporter->getActionManager();
 
     myAmbientColor.setRGB(0,0,0);
-    
+    myMaterialsMap.clear();    
+    myTexturesMap.clear();    
+
+    myDefaultMaterial = NULL;
+    myDefaultTexture = NULL;
 }
 /********************************************************************************************************/
 ROP_FBXMainVisitor::~ROP_FBXMainVisitor()
@@ -192,6 +199,9 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 	res_new_node->SetVisibility(node->getDisplay());
 
+	// Export materials
+	exportMaterials(node, res_new_node);
+
 	// Set the standard transformations
 	float bone_length = 0.0;
 	if(node_info_in && node_info_in->getParentInfo())
@@ -209,7 +219,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	if(lookatobjectpath.length() > 0)
 	{
 	    // Get the actual node ptr
-	    OP_Node *lookat_node = OPgetDirector()->findNode((const char*)lookatobjectpath);
+	    OP_Node *lookat_node = node->findNode((const char*)lookatobjectpath);
 
 	    // Queue up an object to look at. Post-action because it may not have been created yet.
 	    if(lookat_node)
@@ -526,7 +536,6 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 
     // Now do attributes, or at least some of them
     exportAttributes(gdp, mesh_attr);
-
     return mesh_attr;
 }
 /********************************************************************************************************/
@@ -594,12 +603,17 @@ void exportVertexAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
     if(!gdp || !layer_elem)
 	return;
 
+    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
+
     // Go over all vertices
     const GEO_Point* ppt;
     const HD_TYPE* hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
 
+    bool is_indexed = (layer_elem->GetReferenceMode() != KFbxLayerElement::eDIRECT);
+    
+    int curr_arr_cntr = 0;
     int curr_vert, num_verts;
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
@@ -611,6 +625,9 @@ void exportVertexAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
 	    {
 		ROP_FBXassignValues(*hd_type, fbx_type);
 		layer_elem->GetDirectArray().Add(fbx_type);
+		if(is_indexed)
+		    layer_elem->GetIndexArray().Add(curr_arr_cntr);
+		curr_arr_cntr++;
 	    }
 	}
     }
@@ -661,11 +678,22 @@ void exportDetailAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
 /********************************************************************************************************/
 KFbxLayerElement* 
 ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, int attr_offset, 
-					     KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerElement::EReferenceMode ref_mode)
+					     KFbxLayerElement::EMappingMode mapping_mode)
 {
+    KFbxLayerElement::EReferenceMode ref_mode;
+
+    // These are brutal hacks so that Maya's importer does not crash.
+    if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
+	ref_mode = KFbxLayerElement::eINDEX_TO_DIRECT;
+    else
+	ref_mode = KFbxLayerElement::eDIRECT;
+    
     KFbxLayerElement* new_elem = NULL;
     if(attr_type == ROP_FBXAttributeNormal)
     {
+	// Normals always have to be direct. Also for Maya.
+	ref_mode = KFbxLayerElement::eDIRECT;
+
 	KFbxLayerElementNormal* temp_layer = mySDKManager->CreateKFbxLayerElementNormal("");
 	temp_layer->SetMappingMode(mapping_mode);
 	temp_layer->SetReferenceMode(ref_mode);
@@ -1016,7 +1044,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 		// Create an appropriate layer element and fill it with values
 		attr_offset = gdp->findPointAttrib(attr);
-		res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_CONTROL_POINT, KFbxLayerElement::eDIRECT);
+		res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_CONTROL_POINT);
 	    }
 	    else
 		user_attribs.push_back(attr);
@@ -1043,7 +1071,8 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findVertexAttrib(attr);
-	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX, KFbxLayerElement::eDIRECT);
+	    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
+	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX);
 	}
 	else
 	    user_attribs.push_back(attr);
@@ -1070,7 +1099,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findPrimAttrib(attr);
-	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON, KFbxLayerElement::eDIRECT);
+	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON);
 	}
 	else
 	    user_attribs.push_back(attr);
@@ -1097,7 +1126,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findAttrib(attr);
-	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eALL_SAME, KFbxLayerElement::eDIRECT);
+	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eALL_SAME);
 	}
 	else
 	    user_attribs.push_back(attr);
@@ -1275,6 +1304,448 @@ UT_Color
 ROP_FBXMainVisitor::getAccumAmbientColor(void)
 {
     return myAmbientColor;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
+{
+//    OP_Director* op_director = OPgetDirector();
+
+    UT_String main_mat_path;
+    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL_PATH, main_mat_path);
+    OP_Node* main_mat_node = NULL;
+    if(main_mat_path.isstring())
+	main_mat_node = source_node->findNode(main_mat_path);
+
+    // See if there are any per-face indices
+    float start_time = myParentExporter->getStartTime();
+    int curr_prim, num_prims = 0;
+    OP_Node **per_face_mats = NULL;
+
+    const GEO_Primitive *prim;
+    OP_Network* src_net = dynamic_cast<OP_Network*>(source_node);
+    OP_Node* net_disp_node = NULL;
+    if(src_net)
+	net_disp_node = src_net->getRenderNodePtr();
+    SOP_Node* sop_node = NULL;
+    if(net_disp_node)
+	sop_node = dynamic_cast<SOP_Node*>(net_disp_node);
+    if(sop_node)
+    {
+	GU_DetailHandle gdh;
+	if (ROP_FBXUtil::getGeometryHandle(sop_node, start_time, gdh))
+	{
+	    GU_DetailHandleAutoReadLock	 gdl(gdh);
+	    const GU_Detail		*gdp = gdl.getGdp();
+	    if(gdp)
+	    {
+		// See if we have any per-prim materials
+		const GEO_PrimAttribDict &prim_attribs = gdp->primitiveAttribs();
+		GB_Attribute *matPathAttr = prim_attribs.find(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
+		int attrOffset = -1;
+		if (matPathAttr)
+		    attrOffset = prim_attribs.getOffset(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
+    	    
+		const char *loc_mat_path = NULL;
+		if(attrOffset >= 0)
+		{
+		    num_prims = gdp->primitives().entries();
+		    per_face_mats = new OP_Node* [num_prims];
+		    memset(per_face_mats, 0, sizeof(OP_Node*)*num_prims);
+
+		    int curr_prim_idx = 0;
+		    FOR_ALL_PRIMITIVES(gdp, prim)
+		    {
+			const GB_AttributeData &attr_data = prim->getAttrib();
+			int index = *reinterpret_cast<int*>(attr_data[attrOffset]);
+			loc_mat_path = matPathAttr->getIndex(index);
+			// Find corresponding mat
+			if(loc_mat_path)
+			{
+			    per_face_mats[curr_prim_idx] = source_node->findNode(loc_mat_path);
+			    curr_prim_idx++;
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    // If we have per-face materials, fill in the gaps with our regular material
+    if(!per_face_mats && !main_mat_node)
+	return;
+    
+    for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+    {
+	if(!per_face_mats[curr_prim])
+	    per_face_mats[curr_prim] = main_mat_node;
+    }
+
+    // We're guaranteed not have materials on layers yet.
+    KFbxLayerContainer* node_attr = dynamic_cast<KFbxLayerContainer*>(fbx_node->GetNodeAttribute());
+    if(!node_attr)
+    {
+	if(per_face_mats)
+	    delete[] per_face_mats;
+	return;
+    }
+
+    UT_ASSERT(node_attr);
+    KFbxLayer* mat_layer = node_attr->GetLayer(0);
+    if(!mat_layer)
+    {
+	int new_idx = node_attr->CreateLayer();
+	mat_layer = node_attr->GetLayer(new_idx);
+    }
+
+
+    KFbxSurfaceMaterial* fbx_material;
+    if(per_face_mats)
+    {
+	// Per-primitive materials
+	KFbxLayerElementMaterial* temp_layer_elem = mySDKManager->CreateKFbxLayerElementMaterial("");
+	temp_layer_elem->SetMappingMode(KFbxLayerElement::eBY_POLYGON);
+	temp_layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
+	mat_layer->SetMaterials(temp_layer_elem);
+
+	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+	{
+	    fbx_material = generateFbxMaterial(per_face_mats[curr_prim], myMaterialsMap);
+	    if(!fbx_material)
+		fbx_material = getDefaultMaterial(myMaterialsMap);
+	    temp_layer_elem->GetDirectArray().Add(fbx_material);
+
+	}
+    }
+    else
+    {
+	// One material for the entire object
+	KFbxLayerElementMaterial* temp_layer_elem = mySDKManager->CreateKFbxLayerElementMaterial("");
+	temp_layer_elem->SetMappingMode(KFbxLayerElement::eALL_SAME);
+	temp_layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
+	mat_layer->SetMaterials(temp_layer_elem);
+
+	// Set the value
+	fbx_material = generateFbxMaterial(main_mat_node, myMaterialsMap);
+	if(!fbx_material)
+	    fbx_material = getDefaultMaterial(myMaterialsMap);
+	temp_layer_elem->GetDirectArray().Add(fbx_material);
+    }
+
+    // Do textures
+    KFbxLayer* tex_layer;
+    KFbxTexture* fbx_texture, *fbx_default_texture;
+    KFbxLayerElementTexture* temp_layer_elem;
+    int curr_texture, num_textures;
+    int last_layer_idx;
+    if(per_face_mats)
+    {
+	int curr_layer_idx;
+	TFbxLayerElemsVector fbx_layer_elems;
+	int curr_max_layers = 0;
+
+	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+	{
+	    OP_Node* surf_node = getSurfaceNodeFromMaterialNode(per_face_mats[curr_prim]);
+	    num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
+	    if(curr_max_layers < num_textures)
+		curr_max_layers = num_textures;
+	}
+
+	// Create all the layers that we'll need
+	for(curr_layer_idx = 0; curr_layer_idx < curr_max_layers; curr_layer_idx++)
+	{
+	    tex_layer = node_attr->GetLayer(curr_layer_idx);
+	    if(!tex_layer)
+	    {
+		last_layer_idx = node_attr->CreateLayer();
+		tex_layer = node_attr->GetLayer(last_layer_idx);
+	    }
+	    temp_layer_elem = mySDKManager->CreateKFbxLayerElementTexture("");
+	    temp_layer_elem->SetMappingMode(KFbxLayerElement::eBY_POLYGON);
+	    temp_layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
+	    temp_layer_elem->SetAlpha(1.0);
+	    temp_layer_elem->SetBlendMode(KFbxLayerElementTexture::eTRANSLUCENT);
+	    tex_layer->SetDiffuseTextures(temp_layer_elem);
+
+	    fbx_layer_elems.push_back(temp_layer_elem);
+	}
+
+	fbx_default_texture = getDefaultTexture(myTexturesMap);
+	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+	{
+	    OP_Node* surf_node = getSurfaceNodeFromMaterialNode(per_face_mats[curr_prim]);
+	    num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
+	    for(curr_texture = 0; curr_texture < num_textures; curr_texture++)
+	    {
+		fbx_texture = generateFbxTexture(per_face_mats[curr_prim], curr_texture, myTexturesMap);
+		if(!fbx_texture)
+		    fbx_texture = fbx_default_texture;
+
+		for(curr_layer_idx = 0; curr_layer_idx < curr_max_layers; curr_layer_idx++)
+		{
+		    // Set the value for all layers   
+		    if(curr_layer_idx == curr_texture)
+			temp_layer_elem->GetDirectArray().Add(fbx_texture);
+		    else
+			temp_layer_elem->GetDirectArray().Add(fbx_default_texture);
+		}
+	    }
+	}
+    }
+    else
+    {
+	// One texture layer for the entire thing. 
+	OP_Node* surf_node = getSurfaceNodeFromMaterialNode(main_mat_node);
+	num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
+	last_layer_idx = 0;
+
+	for(curr_texture = 0; curr_texture < num_textures; curr_texture++)
+	{
+	    fbx_texture = generateFbxTexture(main_mat_node, curr_texture, myTexturesMap);
+	    if(!fbx_texture)
+		continue;
+
+	    // Get the layer
+	    tex_layer = node_attr->GetLayer(last_layer_idx);
+	    if(!tex_layer)
+	    {
+		last_layer_idx = node_attr->CreateLayer();
+		tex_layer = node_attr->GetLayer(last_layer_idx);
+	    }
+	    last_layer_idx++;
+
+	    temp_layer_elem = mySDKManager->CreateKFbxLayerElementTexture("");
+	    temp_layer_elem->SetMappingMode(KFbxLayerElement::eALL_SAME);
+	    temp_layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
+	    temp_layer_elem->SetAlpha(1.0);
+	    temp_layer_elem->SetBlendMode(KFbxLayerElementTexture::eTRANSLUCENT);
+	    tex_layer->SetDiffuseTextures(temp_layer_elem);
+
+	    // Set the value   
+	    temp_layer_elem->GetDirectArray().Add(fbx_texture);
+	}
+    }
+
+    if(per_face_mats)
+	delete[] per_face_mats;
+}
+/********************************************************************************************************/
+KFbxTexture* 
+ROP_FBXMainVisitor::getDefaultTexture(THdFbxTextureMap& tex_map)
+{
+    if(!myDefaultTexture)
+    {
+	myDefaultTexture = KFbxTexture::Create(mySDKManager, (const char*)"default_texture");
+	myDefaultTexture->SetFileName((const char*)"");
+	myDefaultTexture->SetMappingType(KFbxTexture::eUV);
+	myDefaultTexture->SetMaterialUse(KFbxTexture::eMODEL_MATERIAL);
+    }
+    return myDefaultTexture;
+}
+/********************************************************************************************************/
+KFbxSurfaceMaterial* 
+ROP_FBXMainVisitor::getDefaultMaterial(THdFbxMaterialMap& mat_map)
+{
+    if(!myDefaultMaterial)
+    {
+	// Create it
+
+	float temp_col[3] = { 193.0/255.0,193.0/255.0,193.0/255.0};
+
+	KFbxSurfaceLambert* lamb_new_mat = KFbxSurfaceLambert::Create(mySDKManager, (const char*)"default_material");
+	KFbxColor temp_fbx_col;
+
+	temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+	lamb_new_mat->GetDiffuseColor().Set(temp_fbx_col);
+	lamb_new_mat->GetDiffuseFactor().Set(1.0);
+
+	temp_col[0] = 0.0; 
+	temp_col[1] = 0.0;
+	temp_col[2] = 0.0;
+	temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+	lamb_new_mat->GetAmbientColor().Set(temp_fbx_col);
+	lamb_new_mat->GetAmbientFactor().Set(1.0);
+
+	lamb_new_mat->GetEmissiveColor().Set(temp_fbx_col);
+	lamb_new_mat->GetEmissiveFactor().Set(1.0);
+
+	myDefaultMaterial = lamb_new_mat;
+    }
+
+    return myDefaultMaterial;
+}
+/********************************************************************************************************/
+OP_Node* 
+ROP_FBXMainVisitor::getSurfaceNodeFromMaterialNode(OP_Node* material_node)
+{
+    if(!material_node)
+	return NULL;
+
+    OP_Node* surface_node = NULL;
+    SHOP_Node* material_shop_node = dynamic_cast<SHOP_Node*>(material_node);
+    if(!material_shop_node)
+	return NULL;
+    SHOP_Output* output_node = dynamic_cast<SHOP_Output*>(material_shop_node->getOutputNode());
+    if(output_node)
+    {
+	// Find the surface input.
+	int curr_input;
+	for( curr_input = output_node->getConnectedInputIndex(-1); curr_input >= 0;
+	    curr_input = output_node->getConnectedInputIndex(curr_input) )
+	{
+	    // Only traverse up real inputs, not reference inputs. But we
+	    // do want to search up out of subnets, which getInput() does.
+	    if(output_node->getInput(curr_input))
+	    {
+		if(output_node->getInputType(curr_input) == SHOP_SURFACE)
+		{
+		    surface_node = output_node->getInput(curr_input);
+		    break;
+		}
+	    }
+	}
+    }
+    else
+	surface_node = material_shop_node;
+
+    return surface_node;
+}
+/********************************************************************************************************/
+KFbxTexture* 
+ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFbxTextureMap& tex_map)
+{
+    if(!mat_node)
+	return NULL;
+
+    OP_Node* surface_node = getSurfaceNodeFromMaterialNode(mat_node);
+
+    if(!surface_node)
+	return NULL;
+
+    const UT_String& mat_name = mat_node->getName();
+    UT_String text_parm_name(UT_String::ALWAYS_DEEP);
+    UT_String texture_path, texture_name(UT_String::ALWAYS_DEEP);
+    text_parm_name.sprintf("ogl_tex%d", texture_idx+1);
+    ROP_FBXUtil::getStringOPParm(surface_node, (const char *)text_parm_name, texture_path, true);
+
+    if(texture_path.isstring() == false)
+	return NULL;
+
+    // Find the texture if it is already created
+    const char* full_name = (const char*)texture_path;
+    THdFbxTextureMap::iterator mi = tex_map.find(full_name);
+    if(mi != tex_map.end())
+	return mi->second;
+
+    // Create the texture and set its properties
+    texture_name.sprintf("%s_texture%d", (const char*)mat_name, texture_idx+1);    
+    KFbxTexture* new_tex = KFbxTexture::Create(mySDKManager, (const char*)texture_name);
+    new_tex->SetFileName((const char*)texture_path);
+    new_tex->SetMappingType(KFbxTexture::eUV);
+    new_tex->SetMaterialUse(KFbxTexture::eMODEL_MATERIAL);
+
+    tex_map[full_name] = new_tex;
+    return new_tex;
+}
+/********************************************************************************************************/
+KFbxSurfaceMaterial* 
+ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& mat_map)
+{
+    if(!mat_node)
+	return NULL;
+
+    // Find the material if it is already created
+    THdFbxMaterialMap::iterator mi = mat_map.find(mat_node);
+    if(mi != mat_map.end())
+	return mi->second;
+
+    OP_Node* surface_node = getSurfaceNodeFromMaterialNode(mat_node);
+    
+    if(!surface_node)
+	return NULL;
+
+    bool did_find;
+    const UT_String& mat_name = mat_node->getName();
+    float temp_col[3];
+    bool is_specular = false;
+    KFbxColor temp_fbx_col;
+
+    ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 0, 0.0, &did_find);
+    if(did_find)
+	is_specular = true;
+    
+
+    // We got the surface SHOP node. Get its OGL properties.
+    KFbxSurfacePhong* new_mat = NULL; 
+    KFbxSurfaceLambert* lamb_new_mat = NULL;
+    if(is_specular)
+    {
+	new_mat = KFbxSurfacePhong::Create(mySDKManager, (const char*)mat_name);
+	lamb_new_mat = new_mat;
+    }
+    else
+	lamb_new_mat = KFbxSurfaceLambert::Create(mySDKManager, (const char*)mat_name);
+
+    // Diffuse
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", 0);
+    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", 1);
+    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", 2);
+    temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+    lamb_new_mat->GetDiffuseColor().Set(temp_fbx_col);
+    lamb_new_mat->GetDiffuseFactor().Set(1.0);
+
+    // Ambient
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", 0);
+    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", 1);
+    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", 2);
+    temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+    lamb_new_mat->GetAmbientColor().Set(temp_fbx_col);
+    lamb_new_mat->GetAmbientFactor().Set(1.0);
+
+    // Emissive
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", 0);
+    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", 1);
+    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", 2);
+    temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+    lamb_new_mat->GetEmissiveColor().Set(temp_fbx_col);
+    lamb_new_mat->GetEmissiveFactor().Set(1.0);
+
+    if(new_mat)
+    {
+	// Specular
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 0);
+	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 1);
+	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 2);
+	temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+	new_mat->GetSpecularColor().Set(temp_fbx_col);
+	new_mat->GetSpecularFactor().Set(1.0);
+
+	// Shininess
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "shininess", 0, 0.0, &did_find);
+	if(did_find)
+	    temp_col[0] /= 100.0;
+	else
+	{
+	    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_rough", 0, 0.0, &did_find);
+	    if(!did_find)
+		temp_col[0] = 1.0;
+	}
+	new_mat->GetShininess().Set(temp_col[0]*100.0);
+    }
+    
+    // Alpha
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", 0);
+    new_mat->GetTransparencyFactor().Set(1.0 - temp_col[0]);
+    temp_col[0] = 1.0;
+    temp_col[1] = 1.0;
+    temp_col[2] = 1.0;
+    temp_fbx_col.Set(temp_col[0], temp_col[1], temp_col[2]);
+    new_mat->GetTransparentColor().Set(temp_fbx_col);
+
+    // Add the new material to our map
+    mat_map[mat_node] = new_mat;
+    return new_mat;
 }
 /********************************************************************************************************/
 // ROP_FBXMainNodeVisitInfo

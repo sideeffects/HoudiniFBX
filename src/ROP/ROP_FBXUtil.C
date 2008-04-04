@@ -92,6 +92,9 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
     PRM_Parm	 *parm;
     strref = "";
 
+    if(!node)
+	return;
+
     if (node->getParameterOrProperty(parmName, 0, node, parm))
 	parm->getValue(0, strref, 0, do_expand);
 }
@@ -99,6 +102,9 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 int 
 ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index)
 {
+    if(!node)
+	return 0;
+
     PRM_Parm	 *parm;
     int res = 0;
 
@@ -109,13 +115,22 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index)
 }
 /********************************************************************************************************/
 float 
-ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, float ftime)
+ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, float ftime, bool *did_find)
 {
+    if(did_find)
+	*did_find = false;
     PRM_Parm	 *parm;
     float res = 0.0;
 
+    if(!node)
+	return 0.0;
+
     if (node->getParameterOrProperty(parmName, 0, node, parm))
+    {
 	parm->getValue(ftime, res, index);
+	if(did_find)
+	    *did_find = true;
+    }
 
     return res;
 }

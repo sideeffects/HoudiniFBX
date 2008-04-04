@@ -42,7 +42,7 @@ public:
     static bool getGeometryHandle(SOP_Node* sop_node, float time, GU_DetailHandle &gdh);
     static void getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand = false);
     static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0);
-    static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0);
+    static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0, bool *did_find = NULL);
 
     static int getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, ROP_FBXGDPCache* v_cache_out);
     static bool isVertexCacheable(OP_Network *op_net, bool& found_particles);
