@@ -37,6 +37,8 @@ ROP_FBXExportOptions::reset(void)
     myExportInAscii = false;
     myVertexCacheFormat = ROP_FBXVertexCacheExportFormatMaya;
     myStartNodePath = "/obj";
+    myDetectConstantPointCountObjects = true;
+    myPolyConvertLOD = 1.0;
 }
 /********************************************************************************************************/
 bool 
@@ -98,5 +100,31 @@ const char*
 ROP_FBXExportOptions::getStartNodePath(void)
 {
     return myStartNodePath.c_str();
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXExportOptions::getDetectConstantPointCountObjects(void)
+{
+    return myDetectConstantPointCountObjects;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setDetectConstantPointCountObjects(bool value)
+{
+    myDetectConstantPointCountObjects = value;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setPolyConvertLOD(float lod)
+{
+    myPolyConvertLOD = lod;
+    if(myPolyConvertLOD <= 0.0)
+	myPolyConvertLOD = 1.0;
+}
+/********************************************************************************************************/
+float 
+ROP_FBXExportOptions::getPolyConvertLOD(void)
+{
+    return myPolyConvertLOD;
 }
 /********************************************************************************************************/

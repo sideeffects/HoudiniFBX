@@ -44,16 +44,16 @@ public:
     static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0);
     static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0, bool *did_find = NULL);
 
-    static int getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, ROP_FBXGDPCache* v_cache_out);
+    static int getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, ROP_FBXGDPCache* v_cache_out);
     static bool isVertexCacheable(OP_Network *op_net, bool& found_particles);
 
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
-    static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
+    static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
     static bool getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in,
 	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation);
 
-    static OP_Node* findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool &did_find_allowed_only, int rec_level = 0);
+    static OP_Node* findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool *did_find_allowed_only, int rec_level = 0);
     static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, bool use_world_transform = false);
 
     static bool isDummyBone(OP_Node* bone_node);
@@ -170,9 +170,14 @@ public:
 
     float getFirstFrame(void);
 
+    void setNumConstantPoints(int num_points);
+    int getNumConstantPoints(void);
+    bool getIsNumPointsConstant(void);
+
 private:
     TGeomCacheItems myFrameItems;
     float myMinFrame;
+    int myNumConstantPoints;
 };
 /********************************************************************************************************/
 #endif

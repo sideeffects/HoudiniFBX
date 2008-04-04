@@ -271,8 +271,6 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     float end_time = myParentExporter->getEndTime();
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
-    //start_frame = ch_manager->getGlobalStartFrame();
-    //end_frame = ch_manager->getGlobalEndFrame();
     CHbuildRange( start_frame, end_frame, range );
     ch->getKeyFrames(range, tmp_array, false);
 
@@ -515,7 +513,6 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const cha
     string cache_file_name(myFBXFileSourceFolder);
     cache_file_name += "/";
     cache_file_name += myFBXShortFileName;
-//    cache_file_name += fbx_node->GetName();
     cache_file_name += ".fpc";
 
     ::mkdir(cache_file_name.c_str(), 0777);
@@ -523,12 +520,10 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const cha
     string rel_pc_name("");;
     string absolute_pc_name(cache_file_name);
     absolute_pc_name += "/";
-//    absolute_pc_name += myFBXShortFileName;
     absolute_pc_name += fbx_node->GetName();
 
     rel_pc_name += myFBXShortFileName;
     rel_pc_name += ".fpc/";
-//    rel_pc_name += myFBXShortFileName;
     rel_pc_name += fbx_node->GetName();
     if(myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
     {
@@ -573,8 +568,6 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     KFbxVertexCacheDeformer* vc_deformer = addedVertexCacheDeformerToNode(fbx_node, file_name);
 
     CH_Manager *ch_manager = CHgetManager();
-//    float start_frame = ch_manager->getGlobalStartFrame();
-//    float end_frame = ch_manager->getGlobalEndFrame();
     float start_frame, end_frame;
     float start_time = myParentExporter->getStartTime();
     float end_time = myParentExporter->getEndTime();
@@ -589,30 +582,16 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     // Write samples for 4 seconds
     KTime fbx_curr_time;
     float hd_time;
-  //  KTime fbx_time_increment, fbx_curr_time, fbx_stop_time;
-//    fbx_time_increment.SetTime(0, 0, 0, 1); // 1 frame @ current frame rate
-//    fbx_stop_time.SetTime(0, 0, 4);         // 4 seconds
-//    fbx_curr_time.SetTime(0,0,0,start_frame);
-  //  fbx_stop_time.SetTime(0,0,0,end_frame);
     int curr_frame;
 
-    //unsigned int frame_count = (unsigned int)(fbx_stop_time.Get()/fbx_time_increment.Get());
     unsigned int frame_count = end_frame - start_frame + 1;
 
-    // Here we unfortunately have to go and find the maximum number of points over all frames.
-    //int max_points = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node);
     int max_gdp_points = node_info_in->getMaxObjectPoints();
     int num_vc_points;
-    /*
-    if(node_info_in->getVertexCacheMethod() == ROP_FBXVertexCacheMethodParticles)
-	num_vc_points = max_particles*ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT;
-    else */
-	num_vc_points = max_gdp_points;
-    //num_vc_points++;
+    num_vc_points = max_gdp_points;
 
     // Open the file for writing
     if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
-	//res = v_cache->OpenFileForWrite(KFbxCache::eMC_ONE_FILE_PER_FRAME, curr_fps, fbx_node->GetName());
 	res = v_cache->OpenFileForWrite(KFbxCache::eMC_ONE_FILE, curr_fps, fbx_node->GetName());
     else
 	res = v_cache->OpenFileForWrite(0.0, curr_fps, frame_count, num_vc_points);  
@@ -624,7 +603,6 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     }
 
     int channel_index = v_cache->GetChannelIndex(fbx_node->GetName());
-    //while (fbx_curr_time <= fbx_stop_time)
 
     // Allocate our buffer array
     double *vert_coords = new double[num_vc_points*3];
@@ -634,41 +612,13 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     {
 	hd_time = ch_manager->getTime(curr_frame);
 	fbx_curr_time.SetTime(0,0,0, curr_frame);
-	//fbx_curr_time.SetSecondDouble(hd_time);
 
 	if(!fillVertexArray(sop_node, hd_time, node_info_in, vert_coords, num_vc_points, node_pair_info, curr_frame))
 	{
 	    myErrorManager->addError("Could not evaluate a frame of vertex cache array. Node: ", geo_node->getName(), NULL, false);
 	    continue;
 	}
-/*
-	double lVertices[3][3];
-	double lScaleFactor = 1.0-double(fbx_curr_time.GetSecondDouble()/fbx_stop_time.GetSecondDouble());
 
-	lVertices[0][0] = -50.0 * lScaleFactor;  // X
-	lVertices[0][1] = 0.0;                   // Y
-	lVertices[0][2] = 50.0  * lScaleFactor;  // Z
-
-	lVertices[1][0] = 50.0  * lScaleFactor;  // X
-	lVertices[1][1] = 0.0;                   // Y
-	lVertices[1][2] = 50.0  * lScaleFactor;  // Z
-
-	lVertices[2][0] = 0.0   * lScaleFactor;  // X
-	lVertices[2][1] = 50.0  * lScaleFactor;  // Y
-	lVertices[2][2] = -50.0 * lScaleFactor;  // Z
-
-	lVertices[0][0] = 0.0;  // X
-	lVertices[0][1] = 0.0;                   // Y
-	lVertices[0][2] = 0.0;  // Z
-
-	lVertices[1][0] = 0.0;  // X
-	lVertices[1][1] = 0.0;                   // Y
-	lVertices[1][2] = 0.0;  // Z
-
-	lVertices[2][0] = 0.0;  // X
-	lVertices[2][1] = 0.0;  // Y
-	lVertices[2][2] = 0.0;  // Z
-*/
 	if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
 	{
 	    v_cache->Write(channel_index, fbx_curr_time, vert_coords, num_vc_points);
@@ -677,9 +627,6 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 	{
 	    v_cache->Write(curr_frame, vert_coords);
 	}
-
-//	fbx_curr_time += fbx_time_increment;
-//	curr_frame++;
     }
 
     if (!v_cache->CloseFile())
@@ -698,11 +645,12 @@ ROP_FBXAnimVisitor::fillVertexArray(SOP_Node* node, float time, ROP_FBXBaseNodeV
     ROP_FBXVertexCacheMethodType vc_method = node_pair_info->getVertexCacheMethod();
     const GU_Detail *final_gdp = NULL;
 
-/*
-    int points_per_prim = 0;
+    GU_Detail conv_gdp;
 
-    UT_Vector4 part_stock_tri[ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT];
-    if(vc_method == ROP_FBXVertexCacheMethodParticles)
+    // If the object does not change the number of points in an animation,
+    // we need its GDP converted, but not triangulated and not broken up (which is 
+    // what the stored, cached GDP is).
+    if(vc_method == ROP_FBXVertexCacheMethodGeometryConstant)
     {
 	// Get at the gdp
 	GU_DetailHandle gdh;
@@ -715,48 +663,18 @@ ROP_FBXAnimVisitor::fillVertexArray(SOP_Node* node, float time, ROP_FBXBaseNodeV
 	if(!gdp)
 	    return false;
 
-	GU_Detail conv_gdp;
-	ROP_FBXUtil::convertParticleGDPtoPolyGDP(gdp, num_particles, conv_gdp);
+	int dummy_int;
+	ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp, dummy_int);
 	final_gdp = &conv_gdp;
-
-	points_per_prim = ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT;
-	if(final_gdp->points().entries() > 3)
-	{
-	    part_stock_tri[0] = final_gdp->points()(0)->getPos();
-	    part_stock_tri[1] = final_gdp->points()(1)->getPos();
-	    part_stock_tri[2] = final_gdp->points()(2)->getPos();
-	    part_stock_tri[3] = final_gdp->points()(3)->getPos();
-	}
     }
     else
-    {
-	if(node_pair_info->getVertexCache())
-	{
-	    final_gdp = node_pair_info->getVertexCache()->getFrameGeometry(frame_num);
-	}
-	else
-	{
-	    UT_ASSERT(0);
-//	    ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, conv_gdp);
-//	    final_gdp = &conv_gdp;
-	}
-	
-	points_per_prim = 3;
-	part_stock_tri[0] = 0;
-	part_stock_tri[1] = 0;
-	part_stock_tri[2] = 0;
-	if(final_gdp->points().entries() > 2)
-	{
-//	    part_stock_tri[0] = final_gdp->points()(0)->getPos();
-//	    part_stock_tri[1] = final_gdp->points()(1)->getPos();
-//	    part_stock_tri[2] = final_gdp->points()(2)->getPos();
-	}
+	final_gdp = node_pair_info->getVertexCache()->getFrameGeometry(frame_num);
 
-    }
-*/
-    final_gdp = node_pair_info->getVertexCache()->getFrameGeometry(frame_num);
     if(!final_gdp)
+    {
+	UT_ASSERT(0);
 	return false;
+    }
 
 
     int actual_gdp_points = final_gdp->points().entries();
@@ -772,16 +690,8 @@ ROP_FBXAnimVisitor::fillVertexArray(SOP_Node* node, float time, ROP_FBXBaseNodeV
 	    ut_vec = final_gdp->points()(curr_point%actual_gdp_points)->getPos();
 	else
 	    ut_vec = 0;
-/*
-	else
-	{
-	    arr_offset = (curr_point - actual_gdp_points)%points_per_prim;
-	    //arr_offset = curr_point%points_per_prim;
-	    ut_vec = part_stock_tri[arr_offset];
-	} */
 
-	arr_offset = (num_array_points - curr_point - 1)*3;
-	//arr_offset = curr_point*3;
+	arr_offset = curr_point*3;
 	vert_array[arr_offset] = ut_vec.x();
 	vert_array[arr_offset+1] = ut_vec.y();
 	vert_array[arr_offset+2] = ut_vec.z();
@@ -799,11 +709,7 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
     const int num_channels = 4;
     int curr_channel_idx;
     const char* const channel_names[] = { "t", "r", "scale", "length"};
-//    float	     start_frame;
-//    float	     end_frame;
     CH_Manager *ch_manager = CHgetManager();
-//    start_frame = ch_manager->getGlobalStartFrame();
-//    end_frame = ch_manager->getGlobalEndFrame();
     float start_frame, end_frame;
     float gb_start_time = myParentExporter->getStartTime();
     float gb_end_time = myParentExporter->getEndTime();

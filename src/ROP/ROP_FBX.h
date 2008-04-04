@@ -26,6 +26,8 @@
 
 #include "ROP_FBXExporter.h"
 
+#define FBX_FLOAT_PARM(name, vi, t)	\
+		{ return evalFloat(name, vi, t); }
 #define STR_PARM(name, idx, vi, t) \
 		{ evalString(str, name, vi, (float)t); }
 #define INT_PARM(name, idx, vi, t) \
@@ -44,6 +46,8 @@ enum {
 
     ROP_FBX_STARTNODE,
     ROP_FBX_EXPORTASCII,
+    ROP_FBX_POLYLOD,
+    ROP_FBX_DETECTCONSTPOINTOBJS,
 
     ROP_FBX_TPRERENDER,
     ROP_FBX_PRERENDER,
@@ -114,6 +118,12 @@ private:
 
     int EXPORTASCII(void)
 	{ INT_PARM("exportkind", 0, 0, 0) }
+
+    float POLYLOD(void)
+	{ FBX_FLOAT_PARM("polylod", 0, 0) }
+
+    int DETECTCONSTOBJS(void)
+	{ INT_PARM("detectconstpointobjs", 0, 0, 0) }
 
     void STARTNODE(UT_String& str)
     { STR_PARM("startnode",  0, 0, 0); }

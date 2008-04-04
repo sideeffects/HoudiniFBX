@@ -136,17 +136,16 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, ROP_FBXGDPCache* v_cache_out)
+ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, ROP_FBXGDPCache* v_cache_out)
 {
     CH_Manager *ch_manager = CHgetManager();
-//    float start_frame = ch_manager->getGlobalStartFrame();
-//    float end_frame = ch_manager->getGlobalEndFrame();
     float start_frame, end_frame;
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
 
     float hd_time;
     int curr_frame;
+    int curr_num_points;
 
     UT_ASSERT(v_cache_out);
 
@@ -154,8 +153,12 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
     GU_DetailHandle gdh;
     const GU_Detail *gdp;
     int max_points = 0;    
+    int first_frame_num_points = -1;
     const GU_Detail *final_gdp;
     const GEO_Primitive *prim;
+    
+    int curr_num_unconverted_points;
+    bool is_num_verts_constant = true;
 
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
     {
@@ -169,7 +172,6 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
 	    if(!gdp)
 		continue;
 
-	    //GU_Detail conv_gdp;
 	    GU_Detail *conv_gdp;
 	    prim = gdp->primitives()(0);
 	    unsigned prim_type = prim->getPrimitiveId();
@@ -177,74 +179,57 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
 	    conv_gdp = v_cache_out->addFrame(curr_frame);
 
 	    if(prim_type == GEOPRIMPART)
+	    {
 		convertParticleGDPtoPolyGDP(gdp, *conv_gdp);
+		is_num_verts_constant = false;
+	    }
 	    else
-	    	convertGeoGDPtoVertexCacheableGDP(gdp, *conv_gdp);
+	    {
+	    	convertGeoGDPtoVertexCacheableGDP(gdp, lod, true, *conv_gdp, curr_num_unconverted_points);
+		if(first_frame_num_points < 0)
+		    first_frame_num_points = curr_num_unconverted_points;
+		else
+		{
+		    if(first_frame_num_points != curr_num_unconverted_points)
+			is_num_verts_constant = false;
+		}
+	    }
 
-	    if(conv_gdp->points().entries() > max_points)	    
-		max_points = conv_gdp->points().entries();
-/*
-	    // Since this function assumes that the object is to be a part of the vertex cache,
-	    // and (in Houdini) the number of vertices can change, and we need to pre-create all of them
-	    // and assign them to valid polygons, we always need to triangulate these.
+	    curr_num_points = conv_gdp->points().entries();
+	    if(curr_num_points > max_points)	    
+		max_points = curr_num_points;
 
-	    // It's ok not to have them in proper order (see convertParticleGDPtoPolyGDP()) since we're just
-	    // counting them.
-	    conv_gdp.duplicate(*gdp);
-	    GU_ConvertParms conv_parms;
-	    conv_parms.fromType = GEOPRIMALL;
-	    conv_parms.toType = GEOPRIMPOLY;
-	    conv_parms.method.setULOD(1.0);
-	    conv_parms.method.setVLOD(1.0);
-	    conv_gdp.convert(conv_parms);
-	    conv_gdp.convex(3);
-	    conv_gdp.uniquePoints();
-
-	    final_gdp = &conv_gdp;
-
-	    if(final_gdp->points().entries() > max_points)	    
-		max_points = final_gdp->points().entries();
-*/
 	}
     }
 
+    if(is_num_verts_constant && allow_constant_point_detection)
+	v_cache_out->setNumConstantPoints(first_frame_num_points);
     return max_points;
 }
 /********************************************************************************************************/
 bool
 ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool& found_particles)
 {
+    OP_Node* dyn_node, *part_node;
+
+    // The File SOP could also be bringing in animated data...
+    const char *dynamics_node_types[] = { "dopimport", "channel", "file", 0};
+    const char *particle_node_types[] = { "popnet", 0};
+
     found_particles = false;
 
-    if(!op_net)
-	return false;
-    int curr_node_idx, num_nodes = op_net->getNchildren();
-    OP_Node* curr_node;
-    UT_String node_type;
-    OP_Network *curr_net;
-    for(curr_node_idx = 0; curr_node_idx < num_nodes; curr_node_idx++)
+    // First, look for particles
+    part_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
+    if(part_node)
     {
-	curr_node = op_net->getChild(curr_node_idx);
-	if(curr_node)
-	{
-	    node_type = curr_node->getOperator()->getName();
-	    if(node_type == "dopimport")
-		return true;
-	    else if(node_type == "popnet")
-	    {
-		found_particles = true;
-		return true;
-	    }
-
-	    if(curr_node->isNetwork())
-	    {
-		curr_net = dynamic_cast<OP_Network*>(curr_node);
-		if(isVertexCacheable(curr_net, found_particles))
-		    return true;
-	    }
-	}
-
+	found_particles = true;
+	return true;
     }
+
+    // Then, if not found, look for other dynamic nodes
+    dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
+    if(dyn_node)
+	return true;
 
     return false;
 }
@@ -299,7 +284,7 @@ ROP_FBXUtil::convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& ou
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp)
+ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points)
 {
 #ifdef UT_DEBUG
     double cook_start, cook_end;
@@ -308,8 +293,8 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, GU_Deta
     GU_ConvertParms conv_parms;
     conv_parms.fromType = GEOPRIMALL;
     conv_parms.toType = GEOPRIMPOLY;
-    conv_parms.method.setULOD(1.0);
-    conv_parms.method.setVLOD(1.0);
+    conv_parms.method.setULOD(lod);
+    conv_parms.method.setVLOD(lod);
 #ifdef UT_DEBUG
     cook_start = clock();
 #endif
@@ -321,6 +306,14 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, GU_Deta
     cook_start = clock();
 #endif
     conv_gdp.convert(conv_parms);
+    num_pre_proc_points = conv_gdp.points().entries();
+
+    if(!do_triangulate_and_rearrange)
+    {
+	out_gdp.duplicate(conv_gdp);
+	return;
+    }
+
 #ifdef UT_DEBUG
     cook_end = clock();
     ROP_FBXdb_convertTime += (cook_end - cook_start);
@@ -435,15 +428,15 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 }
 /********************************************************************************************************/
 OP_Node*
-ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool &did_find_allowed_only, int rec_level)
+ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool *did_find_allowed_only, int rec_level)
 {
     OP_Node *	found = NULL;
     int		i;
     bool did_is_allowed_only_local;
     bool child_did_find_allowed_types_only;
 
-    if(rec_level == 0)
-	did_find_allowed_only = true;
+    if(rec_level == 0 && did_find_allowed_only)
+	*did_find_allowed_only = true;
 
     // Check if the node we are checking is already on the stack. If so,
     // we're at risk of recursion, so bail out.
@@ -472,12 +465,12 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_m
 		    }
 		}
 
-		if(!did_is_allowed_only_local)
-		    did_find_allowed_only = false;
+		if(!did_is_allowed_only_local && did_find_allowed_only)
+		    *did_find_allowed_only = false;
 
 	    }
-	    else if(found)
-		did_find_allowed_only = true;
+	    else if(found && did_find_allowed_only)
+		*did_find_allowed_only = true;
 
 	}
 
@@ -487,9 +480,9 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_m
 	{
 	    child_did_find_allowed_types_only = false;
 	    found = ROP_FBXUtil::findOpInput(((OP_Network *)op)->getDisplayNodePtr(),
-				   find_op_types, true, allowed_node_types, child_did_find_allowed_types_only, rec_level+1);
-	    if(found && !child_did_find_allowed_types_only)
-		did_find_allowed_only = false;
+				   find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1);
+	    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
+		*did_find_allowed_only = false;
 	}
 
 	// if we're a switch SOP, then look up the appropriate input chain
@@ -506,9 +499,9 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_m
 		if( op->getInput(i) != NULL )
 		{
 	    	    child_did_find_allowed_types_only = false;
-		    found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, child_did_find_allowed_types_only, rec_level+1 );
-		    if(found && !child_did_find_allowed_types_only)
-			did_find_allowed_only = false;
+		    found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1 );
+		    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
+			*did_find_allowed_only = false;
 		}
 	    }
 	}
@@ -521,9 +514,9 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_m
 	    if( op->getInput(i) && !op->isRefInput(i) )
 	    {
         	child_did_find_allowed_types_only = false;
-		found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, child_did_find_allowed_types_only, rec_level+1 );
-		if(found && !child_did_find_allowed_types_only)
-		    did_find_allowed_only = false;
+		found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1 );
+		if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
+		    *did_find_allowed_only = false;
 	    }
 	}
 
@@ -856,6 +849,7 @@ ROP_FBXNodeInfo::setVisitResultType(ROP_FBXVisitorResultType res_type)
 ROP_FBXGDPCache::ROP_FBXGDPCache()
 {
     myMinFrame = FLT_MAX;
+    myNumConstantPoints = -1;
 }
 /********************************************************************************************************/
 ROP_FBXGDPCache::~ROP_FBXGDPCache()
@@ -897,5 +891,23 @@ float
 ROP_FBXGDPCache::getFirstFrame(void)
 {
     return myMinFrame;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXGDPCache::getIsNumPointsConstant(void)
+{
+    return (myNumConstantPoints > 0);
+}
+/********************************************************************************************************/
+void 
+ROP_FBXGDPCache::setNumConstantPoints(int num_points)
+{
+    myNumConstantPoints = num_points;
+}
+/********************************************************************************************************/
+int 
+ROP_FBXGDPCache::getNumConstantPoints(void)
+{
+    return myNumConstantPoints;
 }
 /********************************************************************************************************/

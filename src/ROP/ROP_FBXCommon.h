@@ -45,8 +45,9 @@ enum ROP_FBXVertexCacheExportFormatType
 enum ROP_FBXVertexCacheMethodType
 {
     ROP_FBXVertexCacheMethodNone = 0,
-    ROP_FBXVertexCacheMethodGeometry,
-    ROP_FBXVertexCacheMethodParticles
+    ROP_FBXVertexCacheMethodGeometry,		// Any kind of geometry, including variable num points objects.
+    ROP_FBXVertexCacheMethodGeometryConstant,	// Geometry with constant number of points (i.g. skinning, RBD, cloth).
+    ROP_FBXVertexCacheMethodParticles		// Pure particle systems with no instance geometry
 };
 /********************************************************************************************************/
 class ROP_FBXExportOptions
@@ -71,6 +72,12 @@ public:
     void setStartNodePath(const char* node_path);
     const char* getStartNodePath(void);
 
+    bool getDetectConstantPointCountObjects(void);
+    void setDetectConstantPointCountObjects(bool value);
+
+    void setPolyConvertLOD(float lod);
+    float getPolyConvertLOD(void);
+
 private:
 
     // Sample every N frames
@@ -80,8 +87,17 @@ private:
     ROP_FBXVertexCacheExportFormatType myVertexCacheFormat;
 
     bool myExportInAscii;
+    // If true, the code will attempt to find those vertex cacheable objects which
+    // have a constant point count throughout the exported animation, and export them
+    // as "normal" vertex caches, without breaking them up and triangulating them.
+    // NOTE: This can fail when an object will happen to have a constant vertex count
+    // while changing point connectivity. This is why this is a UI option
+    bool myDetectConstantPointCountObjects;
 
     string myStartNodePath;
+
+    // Level of detail to use when converting things to polygons.
+    float myPolyConvertLOD;
 };
 /********************************************************************************************************/
 #endif

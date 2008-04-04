@@ -331,7 +331,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	const char *allowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
 	    "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
 	    "attribpromote", "attribstringedit", "attribute", 0};
-	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, allowed_inbetween_node_types, did_find_allowed_nodes_only);
+	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, allowed_inbetween_node_types, &did_find_allowed_nodes_only);
 
 	if(!did_find_allowed_nodes_only && skin_deform_node)
 	{
@@ -346,9 +346,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	{
 	    // We're skinnable.
 	    // Find the capture frame.
-	    bool temp_did_find_allowed_nodes_only = false;
 	    const char *capt_skin_node_types[] = { "capture", 0};
-	    OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, temp_did_find_allowed_nodes_only);
+	    OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, NULL);
 	    if(capture_node)
 	    {
 		if(ROP_FBXUtil::getIntOPParm(capture_node, "usecaptpose") == false)
@@ -374,7 +373,9 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	max_vert_cnt_start = clock();
 #endif
 	v_cache_out = new ROP_FBXGDPCache();
-	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node, geom_export_time, end_time, v_cache_out); // start_time
+	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node, geom_export_time, end_time, 
+	    myParentExporter->getExportOptions()->getPolyConvertLOD(),
+	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), v_cache_out);
 #ifdef UT_DEBUG
 	max_vert_cnt_end = clock();
 	ROP_FBXdb_maxVertsCountingTime += (max_vert_cnt_end - max_vert_cnt_start);
@@ -403,9 +404,15 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     KFbxNodeAttribute *res_attr = NULL;
     UT_String node_name = node->getName();
-    if(prim_type == GEOPRIMPOLY && !is_vertex_cacheable)
+    if(prim_type == GEOPRIMPOLY && (!is_vertex_cacheable || v_cache_out->getIsNumPointsConstant())) 
     {
-	res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
+	if(v_cache_out->getIsNumPointsConstant())
+	{
+	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
+	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
+	}
+	else
+	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
     }
     else if(prim_type == GEOPRIMPART)
     {
@@ -427,18 +434,19 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	GU_Detail conv_gdp, *final_detail;
 	if(is_vertex_cacheable)
 	{
-	    //ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, conv_gdp);
-	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
+	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
 	}
 	else
 	{
+	    float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
+
 	    conv_gdp.duplicate(*gdp);
 	    GU_ConvertParms conv_parms;
 	    conv_parms.fromType = GEOPRIMALL;
 	    conv_parms.toType = GEOPRIMPOLY;
-	    conv_parms.method.setULOD(1.0);
-	    conv_parms.method.setVLOD(1.0);
+	    conv_parms.method.setULOD(lod);
+	    conv_parms.method.setVLOD(lod);
 	    conv_gdp.convert(conv_parms);
 	    final_detail = &conv_gdp;
 	}
@@ -449,7 +457,10 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     {
 	// Cache this number so we don't painfully recompute it again when we get to
 	// vertex caching.
-	node_info->setMaxObjectPoints(max_vc_verts);
+	if(node_info->getVertexCacheMethod() == ROP_FBXVertexCacheMethodGeometryConstant)
+	    node_info->setMaxObjectPoints(v_cache_out->getNumConstantPoints());
+	else
+	    node_info->setMaxObjectPoints(max_vc_verts);
     }
 
     if(res_attr)
@@ -482,7 +493,6 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     else if(vc_method == ROP_FBXVertexCacheMethodParticles)
 	points_per_poly = ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT;
 
-    // For FBX, output one more point, otherwise Maya's importer won't import any polygons.
     if(max_points < num_points)
 	max_points = num_points;
     mesh_attr->InitControlPoints(max_points); //  + 1);
@@ -524,14 +534,17 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     }
 
     // Add dummy prims if we have to use the extra vertices available
-    int curr_extra_vert;
-    for(curr_extra_vert = num_points; curr_extra_vert < max_points; curr_extra_vert+=points_per_poly)
+    if(points_per_poly > 0)
     {
-	mesh_attr->BeginPolygon();
-	num_verts = points_per_poly;
-	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
-	    mesh_attr->AddPolygon(curr_extra_vert + curr_vert);	    
-	mesh_attr->EndPolygon();
+	int curr_extra_vert;
+	for(curr_extra_vert = num_points; curr_extra_vert < max_points; curr_extra_vert+=points_per_poly)
+	{
+	    mesh_attr->BeginPolygon();
+	    num_verts = points_per_poly;
+	    for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+		mesh_attr->AddPolygon(curr_extra_vert + curr_vert);	    
+	    mesh_attr->EndPolygon();
+	}
     }
 
     // Now do attributes, or at least some of them
@@ -935,9 +948,11 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	    }
 	    else if(attr_type == GB_ATTRIB_VECTOR)
 	    {
-		UT_ASSERT(attr_size <= 3);
 		custom_types_array.Add(DTFloat);
-		suffix.sprintf("_%s", vec_comps[curr_pos]);
+		if(attr_size <= 3)
+		    suffix.sprintf("_%s", vec_comps[curr_pos]);
+		else
+		    suffix.sprintf("_%d", curr_pos);
 	    }
 
 	    if(suffix.length() > 0)
