@@ -24,7 +24,7 @@
 #include <GU/GU_DetailHandle.h>
 #include "ROP_Node.h"
 
-#include "ROP_FBXExporter.h"
+#include "ROP_FBXExporterWrapper.h"
 
 #define FBX_FLOAT_PARM(name, vi, t)	\
 		{ return evalFloat(name, vi, t); }
@@ -145,7 +145,7 @@ private:
 
 private:
 
-    ROP_FBXExporter myFBXExporter;
+    ROP_FBXExporterWrapper myFBXExporter;
     bool myDidCallExport;
 };
 

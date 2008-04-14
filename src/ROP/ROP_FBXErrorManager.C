@@ -89,7 +89,7 @@ ROP_FBXErrorManager::appendAllErrors(UT_String& string_out) const
 {
 
     ROP_FBXError* curr_error;
-    TErrorVector::size_type curr_error_idx, num_errors = myErrors.size();
+    TROPErrorVector::size_type curr_error_idx, num_errors = myErrors.size();
     for(curr_error_idx = 0; curr_error_idx < num_errors; curr_error_idx++)
     {
 	curr_error = myErrors[curr_error_idx];
@@ -106,7 +106,7 @@ void
 ROP_FBXErrorManager::appendAllWarnings(UT_String& string_out) const
 {
     ROP_FBXError* curr_error;
-    TErrorVector::size_type curr_error_idx, num_errors = myErrors.size();
+    TROPErrorVector::size_type curr_error_idx, num_errors = myErrors.size();
     for(curr_error_idx = 0; curr_error_idx < num_errors; curr_error_idx++)
     {
 	curr_error = myErrors[curr_error_idx];

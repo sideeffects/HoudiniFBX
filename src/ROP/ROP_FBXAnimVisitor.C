@@ -17,6 +17,7 @@
  *
  */
 
+#include <fbx/fbxsdk.h>
 #include "ROP_FBXAnimVisitor.h"
 #include "ROP_FBXExporter.h"
 

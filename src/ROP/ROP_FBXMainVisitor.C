@@ -17,6 +17,7 @@
  *
  */
 
+#include <fbx/fbxsdk.h>
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 
@@ -406,7 +407,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     UT_String node_name = node->getName();
     if(prim_type == GEOPRIMPOLY && (!is_vertex_cacheable || v_cache_out->getIsNumPointsConstant())) 
     {
-	if(v_cache_out->getIsNumPointsConstant())
+	if(is_vertex_cacheable && v_cache_out && v_cache_out->getIsNumPointsConstant())
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
 	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);

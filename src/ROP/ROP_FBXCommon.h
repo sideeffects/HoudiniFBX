@@ -50,7 +50,7 @@ enum ROP_FBXVertexCacheMethodType
     ROP_FBXVertexCacheMethodParticles		// Pure particle systems with no instance geometry
 };
 /********************************************************************************************************/
-class ROP_FBXExportOptions
+class ROP_API ROP_FBXExportOptions
 {
 public:
     ROP_FBXExportOptions();

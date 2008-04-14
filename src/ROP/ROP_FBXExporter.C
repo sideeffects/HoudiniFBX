@@ -17,12 +17,9 @@
  *
  */
 
-
-#include "ROP_FBXExporter.h"
-
-#ifdef FBX_SUPPORTED
-
 #include <fbx/fbxsdk.h>
+#include "ROP_FBXActionManager.h"
+#include "ROP_FBXExporter.h"
 #include <GU/GU_DetailHandle.h>
 #include <OP/OP_Network.h>
 #include <GEO/GEO_Primitive.h>
@@ -58,15 +55,17 @@ ROP_FBXExporter::ROP_FBXExporter()
 {
     mySDKManager = NULL;
     myScene = NULL;
-    myErrorManager = NULL;
     myNodeManager = NULL;
     myActionManager = NULL;
     myDummyRootNullNode = NULL;
+    myErrorManager = new ROP_FBXErrorManager();
 }
 /********************************************************************************************************/
 ROP_FBXExporter::~ROP_FBXExporter()
 {
-
+    if(myErrorManager)
+	delete myErrorManager;
+    myErrorManager = NULL;
 }
 /********************************************************************************************************/
 bool 
@@ -87,7 +86,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float t
     ROP_FBXdb_duplicateTime = 0;
     myDBStartTime = clock();
 #endif
-    myErrorManager = new ROP_FBXErrorManager();
+    myErrorManager->reset();
 
     myStartTime = tstart;
     myEndTime = tend;
@@ -334,11 +333,6 @@ ROP_FBXExporter::finishExport(void)
 	delete myActionManager;
     myActionManager = NULL;
 
-    if(myErrorManager)
-	delete myErrorManager;
-    myErrorManager = NULL;
-
-
 
 #ifdef UT_DEBUG
     myDBEndTime = clock();
@@ -484,4 +478,3 @@ ROP_FBXExporter::GetFBXRootNode(void)
     return myDummyRootNullNode;
 }
 /********************************************************************************************************/
-#endif // FBX_SUPPORTED

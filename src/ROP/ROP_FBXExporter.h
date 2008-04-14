@@ -23,12 +23,7 @@
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 
-#ifdef FBX_SUPPORTED
-
 #include "ROP_FBXErrorManager.h"
-#include "ROP_FBXActionManager.h"
-
-#include <fbx/fbxsdk.h>
 
 #ifdef UT_DEBUG
 #include <UT/UT_Debug.h>
@@ -95,47 +90,5 @@ private:
     double myDBStartTime, myDBEndTime;
 #endif
 };
-/********************************************************************************************************/
-#else // FBX_SUPPORTED
-
-class KFbxSdkManager;
-class KFbxScene;
-class KFbxNode;
-class ROP_FBXNodeManager;
-class ROP_FBXActionManager;
-class ROP_FBXExportOptions;
-class ROP_FBXErrorManager;
-
-#define NULL 0
-
-class ROP_API ROP_FBXExporter
-{
-public:
-    ROP_FBXExporter() { }
-    ~ROP_FBXExporter() { }
-
-    // These are responsible for the actual conversion process.
-    bool initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options) { return false; }
-    void doExport(void) { }
-    bool finishExport(void) { return false; }
-
-    KFbxSdkManager* getSDKManager(void) { return NULL; }
-    KFbxScene* getFBXScene(void) { return NULL; }
-    ROP_FBXErrorManager* getErrorManager(void) { return NULL; }
-    ROP_FBXNodeManager* getNodeManager(void) { return NULL; }
-    ROP_FBXActionManager* getActionManager(void) { return NULL; }
-
-    ROP_FBXExportOptions* getExportOptions(void) { return NULL; }
-    const char* getOutputFileName(void) { return NULL; }
-
-    float getStartTime(void) { return 0; }
-    float getEndTime(void) { return 0; }
-    bool getExportingAnimation(void) { return false; }
-
-    void queueStringToDeallocate(const char* string_ptr) { }
-    KFbxNode* GetFBXRootNode(void) { return NULL; }
-};
-
-#endif // FBX_SUPPORTED
 /********************************************************************************************************/
 #endif

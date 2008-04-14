@@ -46,7 +46,7 @@ private:
     bool myIsCritical;
     ROP_FBXErrorType myType;
 };
-typedef vector<ROP_FBXError*> TErrorVector;
+typedef vector<ROP_FBXError*> TROPErrorVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXErrorManager
 {
@@ -68,7 +68,7 @@ public:
 
 private:
 
-    TErrorVector myErrors;
+    TROPErrorVector myErrors;
     bool myDidReportCricialErrors;
 };
 /********************************************************************************************************/
