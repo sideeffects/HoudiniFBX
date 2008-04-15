@@ -18,6 +18,7 @@
  */
 
 #include "ROP_FBXUtil.h"
+#include <UT/UT_Interrupt.h>
 #include <GU/GU_DetailHandle.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Node.h>
@@ -80,14 +81,17 @@ ROP_FBXUtil::getGeometryHandle(SOP_Node* sop_node, float time, GU_DetailHandle &
 	cook_end = clock();
 	ROP_FBXdb_cookingTime += (cook_end - cook_start);
 #endif
-	return(true);
+	if(gdh.isNull())
+	    return false;
+	else
+	    return true;
     }
     return false;
 
 }
 /********************************************************************************************************/
 void				
-ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand)
+ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand, float ftime)
 {
     PRM_Parm	 *parm;
     strref = "";
@@ -96,11 +100,11 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 	return;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm))
-	parm->getValue(0, strref, 0, do_expand);
+	parm->getValue(ftime, strref, 0, do_expand);
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index)
+ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, float ftime)
 {
     if(!node)
 	return 0;
@@ -109,7 +113,7 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index)
     int res = 0;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm))
-	parm->getValue(0, res, index);
+	parm->getValue(ftime, res, index);
 
     return res;
 }
@@ -136,7 +140,7 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, ROP_FBXGDPCache* v_cache_out)
+ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out)
 {
     CH_Manager *ch_manager = CHgetManager();
     float start_frame, end_frame;
@@ -164,12 +168,18 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
     {
 	hd_time = ch_manager->getTime(curr_frame);
 
+	if(boss_op && curr_frame % 10)
+	{
+	    if(boss_op->opInterrupt())
+		return -1;
+	}
+
 
 	if(ROP_FBXUtil::getGeometryHandle(sop_node, hd_time, gdh))
 	{
 	    GU_DetailHandleAutoReadLock	 gdl(gdh);
 	    gdp = gdl.getGdp();
-	    if(!gdp)
+	    if(!gdp || gdp->primitives().entries() <= 0)
 		continue;
 
 	    GU_Detail *conv_gdp;
@@ -208,18 +218,24 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool& found_particles)
+ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, float ftime, bool& found_particles)
 {
     OP_Node* dyn_node, *part_node;
 
+    // NOTE when adding node types. If the type being added can interfere with skinning, such as file
+    // or fetch, we must make sure that it is actually time-dependent here. Otherwise, no skinning
+    // will be exported. Also note that we may need to do additional searches since the result returned
+    // is the first node of all given types. If it is not time-dependent, another node above it may be.
+
     // The File SOP could also be bringing in animated data...
     const char *dynamics_node_types[] = { "dopimport", "channel", "file", 0};
+    const char *dynamics_node_types_with_deforms[] = { "dopimport", "channel", "file", "deform", 0};
     const char *particle_node_types[] = { "popnet", 0};
 
     found_particles = false;
 
     // First, look for particles
-    part_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
+    part_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), particle_node_types, true, NULL, NULL);
     if(part_node)
     {
 	found_particles = true;
@@ -227,9 +243,22 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool& found_particles)
     }
 
     // Then, if not found, look for other dynamic nodes
-    dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
+    if(include_deform_nodes)
+	dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types_with_deforms, true, NULL, NULL);
+    else
+	dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
+
     if(dyn_node)
-	return true;
+    {
+	// If we found a file node, check if it is time dependent.
+	if(dyn_node->getOperator()->getName() == "file")
+	{
+	    OP_Context op_context(ftime);
+	    return dyn_node->isTimeDependent(op_context);
+	}
+	else
+	    return true;
+    }
 
     return false;
 }
@@ -527,7 +556,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_m
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, bool use_world_transform)
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, float ftime, bool use_world_transform)
 {
 
     UT_Vector3 t,r,s;
@@ -536,14 +565,14 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool ha
     if(use_world_transform)
     {
 	UT_DMatrix4 world_matrix;
-	OP_Context op_context(0.0);
+	OP_Context op_context(ftime);
 	world_matrix = hd_node->getWorldTransform(op_context);
 
 	UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, 0.0, t,r,s, &post_rotate))
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, ftime, t,r,s, &post_rotate))
     {
 	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
 	fbx_node->SetRotationActive(true);

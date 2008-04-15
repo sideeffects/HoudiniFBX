@@ -33,6 +33,7 @@ class ROP_FBXErrorManager;
 class ROP_FBXGDPCache;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
+class UT_Interrupt;
 /********************************************************************************************************/
 enum ROP_FBXAttributeType
 {
@@ -109,7 +110,7 @@ public:
     UT_Color getAccumAmbientColor(void);
 
 protected:
-    KFbxNode* outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out);
+    KFbxNode* outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out);
     KFbxNode* outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
     KFbxNode* outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
     KFbxNode* outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
@@ -133,6 +134,7 @@ protected:
 
 private:
 
+    float myStartTime;
     ROP_FBXExporter* myParentExporter;
     KFbxSdkManager* mySDKManager;
     KFbxScene* myScene;
@@ -146,6 +148,7 @@ private:
     KFbxTexture* myDefaultTexture;
 
     UT_Color myAmbientColor;
+    UT_Interrupt* myBoss;
 };
 /********************************************************************************************************/
 #endif

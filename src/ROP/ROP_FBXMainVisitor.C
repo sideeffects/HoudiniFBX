@@ -21,6 +21,7 @@
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 
+#include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
@@ -66,6 +67,9 @@ ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter)
 
     myDefaultMaterial = NULL;
     myDefaultTexture = NULL;
+
+    myStartTime = myParentExporter->getStartTime();
+    myBoss = myParentExporter->GetBoss();
 }
 /********************************************************************************************************/
 ROP_FBXMainVisitor::~ROP_FBXMainVisitor()
@@ -86,12 +90,16 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     if(!node)
 	return res_type;
 
+    // Check for interrupt
+    if(myBoss->opInterrupt())
+	return ROP_FBXVisitorResultAbort;
+
     KFbxNode* res_new_node = NULL;
     KFbxNode* fbx_parent_node = NULL;
     if(node_info_in && node_info_in->getParentInfo() != NULL)
 	fbx_parent_node = node_info_in->getParentInfo()->getFbxNode();
     else
-	fbx_parent_node = myParentExporter->GetFBXRootNode();
+	fbx_parent_node = myParentExporter->GetFBXRootNode(node);
 
     if(!fbx_parent_node)
 	return ROP_FBXVisitorResultSkipSubtreeAndSubnet;
@@ -109,10 +117,17 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     {
 	if(node_type == "geo")
 	{
-	    res_new_node = outputGeoNode(node, node_info, fbx_parent_node, v_cache);
+	    bool did_cancel;
+	    res_new_node = outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel);
 
 	    // We don't need to dive into the geo node
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
+
+	    if(did_cancel)
+	    {
+		UT_ASSERT(res_new_node == NULL);
+		return ROP_FBXVisitorResultAbort;
+	    }
 	}
 	else if(node_type == "null")
 	{
@@ -164,15 +179,15 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 	else if(node_type == "ambient")
 	{
-	    int is_enabled = ROP_FBXUtil::getIntOPParm(node, "light_enable");
+	    int is_enabled = ROP_FBXUtil::getIntOPParm(node, "light_enable",0, myStartTime);
 	    if(is_enabled)
 	    {
 		float amb_intensity;
 		float amb_light_col[3];
-		amb_intensity = ROP_FBXUtil::getFloatOPParm(node, "light_intensity");
-		amb_light_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0);
-		amb_light_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1);
-		amb_light_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2);
+		amb_intensity = ROP_FBXUtil::getFloatOPParm(node, "light_intensity", 0, myStartTime);
+		amb_light_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0, myStartTime);
+		amb_light_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1, myStartTime);
+		amb_light_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2, myStartTime);
 
 		UT_Color this_amb_color;
 		this_amb_color.setRGB(amb_light_col[0] * amb_intensity, amb_light_col[1] * amb_intensity, amb_light_col[2] * amb_intensity);
@@ -196,7 +211,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     if(res_new_node && fbx_parent_node)
     {
 	UT_String lookatobjectpath;
-	ROP_FBXUtil::getStringOPParm(node, lookat_parm_name.c_str(), lookatobjectpath);
+	ROP_FBXUtil::getStringOPParm(node, lookat_parm_name.c_str(), lookatobjectpath, false, myStartTime);
 
 	res_new_node->SetVisibility(node->getDisplay());
 
@@ -207,7 +222,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	float bone_length = 0.0;
 	if(node_info_in && node_info_in->getParentInfo())
 	    bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info_in->getParentInfo())->getBoneLength();
-	ROP_FBXUtil::setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length );
+	ROP_FBXUtil::setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length, myStartTime );
 
 	// Add nodes to the map
 	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(node, res_new_node);
@@ -255,7 +270,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 
 	res_node->SetVisibility(last_node->getDisplay());
 
-	ROP_FBXUtil::setStandardTransforms(NULL, res_node, false, cast_info->getBoneLength() );
+	ROP_FBXUtil::setStandardTransforms(NULL, res_node, false, cast_info->getBoneLength(), myStartTime );
 
 	if(last_node_info->getFbxNode())
 	    last_node_info->getFbxNode()->AddChild(res_node);
@@ -289,15 +304,17 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     if(is_a_null)
 	bone_length = 1.0; // Some dummy value so the next joint knows it's not a root.
     else
-	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length");
+	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length", 0, myStartTime);
     node_info->setBoneLength(bone_length);
 
     return res_node;
 }
 /********************************************************************************************************/
 KFbxNode* 
-ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache *&v_cache_out)
+ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out)
 {
+    did_cancel_out = false;
+
     KFbxNode* res_node = NULL;
     OP_Network* op_net = dynamic_cast<OP_Network*>(node);
     if(!op_net)
@@ -313,7 +330,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     bool is_vertex_cacheable = false;
     OP_Node* skin_deform_node = NULL;
 
-    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, found_particles);
+    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles);
     if(myParentExporter->getExportingAnimation() || found_particles)
 	is_vertex_cacheable = temp_bool;
 
@@ -323,8 +340,9 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     // For now, only export skinning if we're not vertex cacheable.
     float geom_export_time = start_time;
-    float capture_frame = 1.0;
-    if(!is_vertex_cacheable)
+    float capture_frame = CHgetFrameFromTime(start_time);  
+
+    if(myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable)
     {
 	// For now, only export skinning if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
@@ -358,6 +376,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    }
 
 	    geom_export_time = CHgetManager()->getTime(capture_frame);
+	    is_vertex_cacheable = false;
 	}
     }
 
@@ -376,7 +395,16 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	v_cache_out = new ROP_FBXGDPCache();
 	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node, geom_export_time, end_time, 
 	    myParentExporter->getExportOptions()->getPolyConvertLOD(),
-	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), v_cache_out);
+	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), myBoss, v_cache_out);
+
+	if(max_vc_verts < 0)
+	{
+	    // The user cancelled.
+	    delete v_cache_out;
+	    did_cancel_out = true;
+	    return NULL;
+	}
+
 #ifdef UT_DEBUG
 	max_vert_cnt_end = clock();
 	ROP_FBXdb_maxVertsCountingTime += (max_vert_cnt_end - max_vert_cnt_start);
@@ -1334,7 +1362,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 	main_mat_node = source_node->findNode(main_mat_path);
 
     // See if there are any per-face indices
-    float start_time = myParentExporter->getStartTime();
+    float start_time = myStartTime;
     int curr_prim, num_prims = 0;
     OP_Node **per_face_mats = NULL;
 

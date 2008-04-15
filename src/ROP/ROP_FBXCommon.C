@@ -39,6 +39,7 @@ ROP_FBXExportOptions::reset(void)
     myStartNodePath = "/obj";
     myDetectConstantPointCountObjects = true;
     myPolyConvertLOD = 1.0;
+    myExportDeformsAsVC = false;
 }
 /********************************************************************************************************/
 bool 
@@ -126,5 +127,17 @@ float
 ROP_FBXExportOptions::getPolyConvertLOD(void)
 {
     return myPolyConvertLOD;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXExportOptions::getExportDeformsAsVC(void)
+{
+    return myExportDeformsAsVC;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setExportDeformsAsVC(bool value)
+{
+    myExportDeformsAsVC = value;
 }
 /********************************************************************************************************/

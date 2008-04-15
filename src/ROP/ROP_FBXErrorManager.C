@@ -70,6 +70,12 @@ ROP_FBXErrorManager::getNumItems(void) const
     return (int)myErrors.size();
 }
 /********************************************************************************************************/
+ROP_FBXError* 
+ROP_FBXErrorManager::getError(int err_index)
+{
+    return myErrors[err_index];
+}
+/********************************************************************************************************/
 void 
 ROP_FBXErrorManager::reset(void)
 {

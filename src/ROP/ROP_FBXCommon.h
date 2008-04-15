@@ -78,6 +78,9 @@ public:
     void setPolyConvertLOD(float lod);
     float getPolyConvertLOD(void);
 
+    bool getExportDeformsAsVC(void);
+    void setExportDeformsAsVC(bool value);
+
 private:
 
     // Sample every N frames
@@ -98,6 +101,9 @@ private:
 
     // Level of detail to use when converting things to polygons.
     float myPolyConvertLOD;
+
+    // If true, geometry with Deform SOPs will be exported as vertex caches. False by default.
+    bool myExportDeformsAsVC;
 };
 /********************************************************************************************************/
 #endif

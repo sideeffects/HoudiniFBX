@@ -24,7 +24,7 @@
 /********************************************************************************************************/
 ROP_FBXBaseVisitor::ROP_FBXBaseVisitor()
 {
-
+    myDidCancel = false;
 }
 /********************************************************************************************************/
 ROP_FBXBaseVisitor::~ROP_FBXBaseVisitor()
@@ -33,9 +33,24 @@ ROP_FBXBaseVisitor::~ROP_FBXBaseVisitor()
 }
 /********************************************************************************************************/
 void 
-ROP_FBXBaseVisitor::visitScene(OP_Network* start_net)
+ROP_FBXBaseVisitor::visitScene(OP_Node* start_node)
 {
-    visitNetworkNodes(start_net, NULL);
+    myDidCancel = false;
+
+    UT_String node_type = start_node->getOperator()->getName();
+    if(start_node->isNetwork() && isNetworkVisitable(node_type))
+    {
+	OP_Network* op_net = dynamic_cast<OP_Network*>(start_node);
+	UT_ASSERT(op_net);
+	visitNetworkNodes(op_net, NULL);
+    }
+    else
+    {
+	// Visit just a single node
+	visitNodeAndChildren(start_node, NULL);
+    }
+    
+
 }
 /********************************************************************************************************/
 void 
@@ -51,15 +66,19 @@ ROP_FBXBaseVisitor::visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeV
 	if(network_node->getChild(curr_child)->nInputs() > 0)
 	    continue;
 
-	visitNodeAndChildren(network_node->getChild(curr_child), parent_info);
+	if(visitNodeAndChildren(network_node->getChild(curr_child), parent_info) == ROP_FBXInternalVisitorResultStop)
+	{
+	    myDidCancel = true;
+	    break;
+	}
     }
 }
 /********************************************************************************************************/
-void 
+ROP_FBXInternalVisitorResultType
 ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info)
 {
     if(!node)
-	return;
+	return ROP_FBXInternalVisitorResultContinue;
 
     ROP_FBXBaseNodeVisitInfo* thisNodeInfo = NULL;
     
@@ -69,6 +88,12 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
     UT_ASSERT(thisNodeInfo);
     thisNodeInfo->setParentInfo(parent_info);
     visit_result = visit(node, thisNodeInfo);
+
+    if(visit_result == ROP_FBXVisitorResultAbort)
+    {
+	myDidCancel = true;
+	return ROP_FBXInternalVisitorResultStop;
+    }
 
     // See if this node is a network we have to dive into
     OP_Network* test_net = dynamic_cast<OP_Network*>(node);
@@ -87,7 +112,11 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 	int curr_child, num_children = node->nOutputs();
 	for(curr_child = 0; curr_child < num_children; curr_child++)
 	{
-	    visitNodeAndChildren(node->getOutput(curr_child), thisNodeInfo);
+	    if(visitNodeAndChildren(node->getOutput(curr_child), thisNodeInfo) == ROP_FBXInternalVisitorResultStop)
+	    {
+		myDidCancel = true;
+		break;
+	    }
 	}
 
 	if(num_children == 0)
@@ -96,6 +125,8 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 
     if(thisNodeInfo)
 	delete thisNodeInfo;
+
+    return ROP_FBXInternalVisitorResultContinue;
 
 }
 /********************************************************************************************************/
@@ -116,6 +147,12 @@ ROP_FBXBaseVisitor::isNetworkVisitable(const char* type_name)
 	    return true;
     }
     return false;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXBaseVisitor::getDidCancel(void)
+{
+    return myDidCancel;
 }
 /********************************************************************************************************/
 // ROP_FBXBaseNodeVisitInfo

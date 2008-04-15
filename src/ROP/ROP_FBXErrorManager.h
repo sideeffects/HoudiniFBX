@@ -54,9 +54,10 @@ public:
     ROP_FBXErrorManager();
     virtual ~ROP_FBXErrorManager();
 
-    void addError(const char* pcsError, bool bIsCritical = true, ROP_FBXErrorType eType = ROP_FBXErrorGeneric);
+    void addError(const char* pcsError, bool bIsCritical = false, ROP_FBXErrorType eType = ROP_FBXErrorGeneric);
     void addError(const char* pcsErrorPart1, const char* pcsErrorPart2, const char* pcsErrorPart3, bool bIsCritical = false, ROP_FBXErrorType eType = ROP_FBXErrorGeneric);
 
+    ROP_FBXError* getError(int err_index);
     int getNumItems(void) const;
 
     bool getDidReportCriticalErrors(void) const;

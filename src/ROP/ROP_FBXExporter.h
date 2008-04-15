@@ -33,6 +33,7 @@ class FBX_FILMBOX_NAMESPACE::KFbxSdkManager;
 class FBX_FILMBOX_NAMESPACE::KFbxScene;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
+class UT_Interrupt;
 
 typedef vector < char* > TCharPtrVector;
 /********************************************************************************************************/
@@ -63,7 +64,8 @@ public:
     bool getExportingAnimation(void);
 
     void queueStringToDeallocate(char* string_ptr);
-    KFbxNode* GetFBXRootNode(void);
+    KFbxNode* GetFBXRootNode(OP_Node* asking_node);
+    UT_Interrupt* GetBoss(void);
 
 private:
     void deallocateQueuedStrings(void);
@@ -84,6 +86,9 @@ private:
 
     TCharPtrVector myStringsToDeallocate;
     KFbxNode* myDummyRootNullNode;
+
+    UT_Interrupt	*myBoss;
+    bool myDidCancel;
 
 #ifdef UT_DEBUG
     // Timing variables

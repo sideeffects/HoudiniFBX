@@ -58,6 +58,8 @@ ROP_FBXExporter::ROP_FBXExporter()
     myNodeManager = NULL;
     myActionManager = NULL;
     myDummyRootNullNode = NULL;
+    myBoss = NULL;
+    myDidCancel = false;
     myErrorManager = new ROP_FBXErrorManager();
 }
 /********************************************************************************************************/
@@ -112,6 +114,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float t
     myScene = KFbxScene::Create(mySDKManager,"");
     myOutputFile = output_name;
 
+    myDidCancel = false;
     myDummyRootNullNode = NULL;
 
     return true;
@@ -122,9 +125,9 @@ ROP_FBXExporter::doExport(void)
 {
     UT_UndoManager::disableUndoCreation();
 
-    UT_Interrupt	*boss = UTgetInterrupt();
+    myBoss = UTgetInterrupt();
 
-    if( !boss->opStart("Exporting FBX" ) )
+    if( !myBoss->opStart("Exporting FBX" ) )
 	return;
 
     // Export geometry first
@@ -135,6 +138,15 @@ ROP_FBXExporter::doExport(void)
     bool exporting_single_frame = !getExportingAnimation();
     CH_Manager *ch_manager = CHgetManager();
     KTime fbx_start, fbx_stop;
+
+
+    // If we're outputting a single frame, we don't allow exporting deforms as vertex caches
+    if(exporting_single_frame)
+    {
+	// This is a copy of the originally passed-in options,
+	// so it's ok to change it.
+	myExportOptions.setExportDeformsAsVC(false);
+    }
 
     if(!exporting_single_frame)
     {
@@ -180,63 +192,87 @@ ROP_FBXExporter::doExport(void)
 	return;
     }
 
+/*
     OP_Network* op_net = dynamic_cast<OP_Network*>(geom_node);
     if(!op_net)
     {
 	myErrorManager->addError("Start node has to be a network. Aborting export. [ ",myExportOptions.getStartNodePath()," ]",true);
 	return;
     }
+    */
 
     geom_visitor.addVisitableNetworkType("subnet");
-    geom_visitor.visitScene(op_net);
+    geom_visitor.addVisitableNetworkType("obj");
+/*  
+    // Should these also be added (if encountered in the scene)
+    // or will they just produce unnecessary nulls in the output?
+    geom_visitor.addVisitableNetworkType("ch");
+    geom_visitor.addVisitableNetworkType("img");
+    geom_visitor.addVisitableNetworkType("out");
+    geom_visitor.addVisitableNetworkType("part");
+    geom_visitor.addVisitableNetworkType("shop");
+    geom_visitor.addVisitableNetworkType("vex");
+*/
+    geom_visitor.visitScene(geom_node);
+    myDidCancel = geom_visitor.getDidCancel();
 
-    // Global light settings - set the global ambient.
-    KFbxColor fbx_col;
-    float amb_col[3];
-    UT_Color amb_color = geom_visitor.getAccumAmbientColor();
-    amb_color.getRGB(&amb_col[0], &amb_col[1], &amb_col[2]);
-    fbx_col.Set(amb_col[0],amb_col[1],amb_col[2]);
-    KFbxGlobalLightSettings& global_light_settings = myScene->GetGlobalLightSettings();
-    global_light_settings.SetAmbientColor(fbx_col);
+    if(!myDidCancel)
+    {
+	// Global light settings - set the global ambient.
+	KFbxColor fbx_col;
+	float amb_col[3];
+	UT_Color amb_color = geom_visitor.getAccumAmbientColor();
+	amb_color.getRGB(&amb_col[0], &amb_col[1], &amb_col[2]);
+	fbx_col.Set(amb_col[0],amb_col[1],amb_col[2]);
+	KFbxGlobalLightSettings& global_light_settings = myScene->GetGlobalLightSettings();
+	global_light_settings.SetAmbientColor(fbx_col);
 
-    // Export animation if applicable
-    if(!exporting_single_frame)
-    { 
-	OP_Take	*take_mgr = OPgetDirector()->getTakeManager();
-	UT_String pattern("*");
-	UT_PtrArray<TAKE_Take *>	list;
+	// Export animation if applicable
+	if(!exporting_single_frame)
+	{ 
+	    OP_Take	*take_mgr = OPgetDirector()->getTakeManager();
+	    UT_String pattern("*");
+	    UT_PtrArray<TAKE_Take *>	list;
 
-	take_mgr->globTakes(list, (const char*)pattern);
+	    take_mgr->globTakes(list, (const char*)pattern);
 
-	// TODO: Get the current set take so we can re-set it later. Disable undo?
-	TAKE_Take *init_take = take_mgr->getCurrentTake();
-	ROP_FBXAnimVisitor anim_visitor(this);
-	anim_visitor.addVisitableNetworkType("subnet");
+	    // TODO: Get the current set take so we can re-set it later. Disable undo?
+	    TAKE_Take *init_take = take_mgr->getCurrentTake();
+	    ROP_FBXAnimVisitor anim_visitor(this);
+	    anim_visitor.addVisitableNetworkType("subnet");
+	    anim_visitor.addVisitableNetworkType("obj");
 
-	int curr_take_idx, num_takes = list.entries();
-	for(curr_take_idx = 0; curr_take_idx < num_takes; curr_take_idx++)
-	{
-	    // Set the take, launch the animation visitor
-	    take_mgr->takeSet(list[curr_take_idx]->getName());
+	    int curr_take_idx, num_takes = list.entries();
+	    for(curr_take_idx = 0; curr_take_idx < num_takes; curr_take_idx++)
+	    {
+		// Set the take, launch the animation visitor
+		take_mgr->takeSet(list[curr_take_idx]->getName());
 
-	    // Export the main world_root animation if applicable
-	    if(myDummyRootNullNode)
-	    {			
-		KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
-		anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node);
-	    }	    
-    	
-	    anim_visitor.reset();
-	    anim_visitor.visitScene(op_net);
+		// Export the main world_root animation if applicable
+		if(myDummyRootNullNode)
+		{			
+		    KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
+		    anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node);
+		}	    
+        	
+		anim_visitor.reset();
+		anim_visitor.visitScene(geom_node);
+
+		myDidCancel = anim_visitor.getDidCancel();
+		if(myDidCancel)
+		    break;
+	    }
+
+	    if(init_take)
+		take_mgr->takeSet(init_take->getName());
 	}
-
-	if(init_take)
-	    take_mgr->takeSet(init_take->getName());
+	// Perform post-actions
+	if(!myDidCancel)
+	    myActionManager->performPostActions();
     }
-    // Perform post-actions
-    myActionManager->performPostActions();
 
-    boss->opEnd();
+    myBoss->opEnd();
+    myBoss = NULL;
 
     UT_UndoManager::enableUndoCreation();
 }
@@ -248,68 +284,71 @@ ROP_FBXExporter::finishExport(void)
     double write_time_start, write_time_end;
     write_time_start = clock();
 #endif
-    // Save the built-up scene
-    KFbxExporter* fbx_exporter = KFbxExporter::Create(mySDKManager, "");
-
-    // Initialize the exporter by providing a filename.
-    if(fbx_exporter->Initialize(myOutputFile.c_str()) == false)
+    if(!myDidCancel)
     {
-//	addError(ROP_COOK_ERROR, (const char *)"Invalid output path");
-//	return ROP_ABORT_RENDER;
-	return false;
-    }
+	// Save the built-up scene
+	KFbxExporter* fbx_exporter = KFbxExporter::Create(mySDKManager, "");
 
-
-    //Try to export in ASCII if possible
-    int format_index, format_count = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatCount();
-    int out_file_format = -1;
-
-    for (format_index = 0; format_index < format_count; format_index++)
-    {
-	if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(format_index))
+	// Initialize the exporter by providing a filename.
+	if(fbx_exporter->Initialize(myOutputFile.c_str()) == false)
 	{
-	    KString lDesc = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatDescription(format_index);
-	    if (lDesc.Find("ascii")>=0 && myExportOptions.getExportInAscii())
+    //	addError(ROP_COOK_ERROR, (const char *)"Invalid output path");
+    //	return ROP_ABORT_RENDER;
+	    return false;
+	}
+
+
+	//Try to export in ASCII if possible
+	int format_index, format_count = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatCount();
+	int out_file_format = -1;
+
+	for (format_index = 0; format_index < format_count; format_index++)
+	{
+	    if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(format_index))
 	    {
-		out_file_format = format_index;
-		break;
-	    }
-	    else if (lDesc.Find("ascii")<0 && !myExportOptions.getExportInAscii())
-	    {
-		out_file_format = format_index;
-		break;
+		KString lDesc = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatDescription(format_index);
+		if (lDesc.Find("ascii")>=0 && myExportOptions.getExportInAscii())
+		{
+		    out_file_format = format_index;
+		    break;
+		}
+		else if (lDesc.Find("ascii")<0 && !myExportOptions.getExportInAscii())
+		{
+		    out_file_format = format_index;
+		    break;
+		}
 	    }
 	}
+
+	fbx_exporter->SetFileFormat(out_file_format);
+
+	KFbxStreamOptionsFbxWriter* export_options = KFbxStreamOptionsFbxWriter::Create(mySDKManager, "");
+	if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(out_file_format))
+	{
+	    // Set the export states. By default, the export states are always set to 
+	    // true except for the option eEXPORT_TEXTURE_AS_EMBEDDED. The code below 
+	    // shows how to change these states.
+	    /*
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_MATERIAL, true);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_TEXTURE, true);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_EMBEDDED, pEmbedMedia);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_LINK, true);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_SHAPE, true);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_GOBO, true);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_ANIMATION, true);
+	    export_options->SetOption(KFBXSTREAMOPT_FBX_GLOBAL_SETTINGS, true); */
+	}
+
+	// Export the scene.
+	bool exp_status = fbx_exporter->Export(*myScene, export_options); 
+
+	if(export_options)
+	    export_options->Destroy();
+	export_options=NULL;
+
+	// Destroy the exporter.
+	fbx_exporter->Destroy();
     }
-
-    fbx_exporter->SetFileFormat(out_file_format);
-
-    KFbxStreamOptionsFbxWriter* export_options = KFbxStreamOptionsFbxWriter::Create(mySDKManager, "");
-    if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(out_file_format))
-    {
-	// Set the export states. By default, the export states are always set to 
-	// true except for the option eEXPORT_TEXTURE_AS_EMBEDDED. The code below 
-	// shows how to change these states.
-	/*
-	export_options->SetOption(KFBXSTREAMOPT_FBX_MATERIAL, true);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_TEXTURE, true);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_EMBEDDED, pEmbedMedia);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_LINK, true);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_SHAPE, true);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_GOBO, true);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_ANIMATION, true);
-	export_options->SetOption(KFBXSTREAMOPT_FBX_GLOBAL_SETTINGS, true); */
-    }
-
-    // Export the scene.
-    bool exp_status = fbx_exporter->Export(*myScene, export_options); 
-
-    if(export_options)
-	export_options->Destroy();
-    export_options=NULL;
-
-    // Destroy the exporter.
-    fbx_exporter->Destroy();
 
     if(myScene)
 	myScene->Destroy();
@@ -435,7 +474,7 @@ ROP_FBXExporter::deallocateQueuedStrings(void)
 }
 /********************************************************************************************************/
 KFbxNode* 
-ROP_FBXExporter::GetFBXRootNode(void)
+ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 {
     // If we are exporting one of the standard subnets, such as "/" or "/obj", etc., return the
     // fbx scene root. Otherwise, create a null node (if it's not created yet), and return that.
@@ -450,6 +489,12 @@ ROP_FBXExporter::GetFBXRootNode(void)
     // Try to get the parent network
     OP_Node* export_node = OPgetDirector()->findNode(export_path);
     if(!export_node)
+	return fbx_scene_root;
+
+    // If our parent network is the same as us, just return the fbx scene root (this happens
+    // when exporting a single GEO node, for example, or in general when exporting a network
+    // that is not to be dived into).
+    if(asking_node == export_node)
 	return fbx_scene_root;
 
     OP_Network* parent_net = export_node->getParentNetwork();
@@ -467,7 +512,7 @@ ROP_FBXExporter::GetFBXRootNode(void)
 	myDummyRootNullNode->SetNodeAttribute(res_attr);
 
 	// Set world transform
-	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, false, 0.0, true );
+	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, false, 0.0, getStartTime(), true );
 	fbx_scene_root->AddChild(myDummyRootNullNode);
 
 	// Add nodes to the map
@@ -476,5 +521,11 @@ ROP_FBXExporter::GetFBXRootNode(void)
 
     UT_ASSERT(myDummyRootNullNode);
     return myDummyRootNullNode;
+}
+/********************************************************************************************************/
+UT_Interrupt* 
+ROP_FBXExporter::GetBoss(void)
+{
+    return myBoss;
 }
 /********************************************************************************************************/

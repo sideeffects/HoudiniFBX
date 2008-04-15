@@ -26,6 +26,7 @@
 
 class ROP_FBXExporter;
 class GU_Detail;
+class UT_Interrupt;
 class ROP_FBXErrorManager;
 class ROP_FBXNodeInfo;
 class SOP_Node;
@@ -80,6 +81,7 @@ private:
     ROP_FBXExportOptions *myExportOptions;
 
     string myOutputFileName, myFBXFileSourceFolder, myFBXShortFileName;
+    UT_Interrupt* myBoss;
 };
 /********************************************************************************************************/
 #endif

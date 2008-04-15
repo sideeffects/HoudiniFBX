@@ -32,23 +32,37 @@
 #include "ROP_Error.h"
 #include "ROP_Templates.h"
 
+static PRM_Name	vcType[] =
+{
+    PRM_Name("mayaformat",	"Maya Compatible (MC)"),
+    PRM_Name("maxformat",	"3DS MAX Compatible (PC2)"),
+    PRM_Name(0),
+};
+
 CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
 static PRM_Name		startNode("startnode", "Start At");
-static PRM_Name		exportKind("exportkind", "Export in ASCII");
+static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
 static PRM_Name		detectConstPointObjs("detectconstpointobjs", "Detect Constant Point Count Dynamic Objects");
+static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches");
 static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
+static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
 static PRM_Default	exportKindDefault(1);
 static PRM_Default	detectConstPointObjsDefault(1);
+static PRM_Default	deformsAsVcsDefault(0);
 static PRM_Default	polyLODDefault(1.0);
 static PRM_Default	startNodeDefault(0, "/obj");
 static PRM_Default	sopOutputDefault(0, "$HIP/$F.fbx");
 static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 					 &ROP_FBX::buildGeoSaveMenu);
+
+static PRM_ChoiceList	vcTypeMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
+				| PRM_CHOICELIST_REPLACE), vcType);
+
 
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,  1, &sopOutput, &sopOutputDefault, NULL),
@@ -56,6 +70,8 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
     PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
     PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
+    PRM_Template(PRM_TOGGLE,  1, &deformsAsVcs, &deformsAsVcsDefault, NULL),
+    PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0, &vcTypeMenu),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -81,8 +97,10 @@ ROP_FBX::getTemplates()
 
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
     theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[2];
+    theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[6];
     theTemplate[ROP_FBX_POLYLOD] = geoTemplates[3];
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = geoTemplates[4];
+    theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[5];
 
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
     theTemplate[ROP_FBX_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
@@ -118,8 +136,9 @@ ROP_FBX::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 unsigned
 ROP_FBX::disableParms()
 {
-    bool		hasinput = CAST_SOPNODE(getInput(0)) ? true : false;
     int			changed = 0;
+
+    changed += enableParm("deformsasvcs", DORANGE());
    
     return changed + ROP_Node::disableParms();
 }
@@ -188,9 +207,17 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
 
     // Set export options
     ROP_FBXExportOptions export_options;
+
+    int vc_format = VCFORMAT();
+    if(vc_format == 0)
+	export_options.setVertexCacheFormat(ROP_FBXVertexCacheExportFormatMaya);
+    else
+	export_options.setVertexCacheFormat(ROP_FBXVertexCacheExportFormat3DStudio);
+
     export_options.setExportInAscii(EXPORTASCII());
     export_options.setPolyConvertLOD(POLYLOD());
     export_options.setDetectConstantPointCountObjects(DETECTCONSTOBJS());
+    export_options.setExportDeformsAsVC(DEFORMSASVCS());
     export_options.setStartNodePath((const char*)str_start_node);
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
@@ -217,6 +244,26 @@ ROP_FBX::renderFrame(float time, UT_Interrupt *)
 	    return ROP_ABORT_RENDER;
     }
 
+    // Add any messages we might have had
+    if(myFBXExporter.getErrorManager())
+    {
+	ROP_FBXError* error_ptr;
+	int curr_error, num_errors = myFBXExporter.getErrorManager()->getNumItems();
+	for(curr_error = 0; curr_error < num_errors; curr_error++)
+	{
+	    error_ptr = myFBXExporter.getErrorManager()->getError(curr_error);
+	    if(error_ptr->getIsCritical())
+	    {
+		// Error		
+		addError(ROP_MESSAGE, error_ptr->getMessage());
+	    }
+	    else
+	    {
+		// Warning
+		addWarning(ROP_MESSAGE, error_ptr->getMessage());
+	    }
+	}
+    }
 
     return ROP_CONTINUE_RENDER;
 }
@@ -293,10 +340,6 @@ ROP_FBX::getNodeSpecificInfoText(OP_Context &context,
     {
 	// If we have an input, get the full path to that SOP.
 	sop->getFullPath(soppath);
-    }
-    else
-    {
-	UT_ASSERT(0);
     }
 
     if(soppath.isstring())

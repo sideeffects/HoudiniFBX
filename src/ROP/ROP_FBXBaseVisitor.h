@@ -33,7 +33,13 @@ enum ROP_FBXVisitorResultType
     ROP_FBXVisitorResultSkipSubnet = 0,
     ROP_FBXVisitorResultSkipSubtree = 1,
     ROP_FBXVisitorResultSkipSubtreeAndSubnet,
-    ROP_FBXVisitorResultOk
+    ROP_FBXVisitorResultOk,
+    ROP_FBXVisitorResultAbort
+};
+enum ROP_FBXInternalVisitorResultType
+{
+    ROP_FBXInternalVisitorResultStop = 0,
+    ROP_FBXInternalVisitorResultContinue
 };
 /********************************************************************************************************/
 /// This is an object which gets pushed onto the stack when a node is entered,
@@ -84,14 +90,16 @@ public:
     virtual void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info) = 0;
 
     /// Calls visitNodeAndChildren() on the root (given) node.
-    void visitScene(OP_Network* start_net);
+    void visitScene(OP_Node* start_node);
 
     void addVisitableNetworkType(const char *net_type);
+
+    bool getDidCancel(void);
 
 private:
     /// Calls visit() on the specified node and then calls itself
     /// on all children.
-    void visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info);
+    ROP_FBXInternalVisitorResultType visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info);
 
     /// Visits all nodes in a network, together with their hierarchies
     void visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info);
@@ -100,6 +108,8 @@ private:
 
 private:
     TStringVector myNetworkTypesToVisit;
+
+    bool myDidCancel;
 };
 /********************************************************************************************************/
 #endif

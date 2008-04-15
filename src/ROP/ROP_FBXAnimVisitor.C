@@ -21,6 +21,7 @@
 #include "ROP_FBXAnimVisitor.h"
 #include "ROP_FBXExporter.h"
 
+#include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
@@ -67,6 +68,8 @@ ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter)
     full_name.splitPath(file_path, file_name);	
     myFBXFileSourceFolder = file_path;
     myFBXShortFileName = file_name.pathUpToExtension();
+
+    myBoss = myParentExporter->GetBoss();
 }
 /********************************************************************************************************/
 ROP_FBXAnimVisitor::~ROP_FBXAnimVisitor()
@@ -92,6 +95,9 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXVisitorResultType res_type = ROP_FBXVisitorResultOk;
     if(!node)
 	return res_type;
+
+    if(myBoss->opInterrupt())
+	return ROP_FBXVisitorResultAbort;
 
     res_type = ROP_FBXVisitorResultSkipSubnet;
 
@@ -316,6 +322,8 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	    if( (full_key.k[0].myVValid[CH_VALUE] && full_key.k[1].myVValid[CH_VALUE]) )
 	    {
 		if( SYSisEqual( full_key.k[0].myV[CH_VALUE], full_key.k[1].myV[CH_VALUE]) )
+		    key_val = full_key.k[0].myV[CH_VALUE];
+		else
 		{
 		    myErrorManager->addError("Untied key values encountered. This is not supported. Node: ", source_node->getName(), NULL, false );
 		    key_val = (full_key.k[0].myV[CH_VALUE] + full_key.k[1].myV[CH_VALUE])*0.5;
