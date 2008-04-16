@@ -130,6 +130,19 @@ ROP_FBXExporter::doExport(void)
     if( !myBoss->opStart("Exporting FBX" ) )
 	return;
 
+    // Set the exported take
+    OP_Take	*take_mgr = OPgetDirector()->getTakeManager();
+    TAKE_Take *init_take = take_mgr->getCurrentTake();
+
+    // Find and set the needed take
+    if(strlen(myExportOptions.getExportTakeName()) == 0)
+    {
+	// Export current take.
+	init_take = NULL;
+    }
+    else
+	take_mgr->takeSet(myExportOptions.getExportTakeName());
+
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
 
@@ -150,8 +163,15 @@ ROP_FBXExporter::doExport(void)
 
     if(!exporting_single_frame)
     {
-	fbx_start.SetSecondDouble(myStartTime);
-	fbx_stop.SetSecondDouble(myEndTime);
+	// NOTE: This is a hack. Maya's FBX importer/exporter assumes, for who knows what
+	// reason, that the value set as seconds in this specific case (SetTimelineDefautTimeSpan)
+	// is actually frames. Our importer, as a consequence, also assumes that.
+	// So we export it like this, too. Hopefully they'll fix it in the next revision of FBX SDK.
+	fbx_start.SetSecondDouble(CHgetFrameFromTime(myStartTime));
+	fbx_stop.SetSecondDouble(CHgetFrameFromTime(myEndTime));
+//	fbx_start.SetSecondDouble(myStartTime);
+//	fbx_stop.SetSecondDouble(myEndTime);
+
 	KTimeSpan time_span(fbx_start, fbx_stop);
 	scene_time_setting.SetTimelineDefautTimeSpan(time_span);
 
@@ -192,27 +212,9 @@ ROP_FBXExporter::doExport(void)
 	return;
     }
 
-/*
-    OP_Network* op_net = dynamic_cast<OP_Network*>(geom_node);
-    if(!op_net)
-    {
-	myErrorManager->addError("Start node has to be a network. Aborting export. [ ",myExportOptions.getStartNodePath()," ]",true);
-	return;
-    }
-    */
-
     geom_visitor.addVisitableNetworkType("subnet");
     geom_visitor.addVisitableNetworkType("obj");
-/*  
-    // Should these also be added (if encountered in the scene)
-    // or will they just produce unnecessary nulls in the output?
-    geom_visitor.addVisitableNetworkType("ch");
-    geom_visitor.addVisitableNetworkType("img");
-    geom_visitor.addVisitableNetworkType("out");
-    geom_visitor.addVisitableNetworkType("part");
-    geom_visitor.addVisitableNetworkType("shop");
-    geom_visitor.addVisitableNetworkType("vex");
-*/
+
     geom_visitor.visitScene(geom_node);
     myDidCancel = geom_visitor.getDidCancel();
 
@@ -230,46 +232,30 @@ ROP_FBXExporter::doExport(void)
 	// Export animation if applicable
 	if(!exporting_single_frame)
 	{ 
-	    OP_Take	*take_mgr = OPgetDirector()->getTakeManager();
-	    UT_String pattern("*");
-	    UT_PtrArray<TAKE_Take *>	list;
-
-	    take_mgr->globTakes(list, (const char*)pattern);
-
-	    // TODO: Get the current set take so we can re-set it later. Disable undo?
-	    TAKE_Take *init_take = take_mgr->getCurrentTake();
 	    ROP_FBXAnimVisitor anim_visitor(this);
 	    anim_visitor.addVisitableNetworkType("subnet");
 	    anim_visitor.addVisitableNetworkType("obj");
 
-	    int curr_take_idx, num_takes = list.entries();
-	    for(curr_take_idx = 0; curr_take_idx < num_takes; curr_take_idx++)
-	    {
-		// Set the take, launch the animation visitor
-		take_mgr->takeSet(list[curr_take_idx]->getName());
+	    // Export the main world_root animation if applicable
+	    if(myDummyRootNullNode)
+	    {			
+		KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
+		anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node);
+	    }	    
 
-		// Export the main world_root animation if applicable
-		if(myDummyRootNullNode)
-		{			
-		    KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
-		    anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node);
-		}	    
-        	
-		anim_visitor.reset();
-		anim_visitor.visitScene(geom_node);
+	    anim_visitor.reset();
+	    anim_visitor.visitScene(geom_node);
+	    myDidCancel = anim_visitor.getDidCancel();
 
-		myDidCancel = anim_visitor.getDidCancel();
-		if(myDidCancel)
-		    break;
-	    }
-
-	    if(init_take)
-		take_mgr->takeSet(init_take->getName());
 	}
 	// Perform post-actions
 	if(!myDidCancel)
 	    myActionManager->performPostActions();
     }
+
+    // Restore original take
+    if(init_take)
+	take_mgr->takeSet(init_take->getName());
 
     myBoss->opEnd();
     myBoss = NULL;

@@ -40,6 +40,7 @@ ROP_FBXExportOptions::reset(void)
     myDetectConstantPointCountObjects = true;
     myPolyConvertLOD = 1.0;
     myExportDeformsAsVC = false;
+    myExportTakeName = "";
 }
 /********************************************************************************************************/
 bool 
@@ -139,5 +140,20 @@ void
 ROP_FBXExportOptions::setExportDeformsAsVC(bool value)
 {
     myExportDeformsAsVC = value;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setExportTakeName(const char* pcsName)
+{
+    if(pcsName)
+	myExportTakeName = pcsName;
+    else
+	myExportTakeName = "";
+}
+/********************************************************************************************************/
+const char* 
+ROP_FBXExportOptions::getExportTakeName(void)
+{
+    return myExportTakeName.c_str();
 }
 /********************************************************************************************************/

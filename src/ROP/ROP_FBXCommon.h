@@ -81,6 +81,9 @@ public:
     bool getExportDeformsAsVC(void);
     void setExportDeformsAsVC(bool value);
 
+    void setExportTakeName(const char* pcsName);
+    const char* getExportTakeName(void);
+
 private:
 
     // Sample every N frames
@@ -104,6 +107,9 @@ private:
 
     // If true, geometry with Deform SOPs will be exported as vertex caches. False by default.
     bool myExportDeformsAsVC;
+
+    // The name of the take to export. If empty, export the current take (default).
+    string myExportTakeName;
 };
 /********************************************************************************************************/
 #endif
