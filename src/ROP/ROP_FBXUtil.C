@@ -18,6 +18,7 @@
  */
 
 #include "ROP_FBXUtil.h"
+#include "ROP_FBXCommon.h"
 #include <UT/UT_Interrupt.h>
 #include <GU/GU_DetailHandle.h>
 #include <OP/OP_Network.h>
@@ -140,12 +141,15 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out)
+ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out)
 {
     CH_Manager *ch_manager = CHgetManager();
     float start_frame, end_frame;
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
+
+    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(op_node);
+    OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(op_node);
 
     float hd_time;
     int curr_frame;
@@ -168,14 +172,18 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
     {
 	hd_time = ch_manager->getTime(curr_frame);
 
-	if(boss_op && curr_frame % 10)
+	if(boss_op && curr_frame % 5)
 	{
 	    if(boss_op->opInterrupt())
 		return -1;
 	}
 
+	if(sop_node)
+	    ROP_FBXUtil::getGeometryHandle(sop_node, hd_time, gdh);
+	else
+	    gdh = obj_node->getDisplayGeometryHandle(hd_time);
 
-	if(ROP_FBXUtil::getGeometryHandle(sop_node, hd_time, gdh))
+	if(gdh.isNull() == false)
 	{
 	    GU_DetailHandleAutoReadLock	 gdl(gdh);
 	    gdp = gdl.getGdp();
@@ -183,8 +191,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, flo
 		continue;
 
 	    GU_Detail *conv_gdp;
-	    prim = gdp->primitives()(0);
-	    unsigned prim_type = prim->getPrimitiveId();
+	    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
 	    conv_gdp = v_cache_out->addFrame(curr_frame);
 
@@ -222,15 +229,9 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fl
 {
     OP_Node* dyn_node, *part_node;
 
-    // NOTE when adding node types. If the type being added can interfere with skinning, such as file
-    // or fetch, we must make sure that it is actually time-dependent here. Otherwise, no skinning
-    // will be exported. Also note that we may need to do additional searches since the result returned
-    // is the first node of all given types. If it is not time-dependent, another node above it may be.
-
-    // The File SOP could also be bringing in animated data...
-    const char *dynamics_node_types[] = { "dopimport", "channel", "file", 0};
-    const char *dynamics_node_types_with_deforms[] = { "dopimport", "channel", "file", "deform", 0};
-    const char *particle_node_types[] = { "popnet", 0};
+    const char *const dynamics_node_types[] = { "dopimport", "channel", 0};
+    const char *const dynamics_node_types_with_deforms[] = { "dopimport", "channel", "file", "deform", 0};
+    const char *const particle_node_types[] = { "popnet", 0};
 
     found_particles = false;
 
@@ -242,6 +243,14 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fl
 	return true;
     }
 
+    // If include_deform_nodes is true, we want to flag deforms as vc objects. This means that if it is false,
+    // we can ignore them.
+
+    // Look for any time-dependent nodes in general.
+    const char *const deform_node[] = { "deform", 0 };
+    if(ROP_FBXUtil::findTimeDependentNode(op_net->getRenderNodePtr(), ROP_FBXallowed_inbetween_node_types, ( include_deform_nodes ? NULL : deform_node ), ftime, true))
+	return true;
+    
     // Then, if not found, look for other dynamic nodes
     if(include_deform_nodes)
 	dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types_with_deforms, true, NULL, NULL);
@@ -249,18 +258,9 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fl
 	dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
 
     if(dyn_node)
-    {
-	// If we found a file node, check if it is time dependent.
-	if(dyn_node->getOperator()->getName() == "file")
-	{
-	    OP_Context op_context(ftime);
-	    return dyn_node->isTimeDependent(op_context);
-	}
-	else
-	    return true;
-    }
-
-    return false;
+	return true;
+    else
+	return false;
 }
 /********************************************************************************************************/
 void 
@@ -388,7 +388,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in,
+ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
 			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation)
 {
     bool set_post_rotation = false;
@@ -404,6 +404,11 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 
     if(node_type == "hlight" || node_type == "cam")
 	do_special_rotate = true;
+    if(override_node_type)
+    {
+	if(*override_node_type == "hlight" || *override_node_type == "cam")
+	    do_special_rotate = true;
+    }
 
     // TODO: optionally export pivot.
     // Get and set transforms
@@ -441,11 +446,20 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
     if(do_special_rotate && !has_lookat_node && post_rotation)
     {
 	// Set post-transform instead
-	if(node_type == "hlight")
-	    post_rotation->Set(-90,0,0);
-	else // if(node_type == "cam")
-	    post_rotation->Set(0,-90,0);
-
+	if(override_node_type)
+	{
+	    if(*override_node_type == "hlight")
+		post_rotation->Set(-90,0,0);
+	    else // if(node_type == "cam")
+		post_rotation->Set(0,-90,0);
+	}
+	else
+	{
+	    if(node_type == "hlight")
+		post_rotation->Set(-90,0,0);
+	    else // if(node_type == "cam")
+		post_rotation->Set(0,-90,0);
+	}
 	set_post_rotation = true;
     }
 
@@ -456,8 +470,86 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
     return set_post_rotation;
 }
 /********************************************************************************************************/
+bool
+ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_types[], const char * const opt_more_types[], float ftime, bool include_me)
+{
+    bool is_time_dependent = false;
+    OP_Node *	found = NULL;
+    int		i;
+    OP_Context op_context(ftime);
+
+    // Check if the node we are checking is already on the stack. If so,
+    // we're at risk of recursion, so bail out.
+    if( op != NULL && !op->flags().getRecursion()) // Don't care about locks: && !op->getHardLock() )
+    {
+	op->flags().setRecursion( true );
+
+	if( include_me )
+	{
+	    // See if this op is one of the types we can ignore.
+	    for( i = 0; !found && ignored_node_types[i]; i++ )
+	    {
+		if( op->getOperator()->getName() == ignored_node_types[i] )
+		    found = op;  
+	    }
+
+	    if(opt_more_types)
+	    {
+		for( i = 0; !found && opt_more_types[i]; i++ )
+		{
+		    if( op->getOperator()->getName() == opt_more_types[i] )
+			found = op;  
+		}
+	    }
+
+	    if(!found)
+		is_time_dependent |= op->isTimeDependent(op_context);		
+	}
+
+	// If we are a subnet, try to find an appropriate node within the
+	// subnet, starting with the subnet's display node.
+	if(op->isSubNetwork(false) )
+	{
+	    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode(((OP_Network *)op)->getDisplayNodePtr(), ignored_node_types, opt_more_types, ftime, true);
+	}
+
+	// if we're a switch SOP, then look up the appropriate input chain
+	if( !found && op->getOperator()->getName() == "switch" )
+	{
+	    PRM_Parm *	parm;
+
+	    parm = op->getParmList()->getParmPtr( "input" );
+	    if( parm != NULL )
+	    {
+		parm->getValue(
+		    OPgetDirector()->getChannelManager()->getEvaluateTime(),
+		    i, 0 );
+		if( op->getInput(i) != NULL )
+		{
+		    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode( op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
+		}
+	    }
+	}
+
+	for( i = op->getConnectedInputIndex(-1); !found && i >= 0;
+	    i = op->getConnectedInputIndex(i) )
+	{
+	    // Only traverse up real inputs, not reference inputs. But we
+	    // do want to search up out of subnets, which getInput() does.
+	    if( op->getInput(i) && !op->isRefInput(i) )
+	    {
+		is_time_dependent |= ROP_FBXUtil::findTimeDependentNode(op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
+	    }
+	}
+
+	op->flags().setRecursion( false );
+    }
+
+    return is_time_dependent;
+}
+/********************************************************************************************************/
 OP_Node*
-ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool *did_find_allowed_only, int rec_level)
+ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level)
 {
     OP_Node *	found = NULL;
     int		i;
@@ -556,7 +648,8 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char **find_op_types, bool include_m
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, float ftime, bool use_world_transform)
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, 
+				   float ftime, UT_String* override_node_type, bool use_world_transform)
 {
 
     UT_Vector3 t,r,s;
@@ -572,7 +665,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool ha
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, ftime, t,r,s, &post_rotate))
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate))
     {
 	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
 	fbx_node->SetRotationActive(true);
@@ -644,7 +737,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
 
     OP_Node* look_at_node = NULL;
     UT_String look_at_path;
-    ROP_FBXUtil::getStringOPParm(bone_node, "lookatpath", look_at_path);
+    ROP_FBXUtil::getStringOPParm(bone_node, "lookatpath", look_at_path, true);
     if(look_at_path.isstring() == false)
 	return false;
 
@@ -654,7 +747,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
 
     // Check if bone length is an expression
     UT_String bone_length_str;
-    ROP_FBXUtil::getStringOPParm(bone_node, "length", bone_length_str);
+    ROP_FBXUtil::getStringOPParm(bone_node, "length", bone_length_str, true);
     if(!PRM_Parm::isStringExpression(bone_length_str, CH_OLD_EXPRESSION) && !PRM_Parm::isStringExpression(bone_length_str, CH_PYTHON_EXPRESSION))
 	return false;
 
@@ -700,6 +793,47 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
 	return false;
 
     return true;
+}
+/********************************************************************************************************/
+OP_Node* 
+ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
+{
+    if(!instance_ptr)
+	return NULL;
+
+    OP_Node* curr_node = instance_ptr;
+    UT_String node_type, target_obj_path;
+
+    while(curr_node)
+    {
+	node_type = curr_node->getOperator()->getName();
+	if(node_type != "instance")
+	    break;
+
+	ROP_FBXUtil::getStringOPParm(curr_node, "instancepath", target_obj_path, true);
+	curr_node = curr_node->findNode(target_obj_path);
+    }
+
+    return curr_node;
+}
+/********************************************************************************************************/
+unsigned 
+ROP_FBXUtil::getGdpPrimId(const GU_Detail* gdp)
+{
+    const GEO_Primitive *prim = NULL;
+    unsigned prim_type = 0;
+    if(gdp->primitives().entries() > 0)
+    {
+	prim = gdp->primitives()(0);
+	prim_type = prim->getPrimitiveId();
+
+	FOR_ALL_PRIMITIVES(gdp, prim)
+	{
+	    if(prim->getPrimitiveId() != prim_type)
+		return GEOPRIMALL;
+	}
+    }
+    return prim_type;
 }
 /********************************************************************************************************/
 // ROP_FBXNodeManager
@@ -760,21 +894,23 @@ ROP_FBXNodeManager::findNodeInfo(KFbxNode* fbx_node)
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo& 
-ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, KFbxNode* fbx_node)
+ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info)
 {
     ROP_FBXNodeInfo* new_info = new ROP_FBXNodeInfo();
     new_info->setFbxNode(fbx_node);
     new_info->setHdNode(hd_node);
+    new_info->setVisitInfoCopy(visit_info);
 
     myHdToNodeInfoMap[hd_node] = new_info;
     myFbxToNodeInfoMap[fbx_node] = new_info;
+
 
     return *new_info;
 }
 /********************************************************************************************************/
 // ROP_FBXNodeInfo
 /********************************************************************************************************/
-ROP_FBXNodeInfo::ROP_FBXNodeInfo()
+ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)
 {
     myHdNode = NULL;
     myFbxNode = NULL;
@@ -785,7 +921,7 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo()
     myVisitResultType = ROP_FBXVisitorResultOk;
 }
 /********************************************************************************************************/
-ROP_FBXNodeInfo::ROP_FBXNodeInfo(KFbxNode* main_node)
+ROP_FBXNodeInfo::ROP_FBXNodeInfo(KFbxNode* main_node) : myVisitInfoCopy(NULL)
 {
     myHdNode = NULL;
     myFbxNode = main_node;
@@ -871,6 +1007,19 @@ void
 ROP_FBXNodeInfo::setVisitResultType(ROP_FBXVisitorResultType res_type)
 {
     myVisitResultType = res_type;
+}
+/********************************************************************************************************/
+ROP_FBXMainNodeVisitInfo& 
+ROP_FBXNodeInfo::getVisitInfo(void)
+{
+    return myVisitInfoCopy;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXNodeInfo::setVisitInfoCopy(ROP_FBXMainNodeVisitInfo& info)
+{
+    // Default == is good enough
+    myVisitInfoCopy = info;
 }
 /********************************************************************************************************/
 // ROP_FBXGDPCached

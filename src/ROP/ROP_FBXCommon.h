@@ -36,6 +36,14 @@
 using namespace std;
 /********************************************************************************************************/
 const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
+
+// Determines which network types the visitor dives into
+const char* const ROP_FBXtypesToDiveInto[] = { "subnet", "obj", 0 };
+
+// These declare any node that does not modify the mesh, its vertices or points.
+const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
+"attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
+"attribpromote", "attribstringedit", "attribute", 0};
 /********************************************************************************************************/
 enum ROP_FBXVertexCacheExportFormatType
 {
@@ -48,6 +56,12 @@ enum ROP_FBXVertexCacheMethodType
     ROP_FBXVertexCacheMethodGeometry,		// Any kind of geometry, including variable num points objects.
     ROP_FBXVertexCacheMethodGeometryConstant,	// Geometry with constant number of points (i.g. skinning, RBD, cloth).
     ROP_FBXVertexCacheMethodParticles		// Pure particle systems with no instance geometry
+};
+
+enum ROP_FBXInvisibleNodeExportType
+{
+    ROP_FBXInvisibleNodeExportAsNulls = 0,
+    ROP_FBXInvisibleNodeExportFull
 };
 /********************************************************************************************************/
 class ROP_API ROP_FBXExportOptions
@@ -84,6 +98,9 @@ public:
     void setExportTakeName(const char* pcsName);
     const char* getExportTakeName(void);
 
+    ROP_FBXInvisibleNodeExportType getInvisibleNodeExportMethod(void);
+    void setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type);
+
 private:
 
     // Sample every N frames
@@ -110,6 +127,9 @@ private:
 
     // The name of the take to export. If empty, export the current take (default).
     string myExportTakeName;
+
+    // Determines how invisible objects are to be exported.
+    ROP_FBXInvisibleNodeExportType myInvisibleObjectsExportType;
 };
 /********************************************************************************************************/
 #endif

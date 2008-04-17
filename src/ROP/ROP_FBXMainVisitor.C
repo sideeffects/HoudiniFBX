@@ -41,6 +41,7 @@
 #include <SHOP/SHOP_Output.h>
 
 #include "ROP_FBXActionManager.h"
+#include "ROP_FBXDerivedActions.h"
 
 #include "ROP_FBXUtil.h"
 
@@ -67,6 +68,7 @@ ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter)
 
     myDefaultMaterial = NULL;
     myDefaultTexture = NULL;
+    myInstancesActionPtr = NULL;
 
     myStartTime = myParentExporter->getStartTime();
     myBoss = myParentExporter->GetBoss();
@@ -113,7 +115,9 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     bool is_visible = node->getDisplay();
     ROP_FBXGDPCache *v_cache = NULL;
     bool force_ignore_node = false;
-    if(is_visible)
+    UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
+    if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
+	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull)
     {
 	if(node_type == "geo")
 	{
@@ -128,6 +132,30 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		UT_ASSERT(res_new_node == NULL);
 		return ROP_FBXVisitorResultAbort;
 	    }
+	}
+	else if(node_type == "instance")
+	{
+	    // We need to create a node (in case we have children),
+	    // *but* we need to attach the instance attribute later, as a post-action,
+	    // in case it's not created at this point.
+	    UT_String node_name = node->getName();
+	    res_new_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
+
+	    if(!myInstancesActionPtr)	    
+		myInstancesActionPtr = myActionManager->addCreateInstancesAction();
+	    myInstancesActionPtr->addInstance(node, res_new_node);
+
+	    // See if we're an instance of a light or a camera, in which case
+	    // we need to apply special transforms to this node.
+	    OP_Node* inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(node);
+	    if(inst_target)
+	    {
+		UT_String inst_target_node_type = inst_target->getOperator()->getName();
+		if(inst_target_node_type == "cam" || inst_target_node_type == "hlight")
+		    override_node_type = inst_target_node_type;
+	    }
+
+	    res_type = ROP_FBXVisitorResultSkipSubnet;
 	}
 	else if(node_type == "null")
 	{
@@ -210,42 +238,65 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
     if(res_new_node && fbx_parent_node)
     {
+	UT_ASSERT(node_info);
 	UT_String lookatobjectpath;
-	ROP_FBXUtil::getStringOPParm(node, lookat_parm_name.c_str(), lookatobjectpath, false, myStartTime);
+	ROP_FBXUtil::getStringOPParm(node, lookat_parm_name.c_str(), lookatobjectpath, true, myStartTime);
 
-	res_new_node->SetVisibility(node->getDisplay());
+	ROP_FBXNodeInfo *res_node_pair_info;
+	if(node_info->getIsVisitingFromInstance() && node_info->getFbxNode())
+	{
+	    // Special trick to re-parent the attribute.
+	    node_info->getFbxNode()->SetNodeAttribute(res_new_node->GetNodeAttribute());
+	    res_new_node->SetNodeAttribute(NULL);
+	    res_new_node->Destroy();
+	    res_new_node = node_info->getFbxNode();
+
+	    res_node_pair_info = myNodeManager->findNodeInfo(node_info->getFbxNode());
+	    UT_ASSERT(res_node_pair_info);
+	}
+	else
+	{
+	    res_new_node->SetVisibility(node->getDisplay());
+
+	    // Set the standard transformations (unless we're in the instance)
+	    float bone_length = 0.0;
+	    if(node_info_in && node_info_in->getParentInfo())
+		bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info_in->getParentInfo())->getBoneLength();
+	    UT_String* override_type_ptr = NULL;
+	    if(override_node_type.isstring())
+		override_type_ptr = &override_node_type;
+	    ROP_FBXUtil::setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length, myStartTime, override_type_ptr);
+
+	    // If there's a lookat object, queue up the action
+	    if(lookatobjectpath.length() > 0)
+	    {
+		// Get the actual node ptr
+		OP_Node *lookat_node = node->findNode((const char*)lookatobjectpath);
+
+		// Queue up an object to look at. Post-action because it may not have been created yet.
+		if(lookat_node)
+		    myActionManager->addLookAtAction(res_new_node, lookat_node);
+	    }
+
+	    // Add nodes to the map
+	    res_node_pair_info = &myNodeManager->addNodePair(node, res_new_node, *node_info);
+	}
+
 
 	// Export materials
 	exportMaterials(node, res_new_node);
 
-	// Set the standard transformations
-	float bone_length = 0.0;
-	if(node_info_in && node_info_in->getParentInfo())
-	    bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info_in->getParentInfo())->getBoneLength();
-	ROP_FBXUtil::setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length, myStartTime );
-
-	// Add nodes to the map
-	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(node, res_new_node);
-	stored_node_pair.setVertexCacheMethod(node_info->getVertexCacheMethod());
-	stored_node_pair.setMaxObjectPoints(node_info->getMaxObjectPoints());
-	stored_node_pair.setVertexCache(v_cache);
-	stored_node_pair.setVisitResultType(res_type);
-
-	// If there's a lookat object, queue up the action
-	if(lookatobjectpath.length() > 0)
-	{
-	    // Get the actual node ptr
-	    OP_Node *lookat_node = node->findNode((const char*)lookatobjectpath);
-
-	    // Queue up an object to look at. Post-action because it may not have been created yet.
-	    if(lookat_node)
-		myActionManager->addLookAtAction(res_new_node, lookat_node);
-	}
+	res_node_pair_info->setVertexCacheMethod(node_info->getVertexCacheMethod());
+	res_node_pair_info->setMaxObjectPoints(node_info->getMaxObjectPoints());
+	res_node_pair_info->setVertexCache(v_cache);
+	res_node_pair_info->setVisitResultType(res_type);
 
 	// Add it to the hierarchy
-	fbx_parent_node->AddChild(res_new_node);
-	node_info_in->setFbxNode(res_new_node);
-	
+	if(!node_info->getIsVisitingFromInstance())
+	{
+	    fbx_parent_node->AddChild(res_new_node);
+	    node_info_in->setFbxNode(res_new_node);
+	}	
     }
 
     return res_type;
@@ -270,7 +321,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 
 	res_node->SetVisibility(last_node->getDisplay());
 
-	ROP_FBXUtil::setStandardTransforms(NULL, res_node, false, cast_info->getBoneLength(), myStartTime );
+	ROP_FBXUtil::setStandardTransforms(NULL, res_node, false, cast_info->getBoneLength(), myStartTime, NULL );
 
 	if(last_node_info->getFbxNode())
 	    last_node_info->getFbxNode()->AddChild(res_node);
@@ -346,11 +397,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     {
 	// For now, only export skinning if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
-	const char *skin_node_types[] = { "deform", 0};
-	const char *allowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
-	    "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
-	    "attribpromote", "attribstringedit", "attribute", 0};
-	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, allowed_inbetween_node_types, &did_find_allowed_nodes_only);
+	const char *const skin_node_types[] = { "deform", 0};
+	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, ROP_FBXallowed_inbetween_node_types, &did_find_allowed_nodes_only);
 
 	if(!did_find_allowed_nodes_only && skin_deform_node)
 	{
@@ -365,7 +413,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	{
 	    // We're skinnable.
 	    // Find the capture frame.
-	    const char *capt_skin_node_types[] = { "capture", 0};
+	    const char *const capt_skin_node_types[] = { "capture", 0};
 	    OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, NULL);
 	    if(capture_node)
 	    {
@@ -393,7 +441,14 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	max_vert_cnt_start = clock();
 #endif
 	v_cache_out = new ROP_FBXGDPCache();
-	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(sop_node, geom_export_time, end_time, 
+
+	OP_Node* node_to_use;
+	if(node_info->getIsVisitingFromInstance() && node_info->getParentInfo())
+	    node_to_use = node_info->getParentInfo()->getHdNode();
+	else
+	    node_to_use = sop_node;
+
+	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(node_to_use, geom_export_time, end_time, 
 	    myParentExporter->getExportOptions()->getPolyConvertLOD(),
 	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), myBoss, v_cache_out);
 
@@ -423,13 +478,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	return res_node;
 
     // Try to guess from the first primitive what the SOP represents
-    const GEO_Primitive *prim = NULL;
-    unsigned prim_type = 0;
-    if(gdp->primitives().entries() > 0)
-    {
-	prim = gdp->primitives()(0);
-        prim_type = prim->getPrimitiveId();
-    }
+    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
     KFbxNodeAttribute *res_attr = NULL;
     UT_String node_name = node->getName();
@@ -1187,7 +1236,6 @@ KFbxNode*
 ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node)
 {
     UT_String node_name = node->getName();
-
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)node_name);
     res_node->SetNodeAttribute(res_attr);
@@ -1210,7 +1258,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
 
     // Set params
     KFbxLight::ELightType light_type;
-    ROP_FBXUtil::getStringOPParm(node, "light_type", string_param);
+    ROP_FBXUtil::getStringOPParm(node, "light_type", string_param, true);
     if(string_param == "point")
     {
 	// Point light
@@ -1236,7 +1284,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     res_attr->SetCastLight((bool)int_param);
 
     // Cast shadows flag
-    ROP_FBXUtil::getStringOPParm(node, "shadow_type", string_param);
+    ROP_FBXUtil::getStringOPParm(node, "shadow_type", string_param, true);
     if(string_param == "off")
 	res_attr->SetCastShadows(false);
     else
@@ -1275,7 +1323,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     res_node->SetNodeAttribute(res_attr);
 
     // Projection type
-    ROP_FBXUtil::getStringOPParm(node, "projection", string_param);
+    ROP_FBXUtil::getStringOPParm(node, "projection", string_param, true);
     KFbxCamera::ECameraProjectionType project_type;
     if(string_param == "ortho")
 	project_type = KFbxCamera::eORTHOGONAL;
@@ -1291,7 +1339,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     // Focal length
     // Get the units, as well
     double length_mult = 1.0;
-    ROP_FBXUtil::getStringOPParm(node, "focalunits", string_param);
+    ROP_FBXUtil::getStringOPParm(node, "focalunits", string_param, true);
     if(string_param == "m")
 	length_mult = 1000.0;
     else if(string_param == "nm")
@@ -1356,7 +1404,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 //    OP_Director* op_director = OPgetDirector();
 
     UT_String main_mat_path;
-    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL_PATH, main_mat_path);
+    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL_PATH, main_mat_path, true);
     OP_Node* main_mat_node = NULL;
     if(main_mat_path.isstring())
 	main_mat_node = source_node->findNode(main_mat_path);
@@ -1792,11 +1840,18 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     return new_mat;
 }
 /********************************************************************************************************/
+ROP_FBXCreateInstancesAction* 
+ROP_FBXMainVisitor::getCreateInstancesAction(void)
+{
+    return myInstancesActionPtr;
+}
+/********************************************************************************************************/
 // ROP_FBXMainNodeVisitInfo
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo::ROP_FBXMainNodeVisitInfo(OP_Node* hd_node) : ROP_FBXBaseNodeVisitInfo(hd_node)
 {
     myBoneLength = 0.0;
+    myIsVisitingFromInstance = false;
 }
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo::~ROP_FBXMainNodeVisitInfo()
@@ -1814,5 +1869,17 @@ void
 ROP_FBXMainNodeVisitInfo::setBoneLength(double b_length)
 {
     myBoneLength = b_length;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXMainNodeVisitInfo::getIsVisitingFromInstance(void)
+{
+    return myIsVisitingFromInstance;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainNodeVisitInfo::setIsVisitingFromInstance(bool value)
+{
+    myIsVisitingFromInstance = value;
 }
 /********************************************************************************************************/

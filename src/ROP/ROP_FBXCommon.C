@@ -41,6 +41,7 @@ ROP_FBXExportOptions::reset(void)
     myPolyConvertLOD = 1.0;
     myExportDeformsAsVC = false;
     myExportTakeName = "";
+    myInvisibleObjectsExportType = ROP_FBXInvisibleNodeExportAsNulls;
 }
 /********************************************************************************************************/
 bool 
@@ -155,5 +156,17 @@ const char*
 ROP_FBXExportOptions::getExportTakeName(void)
 {
     return myExportTakeName.c_str();
+}
+/********************************************************************************************************/
+ROP_FBXInvisibleNodeExportType 
+ROP_FBXExportOptions::getInvisibleNodeExportMethod(void)
+{
+    return myInvisibleObjectsExportType;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type)
+{
+    myInvisibleObjectsExportType = exp_type;
 }
 /********************************************************************************************************/

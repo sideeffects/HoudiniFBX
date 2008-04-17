@@ -31,6 +31,7 @@ class ROP_FBXSkinningAction;
 class ROP_FBXApplyVertexCacheAction;
 class ROP_FBXApplySkinningAction;
 class ROP_FBXApplyBlendAction;
+class ROP_FBXCreateInstancesAction;
 class ROP_FBXExporter;
 
 class OP_Node;
@@ -46,6 +47,7 @@ public:
 
     ROP_FBXLookAtAction* addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_node);
     ROP_FBXSkinningAction* addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, float capture_frame);
+    ROP_FBXCreateInstancesAction* addCreateInstancesAction(void);
 
     void performPostActions(void);
 

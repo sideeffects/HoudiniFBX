@@ -32,6 +32,7 @@
 #include "SOP/SOP_Node.h"
 #include "SOP/SOP_Capture.h"
 #include <GEO/GEO_CaptureData.h>
+
 /********************************************************************************************************/
 // ROP_FBXLookAtAction
 /********************************************************************************************************/
@@ -363,5 +364,116 @@ ROP_FBXSkinningAction::addNodeRecursive(KArrayTemplate<KFbxNode*>& node_array, K
 	    node_array.Add(curr_node);
 	}
     }
+}
+/********************************************************************************************************/
+// ROP_FBXCreateInstancesAction
+/********************************************************************************************************/
+ROP_FBXCreateInstancesAction::ROP_FBXCreateInstancesAction(ROP_FBXActionManager& parent_manager)
+    : ROP_FBXBaseAction(parent_manager)
+{
+
+}
+/********************************************************************************************************/
+ROP_FBXCreateInstancesAction::~ROP_FBXCreateInstancesAction()
+{
+
+}
+/********************************************************************************************************/
+void 
+ROP_FBXCreateInstancesAction::addInstance(OP_Node* instance_hd_node, KFbxNode* instance_fbx_node)
+{
+    ROP_FBXInstanceActionBundle temp_bundle(instance_hd_node, instance_fbx_node);
+    myItems.push_back(temp_bundle);
+}
+/********************************************************************************************************/
+ROP_FBXActionType 
+ROP_FBXCreateInstancesAction::getType(void)
+{
+    return ROP_FBXActionCreateInstances;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXCreateInstancesAction::performAction(void)
+{
+    // Go over all hd instance nodes. For each try to find its target hd node, then
+    // a corresponding FBX node with an attribute set.
+    // If found, copy the attribute and set it as this node. If not, continue.
+    // Add a check to prevent infinite loops - if didn't find anything in one iteration,
+    // quite with an error.
+
+    bool did_find_any_targets = true;
+    bool are_all_instances_set = false;
+
+    ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
+    KFbxNode* target_fbx;
+    KFbxNodeAttribute* fbx_target_attr;
+
+    OP_Node *hd_inst, *hd_inst_target;
+    UT_String target_obj_path;
+    int curr_inst_idx, num_inst = myItems.size();
+
+    ROP_FBXNodeInfo *this_node_info;
+
+    ROP_FBXMainVisitor geom_visitor(&getParentManager().getExporter());
+    ROP_FBXMainNodeVisitInfo visit_info(NULL);
+    ROP_FBXMainNodeVisitInfo *target_node_info;
+    geom_visitor.addVisitableNetworkTypes(ROP_FBXtypesToDiveInto);
+
+    while(!are_all_instances_set && did_find_any_targets)
+    {
+	did_find_any_targets = false;
+	are_all_instances_set = true;
+
+	for(curr_inst_idx = 0; curr_inst_idx < num_inst; curr_inst_idx++)
+	{
+
+	    if(myItems[curr_inst_idx].myFbxNode->GetNodeAttribute())
+		continue;
+
+	    are_all_instances_set = false;
+
+	    // Get the pointed-to HD node
+	    hd_inst = myItems[curr_inst_idx].myHdNode;
+	    hd_inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(hd_inst);
+	    if(!hd_inst_target)
+		continue;
+
+	    // Find the corresponding FBX node
+	    target_fbx = node_manager.findFbxNode(hd_inst_target);
+	    if(!target_fbx || !target_fbx->GetNodeAttribute())
+		continue;
+
+	    this_node_info = node_manager.findNodeInfo(hd_inst);
+	    if(!this_node_info)
+		continue;
+
+	    // Unbelievably, there is no way to make a copy of a node's attribute
+	    // in FBX, and they can't be instanced. We're forced to re-create
+	    // the node from scratch. Arghhh.
+	    
+	    //fbx_target_attr = target_fbx->GetNodeAttribute();
+	    //myItems[curr_inst_idx].myFbxNode->AddNodeAttribute(fbx_target_attr);
+	    visit_info = this_node_info->getVisitInfo();
+	    visit_info.setFbxNode(myItems[curr_inst_idx].myFbxNode->GetParent());
+	    visit_info.setHdNode(hd_inst);
+
+	    target_node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(geom_visitor.visitBegin(hd_inst_target));
+	    target_node_info->setParentInfo(&visit_info);
+	    target_node_info->setFbxNode(myItems[curr_inst_idx].myFbxNode);
+	    target_node_info->setIsVisitingFromInstance(true);
+
+	    geom_visitor.visit(hd_inst_target, target_node_info);
+	    did_find_any_targets = true;
+
+	    delete target_node_info;
+	}
+    }
+
+    if(!are_all_instances_set)
+    {
+	getParentManager().getErrorManager().addError("Some instances could not be connected properly.",NULL,NULL, false);	
+    }
+
+    setIsActive(false);
 }
 /********************************************************************************************************/

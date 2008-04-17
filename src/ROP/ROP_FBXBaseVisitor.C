@@ -136,6 +136,17 @@ ROP_FBXBaseVisitor::addVisitableNetworkType(const char *net_type)
     myNetworkTypesToVisit.push_back(net_type);
 }
 /********************************************************************************************************/
+void 
+ROP_FBXBaseVisitor::addVisitableNetworkTypes(const char* const net_types[])
+{
+    int arr_pos = 0;
+    while(net_types[arr_pos])
+    {
+	addVisitableNetworkType(net_types[arr_pos]);
+	arr_pos++;
+    }
+}
+/********************************************************************************************************/
 bool 
 ROP_FBXBaseVisitor::isNetworkVisitable(const char* type_name)
 {
@@ -217,5 +228,17 @@ void
 ROP_FBXBaseNodeVisitInfo::setVertexCacheMethod(ROP_FBXVertexCacheMethodType vc_method)
 {
     myVertexCacheMethod = vc_method;
+}
+/********************************************************************************************************/
+OP_Node* 
+ROP_FBXBaseNodeVisitInfo::getHdNode(void)
+{
+    return myHdNode;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXBaseNodeVisitInfo::setHdNode(OP_Node* hd_node)
+{
+    myHdNode = hd_node;
 }
 /********************************************************************************************************/

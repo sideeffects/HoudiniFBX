@@ -25,7 +25,7 @@
 /********************************************************************************************************/
 ROP_FBXBaseAction::ROP_FBXBaseAction(ROP_FBXActionManager& parent_manager) : myParentManager(parent_manager)
 {
-
+    myIsActive = true;
 }
 /********************************************************************************************************/
 ROP_FBXBaseAction::~ROP_FBXBaseAction()
@@ -37,6 +37,18 @@ ROP_FBXActionManager&
 ROP_FBXBaseAction::getParentManager(void)
 {
     return myParentManager;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXBaseAction::setIsActive(bool value)
+{
+    myIsActive = value;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXBaseAction::getIsActive(void)
+{
+    return myIsActive;
 }
 /********************************************************************************************************/
 // ROP_FBXBaseHoudiniNodeAction

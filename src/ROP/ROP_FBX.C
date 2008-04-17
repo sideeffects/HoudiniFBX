@@ -39,6 +39,13 @@ static PRM_Name	vcType[] =
     PRM_Name(0),
 };
 
+static PRM_Name	invisObj[] =
+{
+    PRM_Name("nullnodes",	"As Hidden Null Nodes"),
+    PRM_Name("fullnodes",	"As Hidden Full Nodes"),
+    PRM_Name(0),
+};
+
 CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
@@ -48,6 +55,7 @@ static PRM_Name		detectConstPointObjs("detectconstpointobjs", "Detect Constant P
 static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches");
 static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
 static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
+static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
@@ -62,6 +70,9 @@ static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 
 static PRM_ChoiceList	vcTypeMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				| PRM_CHOICELIST_REPLACE), vcType);
+static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
+				   | PRM_CHOICELIST_REPLACE), invisObj);
+
 
 
 static PRM_Template	 geoTemplates[] = {
@@ -72,6 +83,7 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
     PRM_Template(PRM_TOGGLE,  1, &deformsAsVcs, &deformsAsVcsDefault, NULL),
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0, &vcTypeMenu),
+    PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName, 0, &invisObjMenu),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -98,6 +110,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
     theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[2];
     theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[6];
+    theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[7];
     theTemplate[ROP_FBX_POLYLOD] = geoTemplates[3];
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = geoTemplates[4];
     theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[5];
@@ -214,6 +227,8 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
     else
 	export_options.setVertexCacheFormat(ROP_FBXVertexCacheExportFormat3DStudio);
 
+    export_options.setInvisibleNodeExportMethod((ROP_FBXInvisibleNodeExportType)((int)INVISOBJ()));
+    
     export_options.setExportInAscii(EXPORTASCII());
     export_options.setPolyConvertLOD(POLYLOD());
     export_options.setDetectConstantPointCountObjects(DETECTCONSTOBJS());

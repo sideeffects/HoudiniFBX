@@ -56,6 +56,9 @@ public:
     void setFbxNode(KFbxNode* node);
     KFbxNode* getFbxNode(void);
 
+    OP_Node* getHdNode(void);
+    void setHdNode(OP_Node* hd_node);
+
     int getMaxObjectPoints(void);
     void setMaxObjectPoints(int num_points);
 
@@ -93,6 +96,7 @@ public:
     void visitScene(OP_Node* start_node);
 
     void addVisitableNetworkType(const char *net_type);
+    void addVisitableNetworkTypes(const char* const net_types[]);
 
     bool getDidCancel(void);
 

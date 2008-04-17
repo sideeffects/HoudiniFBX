@@ -31,7 +31,8 @@ class FBX_FILMBOX_NAMESPACE::KFbxNode;
 enum ROP_FBXActionType
 {
     ROP_FBXActionSetLookAtTarget = 0,
-    ROP_FBXActionApplySkinning
+    ROP_FBXActionApplySkinning,
+    ROP_FBXActionCreateInstances
 };
 /********************************************************************************************************/
 class ROP_FBXBaseAction
@@ -43,10 +44,14 @@ public:
     virtual ROP_FBXActionType getType(void) = 0;
     virtual void performAction(void) = 0;
 
+    void setIsActive(bool value);
+    bool getIsActive(void);
+
     ROP_FBXActionManager& getParentManager(void);
 
 private:
     ROP_FBXActionManager& myParentManager;
+    bool myIsActive;
 };
 /********************************************************************************************************/
 class ROP_FBXBaseFbxNodeAction : public ROP_FBXBaseAction

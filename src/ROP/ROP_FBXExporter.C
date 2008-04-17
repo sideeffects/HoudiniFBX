@@ -39,7 +39,7 @@
 #include "ROP_FBXUtil.h"
 #include "ROP_FBXAnimVisitor.h"
 #include "ROP_FBXMainVisitor.h"
-
+#include "ROP_FBXDerivedActions.h"
 
 #ifdef UT_DEBUG
 double ROP_FBXdb_maxVertsCountingTime;
@@ -212,11 +212,14 @@ ROP_FBXExporter::doExport(void)
 	return;
     }
 
-    geom_visitor.addVisitableNetworkType("subnet");
-    geom_visitor.addVisitableNetworkType("obj");
+    geom_visitor.addVisitableNetworkTypes(ROP_FBXtypesToDiveInto);
 
     geom_visitor.visitScene(geom_node);
     myDidCancel = geom_visitor.getDidCancel();
+
+    // Create any instances, if necessary
+    if(geom_visitor.getCreateInstancesAction())
+	geom_visitor.getCreateInstancesAction()->performAction();
 
     if(!myDidCancel)
     {
@@ -233,8 +236,7 @@ ROP_FBXExporter::doExport(void)
 	if(!exporting_single_frame)
 	{ 
 	    ROP_FBXAnimVisitor anim_visitor(this);
-	    anim_visitor.addVisitableNetworkType("subnet");
-	    anim_visitor.addVisitableNetworkType("obj");
+	    anim_visitor.addVisitableNetworkTypes(ROP_FBXtypesToDiveInto);
 
 	    // Export the main world_root animation if applicable
 	    if(myDummyRootNullNode)
@@ -498,11 +500,13 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 	myDummyRootNullNode->SetNodeAttribute(res_attr);
 
 	// Set world transform
-	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, false, 0.0, getStartTime(), true );
+	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, false, 0.0, getStartTime(), NULL, true );
 	fbx_scene_root->AddChild(myDummyRootNullNode);
 
 	// Add nodes to the map
-	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(export_node, myDummyRootNullNode);
+	ROP_FBXMainNodeVisitInfo dummy_info(export_node);
+	dummy_info.setFbxNode(myDummyRootNullNode);
+	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(export_node, myDummyRootNullNode, dummy_info);
     }
 
     UT_ASSERT(myDummyRootNullNode);

@@ -68,4 +68,31 @@ private:
     float myCaptureFrame;
 };
 /********************************************************************************************************/
+class ROP_FBXInstanceActionBundle
+{
+public:
+    ROP_FBXInstanceActionBundle() { myHdNode = NULL; myFbxNode = NULL; }
+    ROP_FBXInstanceActionBundle(OP_Node* instance_hd_node, KFbxNode* instance_fbx_node) { myHdNode = instance_hd_node; myFbxNode = instance_fbx_node; }
+    ~ROP_FBXInstanceActionBundle() { }
+
+    OP_Node* myHdNode;
+    KFbxNode* myFbxNode;
+};
+typedef vector< ROP_FBXInstanceActionBundle > TInstanceBundleVector;
+
+class ROP_FBXCreateInstancesAction : public ROP_FBXBaseAction
+{
+public:
+    ROP_FBXCreateInstancesAction(ROP_FBXActionManager& parent_manager);
+    virtual ~ROP_FBXCreateInstancesAction();
+
+    void addInstance(OP_Node* instance_hd_node, KFbxNode* instance_fbx_node);
+
+    ROP_FBXActionType getType(void);
+    void performAction(void);
+
+private:
+    TInstanceBundleVector myItems;
+};
+/********************************************************************************************************/
 #endif // __ROP_FBXDerivedActions_h__

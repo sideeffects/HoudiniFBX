@@ -142,19 +142,22 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 	exportTRSAnimation(node, curr_fbx_take);
 
-	if(node_type == "geo")
+	if(node_type == "geo" || node_type == "instance")
 	{
 	    // For geometry, check if we have a dopimport SOP in the chain.
-	    OP_Network* geo_net = dynamic_cast<OP_Network*>(node);
-
-	    //if(isVertexCacheable(geo_net))
 	    if(node_info_in->getMaxObjectPoints() > 0)
 	    {
 #ifdef UT_DEBUG
 		double vc_start_time, vc_end_time;
 		vc_start_time = clock();
 #endif
-		outputVertexCache(fbx_node, geo_net->getRenderNodePtr(), myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
+		OP_Network* geo_net = dynamic_cast<OP_Network*>(node);
+		OP_Node* vc_node;
+		if(node_type == "instance")
+		    vc_node = node;
+		else
+		    vc_node = geo_net->getRenderNodePtr();
+		outputVertexCache(fbx_node, vc_node, myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
 #ifdef UT_DEBUG
 		vc_end_time = clock();
 		ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
@@ -212,35 +215,47 @@ ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_tak
     if(!node || !curr_fbx_take)
 	return;
 
+    UT_String node_type = node->getOperator()->getName();
+    string channel_prefix;
+    if(node_type == "instance")
+	channel_prefix = "i_";
+    else if(node_type == "hlight")
+	channel_prefix = "l_";
+
+    string channel_name;
+
     // Translations
+    channel_name = channel_prefix + "t";
     curr_fbx_curve = curr_fbx_take->GetTranslationX();
-    exportChannel(curr_fbx_curve, node, "t", 0);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 0);
 
     curr_fbx_curve = curr_fbx_take->GetTranslationY();
-    exportChannel(curr_fbx_curve, node, "t", 1);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 1);
 
     curr_fbx_curve = curr_fbx_take->GetTranslationZ();
-    exportChannel(curr_fbx_curve, node, "t", 2);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 2);
 
     // Rotations
+    channel_name = channel_prefix + "r";
     curr_fbx_curve = curr_fbx_take->GetEulerRotationX();
-    exportChannel(curr_fbx_curve, node, "r", 0);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 0);
 
     curr_fbx_curve = curr_fbx_take->GetEulerRotationY();
-    exportChannel(curr_fbx_curve, node, "r", 1);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 1);
 
     curr_fbx_curve = curr_fbx_take->GetEulerRotationZ();
-    exportChannel(curr_fbx_curve, node, "r", 2);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 2);
 
     // Scaling
+    channel_name = channel_prefix + "s";
     curr_fbx_curve = curr_fbx_take->GetScaleX();
-    exportChannel(curr_fbx_curve, node, "s", 0);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 0);
 
     curr_fbx_curve = curr_fbx_take->GetScaleY();
-    exportChannel(curr_fbx_curve, node, "s", 1);
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 1);
 
     curr_fbx_curve = curr_fbx_take->GetScaleZ();
-    exportChannel(curr_fbx_curve, node, "s", 2); 
+    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 2); 
 
 }
 /********************************************************************************************************/
@@ -570,9 +585,9 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const cha
 bool 
 ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, const char* file_name, ROP_FBXBaseNodeVisitInfo* node_info_in, ROP_FBXNodeInfo* node_pair_info)
 {
-    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(geo_node);
-    if(!sop_node)
-	return false;
+//    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(geo_node);
+//    if(!sop_node)
+//	return false;
 
     KFbxVertexCacheDeformer* vc_deformer = addedVertexCacheDeformerToNode(fbx_node, file_name);
 
@@ -622,7 +637,7 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 	hd_time = ch_manager->getTime(curr_frame);
 	fbx_curr_time.SetTime(0,0,0, curr_frame);
 
-	if(!fillVertexArray(sop_node, hd_time, node_info_in, vert_coords, num_vc_points, node_pair_info, curr_frame))
+	if(!fillVertexArray(geo_node, hd_time, node_info_in, vert_coords, num_vc_points, node_pair_info, curr_frame))
 	{
 	    myErrorManager->addError("Could not evaluate a frame of vertex cache array. Node: ", geo_node->getName(), NULL, false);
 	    continue;
@@ -648,7 +663,7 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXAnimVisitor::fillVertexArray(SOP_Node* node, float time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, 
+ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, 
 				    int num_array_points, ROP_FBXNodeInfo* node_pair_info, float frame_num)
 {
     ROP_FBXVertexCacheMethodType vc_method = node_pair_info->getVertexCacheMethod();
@@ -663,7 +678,15 @@ ROP_FBXAnimVisitor::fillVertexArray(SOP_Node* node, float time, ROP_FBXBaseNodeV
     {
 	// Get at the gdp
 	GU_DetailHandle gdh;
-	if(!ROP_FBXUtil::getGeometryHandle(node, time, gdh))
+	SOP_Node* sop_node = dynamic_cast<SOP_Node*>(node);
+	OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(node);
+
+	if(sop_node)
+	    ROP_FBXUtil::getGeometryHandle(sop_node, time, gdh);
+	else
+	    gdh = obj_node->getDisplayGeometryHandle(time);
+
+	if(gdh.isNull())
 	    return false;
 
 	GU_DetailHandleAutoReadLock	 gdl(gdh);
@@ -800,7 +823,7 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, curr_time, t_out, r_out, s_out, NULL); // , true, parent_node);
+	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
 
 	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
@@ -827,7 +850,7 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, end_time, t_out, r_out, s_out, NULL); // , true, parent_node);
+	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)

@@ -25,6 +25,7 @@
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
+#include "ROP_FBXMainVisitor.h"
 #include <UT/UT_DMatrix4.h>
 
 class GU_DetailHandle;
@@ -44,17 +45,21 @@ public:
     static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0);
     static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0, bool *did_find = NULL);
 
-    static int getMaxPointsOverAnimation(SOP_Node* sop_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out);
+    static int getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out);
     static bool isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, float ftime, bool& found_particles);
 
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
     static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
-    static bool getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in,
+    static bool getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
 	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation);
 
-    static OP_Node* findOpInput(OP_Node *op, const char **find_op_types, bool include_me, const char** allowed_node_types, bool *did_find_allowed_only, int rec_level = 0);
-    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, float ftime, bool use_world_transform = false);
+    static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0);
+    static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], float ftime, bool include_me);
+    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, float ftime, UT_String* override_node_type, bool use_world_transform = false);
+    static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
+
+    static unsigned getGdpPrimId(const GU_Detail* gdp);
 
     static bool isDummyBone(OP_Node* bone_node);
     static bool isJointNullNode(OP_Node* null_node);
@@ -112,6 +117,9 @@ public:
     ROP_FBXVisitorResultType getVisitResultType(void);
     void  setVisitResultType(ROP_FBXVisitorResultType res_type);
 
+    ROP_FBXMainNodeVisitInfo& getVisitInfo(void);
+    void setVisitInfoCopy(ROP_FBXMainNodeVisitInfo& info);
+
 private:
     KFbxNode* myFbxNode;
 
@@ -122,6 +130,9 @@ private:
     OP_Node* myHdNode;
 
     ROP_FBXVisitorResultType myVisitResultType;
+
+    // Needed for the ugly way in which we have to handle instancing...
+    ROP_FBXMainNodeVisitInfo myVisitInfoCopy;
 };
 typedef map < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
 typedef map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
@@ -136,7 +147,7 @@ public:
     ROP_FBXNodeInfo* findNodeInfo(OP_Node* hd_node);
     ROP_FBXNodeInfo* findNodeInfo(KFbxNode* fbx_node);
 
-    ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, KFbxNode* fbx_node);
+    ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info);
 
 private:
     THDToNodeInfoMap myHdToNodeInfoMap;

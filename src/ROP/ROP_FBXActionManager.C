@@ -49,6 +49,14 @@ ROP_FBXActionManager::addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform
     return new_action;
 }
 /********************************************************************************************************/
+ROP_FBXCreateInstancesAction* 
+ROP_FBXActionManager::addCreateInstancesAction(void)
+{
+    ROP_FBXCreateInstancesAction* new_action = new ROP_FBXCreateInstancesAction(*this);
+    myPostActions.push_back(new_action);
+    return new_action;
+}
+/********************************************************************************************************/
 void 
 ROP_FBXActionManager::performPostActions(void)
 {
@@ -56,7 +64,8 @@ ROP_FBXActionManager::performPostActions(void)
     for(curr_action = 0; curr_action < num_actions; curr_action++)
     {
 	myCurrentAction = myPostActions[curr_action];
-	myPostActions[curr_action]->performAction();
+	if(myCurrentAction->getIsActive())
+	    myPostActions[curr_action]->performAction();
     }
     myCurrentAction = NULL;
 

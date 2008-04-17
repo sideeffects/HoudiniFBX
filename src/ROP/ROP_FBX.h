@@ -47,6 +47,7 @@ enum {
     ROP_FBX_STARTNODE,
     ROP_FBX_EXPORTASCII,
     ROP_FBX_VCFORMAT,
+    ROP_FBX_INVISOBJ,
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
     ROP_FBX_DEFORMSASVCS,
@@ -132,6 +133,9 @@ private:
 
     int VCFORMAT(void)
     { INT_PARM("vcformat", 0, 0, 0) }
+
+    int INVISOBJ(void)
+    { INT_PARM("invisobj", 0, 0, 0) }
 
     void STARTNODE(UT_String& str)
     { STR_PARM("startnode",  0, 0, 0); }

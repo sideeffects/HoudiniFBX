@@ -34,6 +34,7 @@ class ROP_FBXGDPCache;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
 class UT_Interrupt;
+class ROP_FBXCreateInstancesAction;
 /********************************************************************************************************/
 enum ROP_FBXAttributeType
 {
@@ -92,8 +93,12 @@ public:
     double getBoneLength(void);
     void setBoneLength(double b_length);
 
+    bool getIsVisitingFromInstance(void);
+    void setIsVisitingFromInstance(bool value);
+
 private:
 
+    bool myIsVisitingFromInstance;
     double myBoneLength;
 };
 /********************************************************************************************************/
@@ -108,6 +113,7 @@ public:
     void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info);
 
     UT_Color getAccumAmbientColor(void);
+    ROP_FBXCreateInstancesAction* getCreateInstancesAction(void);
 
 protected:
     KFbxNode* outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out);
@@ -149,6 +155,8 @@ private:
 
     UT_Color myAmbientColor;
     UT_Interrupt* myBoss;
+
+    ROP_FBXCreateInstancesAction* myInstancesActionPtr;
 };
 /********************************************************************************************************/
 #endif
