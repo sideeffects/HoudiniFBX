@@ -34,7 +34,9 @@ class ROP_FBXGDPCache;
 class SOP_Node;
 class OP_Node;
 class OP_Network;
+class GEO_Primitive;
 class UT_String;
+class ROP_FBXMainNodeVisitInfo;
 /********************************************************************************************************/
 class ROP_API ROP_FBXUtil
 {
@@ -45,7 +47,8 @@ public:
     static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0);
     static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0, bool *did_find = NULL);
 
-    static int getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out);
+    static int getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, 
+	bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces);
     static bool isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, float ftime, bool& found_particles);
 
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
@@ -120,11 +123,18 @@ public:
     ROP_FBXMainNodeVisitInfo& getVisitInfo(void);
     void setVisitInfoCopy(ROP_FBXMainNodeVisitInfo& info);
 
+    void setIsSurfacesOnly(bool value);
+    bool getIsSurfacesOnly(void);
+
+    void setSourcePrimitive(int prim_cnt);
+    int getSourcePrimitive(void);
+
 private:
     KFbxNode* myFbxNode;
 
     // Used for vertex caching
     int myMaxObjectPoints;
+    bool myIsSurfacesOnly;
     ROP_FBXVertexCacheMethodType myVertexCacheMethod;
     ROP_FBXGDPCache* myVertexCache;
     OP_Node* myHdNode;
@@ -133,9 +143,12 @@ private:
 
     // Needed for the ugly way in which we have to handle instancing...
     ROP_FBXMainNodeVisitInfo myVisitInfoCopy;
+
+    int mySourcePrim;
 };
-typedef map < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
+typedef multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
 typedef map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
+typedef vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
 /********************************************************************************************************/
 class ROP_FBXNodeManager
 {
@@ -143,8 +156,7 @@ public:
     ROP_FBXNodeManager();
     virtual ~ROP_FBXNodeManager();
 
-    KFbxNode* findFbxNode(OP_Node* hd_node);
-    ROP_FBXNodeInfo* findNodeInfo(OP_Node* hd_node);
+    void findNodeInfos(OP_Node* hd_node, TFbxNodeInfoVector &res_infos);
     ROP_FBXNodeInfo* findNodeInfo(KFbxNode* fbx_node);
 
     ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info);
@@ -185,10 +197,13 @@ public:
     int getNumConstantPoints(void);
     bool getIsNumPointsConstant(void);
 
+    void clearFrames(void);
+
 private:
     TGeomCacheItems myFrameItems;
     float myMinFrame;
     int myNumConstantPoints;
 };
+typedef set < ROP_FBXGDPCache* > TGDPCacheSet;
 /********************************************************************************************************/
 #endif

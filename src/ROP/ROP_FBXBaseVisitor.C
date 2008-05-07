@@ -175,6 +175,8 @@ ROP_FBXBaseNodeVisitInfo::ROP_FBXBaseNodeVisitInfo(OP_Node *hd_node)
     myFbxNode = NULL;
     myMaxObjectPoints = 0;
     myVertexCacheMethod = ROP_FBXVertexCacheMethodNone;
+    myIsSurfacesOnly = false;
+    mySourcePrim = -1;
 }
 /********************************************************************************************************/
 ROP_FBXBaseNodeVisitInfo::~ROP_FBXBaseNodeVisitInfo()
@@ -240,5 +242,29 @@ void
 ROP_FBXBaseNodeVisitInfo::setHdNode(OP_Node* hd_node)
 {
     myHdNode = hd_node;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXBaseNodeVisitInfo::setIsSurfacesOnly(bool value)
+{
+    myIsSurfacesOnly = value;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXBaseNodeVisitInfo::getIsSurfacesOnly(void)
+{
+    return myIsSurfacesOnly; 
+}
+/********************************************************************************************************/
+void 
+ROP_FBXBaseNodeVisitInfo::setSourcePrimitive(int prim_cnt)
+{
+    mySourcePrim = prim_cnt;
+}
+/********************************************************************************************************/
+int
+ROP_FBXBaseNodeVisitInfo::getSourcePrimitive(void)
+{
+    return mySourcePrim;
 }
 /********************************************************************************************************/

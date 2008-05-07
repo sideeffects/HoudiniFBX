@@ -22,6 +22,7 @@
 
 #include <UT/UT_Color.h>
 #include <UT/UT_Assert.h>
+#include <UT/UT_String.h>
 #include <fbx/fbxsdk.h>
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
@@ -29,12 +30,17 @@
 class ROP_FBXExporter;
 class GU_Detail;
 class GB_Attribute;
+class GD_TrimRegion;
 class ROP_FBXErrorManager;
 class ROP_FBXGDPCache;
 class ROP_FBXNodeManager;
+class GEO_Primitive;
+class GU_PrimNURBSurf;
+class GU_PrimNURBCurve;
 class ROP_FBXActionManager;
 class UT_Interrupt;
 class ROP_FBXCreateInstancesAction;
+class ROP_FBXGDPCache;
 /********************************************************************************************************/
 enum ROP_FBXAttributeType
 {
@@ -50,6 +56,7 @@ typedef vector < GB_Attribute* > THDAttributeVector;
 typedef map < OP_Node* , KFbxSurfaceMaterial* > THdFbxMaterialMap;
 typedef map < string , KFbxTexture* > THdFbxTextureMap;
 typedef vector < KFbxLayerElementTexture* > TFbxLayerElemsVector;
+//typedef vector < KFbxNode* > TFbxNodesVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXAttributeLayerManager
 {
@@ -102,6 +109,32 @@ private:
     double myBoneLength;
 };
 /********************************************************************************************************/
+class ROP_FBXConstructionInfo
+{
+public:
+    ROP_FBXConstructionInfo() 
+    {
+	myNode = NULL;
+	myHdPrimCnt = -1;
+    }
+    ROP_FBXConstructionInfo(KFbxNode* fbx_node)
+    {
+	myNode = fbx_node;
+	myHdPrimCnt = -1;
+    }
+    ~ROP_FBXConstructionInfo()  { }
+
+    void setHdPrimitiveIndex(int prim_cnt) { myHdPrimCnt = prim_cnt; }
+    int getHdPrimitiveIndex(void) { return myHdPrimCnt; }
+
+    KFbxNode* getFbxNode(void) { return myNode; }
+
+private:
+    KFbxNode* myNode;
+    int myHdPrimCnt;
+};
+typedef vector < ROP_FBXConstructionInfo > TFbxNodesVector;
+/********************************************************************************************************/
 class ROP_API ROP_FBXMainVisitor : public ROP_FBXBaseVisitor
 {
 public:
@@ -116,13 +149,21 @@ public:
     ROP_FBXCreateInstancesAction* getCreateInstancesAction(void);
 
 protected:
-    KFbxNode* outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out);
-    KFbxNode* outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
-    KFbxNode* outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
-    KFbxNode* outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node);
-    KFbxNode* outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, bool is_a_null);
+    bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
+    bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes);
+    bool outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes);
+    bool outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes);
+    bool outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, bool is_a_null, TFbxNodesVector& res_nodes);
+    void outputNURBSSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr = NULL);
+    void outputNURBSCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
+    void outputPolylines(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
+    void outputBezierCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
+    void outputBezierSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr = NULL);
+
+    void outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, const char* curr_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int prim_cnt);
 
     KFbxNodeAttribute* outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method);
+    void outputNURBSSurface(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
     void addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager, KFbxMesh* mesh_attr, KFbxLayerElement::EMappingMode mapping_mode );
 
     void exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr);
@@ -137,6 +178,15 @@ protected:
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
     KFbxLayerElement* getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
 	const GU_Detail* gdp, int attr_offset, KFbxLayerElement::EMappingMode mapping_mode);
+
+    void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
+	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
+	ROP_FBXGDPCache *v_cache);
+    void finalizeGeoNode(KFbxNodeAttribute *res_attr, const char* node_name, OP_Node* skin_deform_node, int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes);
+
+    void setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const GU_PrimNURBSurf* hd_nurb);
+    void setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU_PrimNURBCurve* hd_nurb);
+    void setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurface *trim_nurbs_surf_attr, bool& have_fbx_region);
 
 private:
 

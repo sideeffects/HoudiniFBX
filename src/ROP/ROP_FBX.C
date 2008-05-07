@@ -56,12 +56,14 @@ static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches")
 static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
 static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
 static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
+static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
 static PRM_Default	exportKindDefault(1);
 static PRM_Default	detectConstPointObjsDefault(1);
 static PRM_Default	deformsAsVcsDefault(0);
+static PRM_Default	convertSurfacesDefault(0);
 static PRM_Default	polyLODDefault(1.0);
 static PRM_Default	startNodeDefault(0, "/obj");
 static PRM_Default	sopOutputDefault(0, "$HIP/$F.fbx");
@@ -84,6 +86,7 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE,  1, &deformsAsVcs, &deformsAsVcsDefault, NULL),
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0, &vcTypeMenu),
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName, 0, &invisObjMenu),
+    PRM_Template(PRM_TOGGLE,  1, &convertSurfacesName, &convertSurfacesDefault, NULL),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -113,6 +116,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[7];
     theTemplate[ROP_FBX_POLYLOD] = geoTemplates[3];
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = geoTemplates[4];
+    theTemplate[ROP_FBX_CONVERTSURFACES] = geoTemplates[8];
     theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[5];
 
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
@@ -234,6 +238,7 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
     export_options.setDetectConstantPointCountObjects(DETECTCONSTOBJS());
     export_options.setExportDeformsAsVC(DEFORMSASVCS());
     export_options.setStartNodePath((const char*)str_start_node);
+    export_options.setConvertSurfaces(CONVERTSURFACES());
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
 

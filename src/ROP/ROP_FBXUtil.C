@@ -30,6 +30,7 @@
 #include <GEO/GEO_Vertex.h>
 #include <GEO/GEO_PrimPoly.h>
 #include <GU/GU_ConvertParms.h>
+#include <GU/GU_PrimPoly.h>
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
 #include <PRM/PRM_Parm.h>
@@ -141,7 +142,8 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out)
+ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, 
+				       bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces)
 {
     CH_Manager *ch_manager = CHgetManager();
     float start_frame, end_frame;
@@ -150,6 +152,8 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 
     SOP_Node* sop_node = dynamic_cast<SOP_Node*>(op_node);
     OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(op_node);
+
+    is_pure_surfaces = false;
 
     float hd_time;
     int curr_frame;
@@ -167,11 +171,11 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
     
     int curr_num_unconverted_points;
     bool is_num_verts_constant = true;
+    bool is_surfs_only = true;
 
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
     {
 	hd_time = ch_manager->getTime(curr_frame);
-
 	if(boss_op && curr_frame % 5)
 	{
 	    if(boss_op->opInterrupt())
@@ -202,6 +206,9 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 	    }
 	    else
 	    {
+		if(prim_type & (~(GEOPRIMNURBSURF | GEOPRIMBEZSURF)) != 0)
+		    is_surfs_only = false;
+
 	    	convertGeoGDPtoVertexCacheableGDP(gdp, lod, true, *conv_gdp, curr_num_unconverted_points);
 		if(first_frame_num_points < 0)
 		    first_frame_num_points = curr_num_unconverted_points;
@@ -221,6 +228,13 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 
     if(is_num_verts_constant && allow_constant_point_detection)
 	v_cache_out->setNumConstantPoints(first_frame_num_points);
+
+    if(is_num_verts_constant && is_surfs_only && !convert_surfaces)
+    {
+	max_points = first_frame_num_points;
+	is_pure_surfaces = true;
+    }
+
     return max_points;
 }
 /********************************************************************************************************/
@@ -308,6 +322,7 @@ ROP_FBXUtil::convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& ou
 	prim_poly_ptr->appendVertex(geo_points[1]);
 	prim_poly_ptr->appendVertex(geo_points[2]);
 	prim_poly_ptr->appendVertex(geo_points[3]);
+	prim_poly_ptr->close(1,1);
     }
     
 }
@@ -350,6 +365,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
     cook_start = clock();
 #endif
     conv_gdp.convex(3);
+    
 #ifdef UT_DEBUG
     cook_end = clock();
     ROP_FBXdb_convexTime += (cook_end - cook_start);
@@ -362,11 +378,22 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 
     int curr_prim_idx, num_prims = conv_gdp.primitives().entries();
     GEO_Point *temp_pts[3];
-    const GEO_Primitive* prim;
+    GEO_Primitive* prim;
     GEO_PrimPoly *prim_poly_ptr;
+    GU_PrimPoly *gu_prim;
+
     for(curr_prim_idx = 0; curr_prim_idx < num_prims; curr_prim_idx++)
     {
 	prim = conv_gdp.primitives()(curr_prim_idx);
+	gu_prim = dynamic_cast<GU_PrimPoly *>(prim);
+
+	// In some cases (such as triangulating NURBS), we sometimes 
+	// end up with faces that have more than three vertices (and points),
+	// where some of the points actually occupy the same position in world space.
+	// After removing them, these faces become proper triangles.
+	if(gu_prim && prim->getVertexCount() > 3)
+	    gu_prim->removeRepeatedPoints(1e-5);
+
 	UT_ASSERT(prim->getVertexCount() == 3);
 
 	temp_pts[0] = out_gdp.appendPoint();
@@ -375,11 +402,13 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 	temp_pts[1]->getPos() = prim->getVertex(1).getPos();
 	temp_pts[2] = out_gdp.appendPoint();
 	temp_pts[2]->getPos() = prim->getVertex(2).getPos();
+
 	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEOPRIMPOLY);
 	prim_poly_ptr->setSize(0);
 	prim_poly_ptr->appendVertex(temp_pts[0]);
 	prim_poly_ptr->appendVertex(temp_pts[1]);
 	prim_poly_ptr->appendVertex(temp_pts[2]);
+	prim_poly_ptr->close(1,1);
     }
 #ifdef UT_DEBUG
     cook_end = clock();
@@ -410,7 +439,6 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 	    do_special_rotate = true;
     }
 
-    // TODO: optionally export pivot.
     // Get and set transforms
     UT_Matrix4 full_xform, pre_xform, xform;
     OP_Context op_context(time_in);
@@ -820,18 +848,12 @@ ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
 unsigned 
 ROP_FBXUtil::getGdpPrimId(const GU_Detail* gdp)
 {
+    // Now return all encountered types
     const GEO_Primitive *prim = NULL;
     unsigned prim_type = 0;
-    if(gdp->primitives().entries() > 0)
+    FOR_ALL_PRIMITIVES(gdp, prim)
     {
-	prim = gdp->primitives()(0);
-	prim_type = prim->getPrimitiveId();
-
-	FOR_ALL_PRIMITIVES(gdp, prim)
-	{
-	    if(prim->getPrimitiveId() != prim_type)
-		return GEOPRIMALL;
-	}
+	prim_type |= prim->getPrimitiveId();
     }
     return prim_type;
 }
@@ -845,39 +867,42 @@ ROP_FBXNodeManager::ROP_FBXNodeManager()
 /********************************************************************************************************/
 ROP_FBXNodeManager::~ROP_FBXNodeManager()
 {
+    // We need to delete all vertex caches here, since some of them may be shared.
+    THDToNodeInfoMap::iterator mi;
+    TGDPCacheSet caches_to_delete;
+    TGDPCacheSet::iterator si;
+    for(mi = myHdToNodeInfoMap.begin(); mi != myHdToNodeInfoMap.end(); mi++)
+    {
+	if(mi->second->getVertexCache())
+	{
+	    caches_to_delete.insert(mi->second->getVertexCache());
+	    // Prevent its desctructor from deleting the object.
+	    mi->second->setVertexCache(NULL);
+	}
+    }
+    
+    for(si = caches_to_delete.begin(); si != caches_to_delete.end(); si++)
+	delete *si;
+
     // Deallocate one of the maps. They should be in sync, objects in both point
     // to the same thing.
-    THDToNodeInfoMap::iterator mi;
     for(mi = myHdToNodeInfoMap.begin(); mi != myHdToNodeInfoMap.end(); mi++)
 	delete mi->second;
     myHdToNodeInfoMap.clear();
     myFbxToNodeInfoMap.clear();
 }
 /********************************************************************************************************/
-KFbxNode* 
-ROP_FBXNodeManager::findFbxNode(OP_Node* hd_node)
+void 
+ROP_FBXNodeManager::findNodeInfos(OP_Node* hd_node, TFbxNodeInfoVector &res_infos)
 {
-    if(!hd_node)
-	return NULL;
-
-    THDToNodeInfoMap::iterator mi = myHdToNodeInfoMap.find(hd_node);
-    if(mi == myHdToNodeInfoMap.end())
-	return NULL;
-    else
-	return mi->second->getFbxNode();
-}
-/********************************************************************************************************/
-ROP_FBXNodeInfo*
-ROP_FBXNodeManager::findNodeInfo(OP_Node* hd_node)
-{
-    if(!hd_node)
-	return NULL;
-
-    THDToNodeInfoMap::iterator mi = myHdToNodeInfoMap.find(hd_node);
-    if(mi == myHdToNodeInfoMap.end())
-	return NULL;
-    else
-	return (mi->second);
+    THDToNodeInfoMap::iterator mi, li, ui;
+    res_infos.clear();
+    li = myHdToNodeInfoMap.lower_bound(hd_node);
+    ui = myHdToNodeInfoMap.upper_bound(hd_node);
+    for(mi = li; mi != ui; mi++)
+    {
+	res_infos.push_back(mi->second);
+    }
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo* 
@@ -901,7 +926,8 @@ ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMai
     new_info->setHdNode(hd_node);
     new_info->setVisitInfoCopy(visit_info);
 
-    myHdToNodeInfoMap[hd_node] = new_info;
+    //myHdToNodeInfoMap[hd_node] = new_info;
+    myHdToNodeInfoMap.insert(THDToNodeInfoMap::value_type(hd_node, new_info));
     myFbxToNodeInfoMap[fbx_node] = new_info;
 
 
@@ -917,6 +943,8 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)
     myMaxObjectPoints = 0;
     myVertexCacheMethod = ROP_FBXVertexCacheMethodNone;
     myVertexCache = NULL;
+    mySourcePrim = -1;
+    myIsSurfacesOnly = false;
 
     myVisitResultType = ROP_FBXVisitorResultOk;
 }
@@ -928,6 +956,8 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo(KFbxNode* main_node) : myVisitInfoCopy(NULL)
     myMaxObjectPoints = 0;
     myVertexCacheMethod = ROP_FBXVertexCacheMethodNone;
     myVertexCache = NULL;
+    mySourcePrim = -1;
+    myIsSurfacesOnly = false;
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo::~ROP_FBXNodeInfo()
@@ -1022,6 +1052,30 @@ ROP_FBXNodeInfo::setVisitInfoCopy(ROP_FBXMainNodeVisitInfo& info)
     myVisitInfoCopy = info;
 }
 /********************************************************************************************************/
+void 
+ROP_FBXNodeInfo::setIsSurfacesOnly(bool value)
+{
+    myIsSurfacesOnly = value;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXNodeInfo::getIsSurfacesOnly(void)
+{
+    return myIsSurfacesOnly;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXNodeInfo::setSourcePrimitive(int prim_cnt)
+{
+    mySourcePrim = prim_cnt;
+}
+/********************************************************************************************************/
+int
+ROP_FBXNodeInfo::getSourcePrimitive(void)
+{
+    return mySourcePrim;
+}
+/********************************************************************************************************/
 // ROP_FBXGDPCached
 /********************************************************************************************************/
 ROP_FBXGDPCache::ROP_FBXGDPCache()
@@ -1032,13 +1086,22 @@ ROP_FBXGDPCache::ROP_FBXGDPCache()
 /********************************************************************************************************/
 ROP_FBXGDPCache::~ROP_FBXGDPCache()
 {
+    clearFrames();
+}
+/********************************************************************************************************/
+void 
+ROP_FBXGDPCache::clearFrames(void)
+{
     int curr_item, num_items = myFrameItems.size();
     for(curr_item = 0; curr_item < num_items; curr_item++)
 	delete myFrameItems[curr_item];
     myFrameItems.clear();
+
+    myMinFrame = FLT_MAX;
 }
 /********************************************************************************************************/
-GU_Detail* ROP_FBXGDPCache::addFrame(float frame_num)
+GU_Detail* 
+ROP_FBXGDPCache::addFrame(float frame_num)
 {
     ROP_FBXGDPCacheItem* new_item = new ROP_FBXGDPCacheItem(frame_num);
 
@@ -1054,7 +1117,8 @@ GU_Detail* ROP_FBXGDPCache::addFrame(float frame_num)
     return new_item->getDetail();
 }
 /********************************************************************************************************/
-GU_Detail* ROP_FBXGDPCache::getFrameGeometry(float frame_num)
+GU_Detail* 
+ROP_FBXGDPCache::getFrameGeometry(float frame_num)
 {
     int vec_pos = (int)(frame_num - myMinFrame);
     if(vec_pos < 0 || vec_pos >= myFrameItems.size())

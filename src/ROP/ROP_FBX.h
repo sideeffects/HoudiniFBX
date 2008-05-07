@@ -50,6 +50,7 @@ enum {
     ROP_FBX_INVISOBJ,
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
+    ROP_FBX_CONVERTSURFACES,
     ROP_FBX_DEFORMSASVCS,
 
     ROP_FBX_TPRERENDER,
@@ -127,6 +128,9 @@ private:
 
     int DETECTCONSTOBJS(void)
 	{ INT_PARM("detectconstpointobjs", 0, 0, 0) }
+
+    int CONVERTSURFACES(void)
+	{ INT_PARM("convertsurfaces", 0, 0, 0) }
 
     int DEFORMSASVCS(void)
     { INT_PARM("deformsasvcs", 0, 0, 0) }

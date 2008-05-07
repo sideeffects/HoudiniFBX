@@ -39,6 +39,7 @@
 #include <GEO/GEO_Point.h>
 #include <GEO/GEO_Vertex.h>
 #include <GU/GU_Detail.h>
+#include <GU/GU_PrimNURBSurf.h>
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
 
@@ -102,93 +103,105 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     res_type = ROP_FBXVisitorResultSkipSubnet;
 
     // Find the related FBX node
-    ROP_FBXNodeInfo* stored_node_info_ptr = myNodeManager->findNodeInfo(node);
-    if(!stored_node_info_ptr || !stored_node_info_ptr->getFbxNode())
+    ROP_FBXNodeInfo* stored_node_info_ptr;
+    TFbxNodeInfoVector fbx_nodes;
+
+    myNodeManager->findNodeInfos(node, fbx_nodes);
+    int curr_fbx_node, num_fbx_nodes = fbx_nodes.size();
+    for(curr_fbx_node = 0; curr_fbx_node < num_fbx_nodes; curr_fbx_node++)
     {
-	// An object may validly be not exported (meaning this will be NULL).
-	return res_type;
-    }
-
-    if(stored_node_info_ptr)
-	res_type = stored_node_info_ptr->getVisitResultType();
-
-    KFbxNode *fbx_node = stored_node_info_ptr->getFbxNode();
-    node_info_in->setMaxObjectPoints(stored_node_info_ptr->getMaxObjectPoints());
-    node_info_in->setVertexCacheMethod(stored_node_info_ptr->getVertexCacheMethod());
-
-    // Create take nodes
-    KFbxTakeNode* curr_fbx_take;
-    KFCurve* curr_fbx_curve;
-    curr_fbx_take = addFBXTakeNode(fbx_node);
-
-    if(!curr_fbx_take)
-	return res_type;
-
-    UT_String node_type = node->getOperator()->getName();
-
-    if(node_type == "bone")
-    {
-	// Bones are special, since we have to force-resample them and
-	// output all channels at the same time.
-
-	// Also, we have to put the bone animation onto the parent of the fbx node,
-	// since this FBX node corresponds to the end tip of the bone.
-	//KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
-	//exportBonesAnimation(curr_fbx_bone_take, node);
-	exportBonesAnimation(curr_fbx_take, node);
-    }
-    else
-    {
-
-	exportTRSAnimation(node, curr_fbx_take);
-
-	if(node_type == "geo" || node_type == "instance")
+	stored_node_info_ptr = fbx_nodes[curr_fbx_node];
+	if(!stored_node_info_ptr || !stored_node_info_ptr->getFbxNode())
+	    continue;
+    /*
 	{
-	    // For geometry, check if we have a dopimport SOP in the chain.
-	    if(node_info_in->getMaxObjectPoints() > 0)
+	    // An object may validly be not exported (meaning this will be NULL).
+	    return res_type;
+	}
+	*/
+
+	if(stored_node_info_ptr)
+	    res_type = stored_node_info_ptr->getVisitResultType();
+
+	KFbxNode *fbx_node = stored_node_info_ptr->getFbxNode();
+	node_info_in->setMaxObjectPoints(stored_node_info_ptr->getMaxObjectPoints());
+	node_info_in->setVertexCacheMethod(stored_node_info_ptr->getVertexCacheMethod());
+	node_info_in->setIsSurfacesOnly(stored_node_info_ptr->getIsSurfacesOnly());
+	node_info_in->setSourcePrimitive(stored_node_info_ptr->getSourcePrimitive());
+
+	// Create take nodes
+	KFbxTakeNode* curr_fbx_take;
+	KFCurve* curr_fbx_curve;
+	curr_fbx_take = addFBXTakeNode(fbx_node);
+
+	if(!curr_fbx_take)
+	    return res_type;
+
+	UT_String node_type = node->getOperator()->getName();
+
+	if(node_type == "bone")
+	{
+	    // Bones are special, since we have to force-resample them and
+	    // output all channels at the same time.
+
+	    // Also, we have to put the bone animation onto the parent of the fbx node,
+	    // since this FBX node corresponds to the end tip of the bone.
+	    //KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
+	    //exportBonesAnimation(curr_fbx_bone_take, node);
+	    exportBonesAnimation(curr_fbx_take, node);
+	}
+	else
+	{
+
+	    exportTRSAnimation(node, curr_fbx_take);
+
+	    if(node_type == "geo" || node_type == "instance")
 	    {
-#ifdef UT_DEBUG
-		double vc_start_time, vc_end_time;
-		vc_start_time = clock();
-#endif
-		OP_Network* geo_net = dynamic_cast<OP_Network*>(node);
-		OP_Node* vc_node;
-		if(node_type == "instance")
-		    vc_node = node;
-		else
-		    vc_node = geo_net->getRenderNodePtr();
-		outputVertexCache(fbx_node, vc_node, myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
-#ifdef UT_DEBUG
-		vc_end_time = clock();
-		ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
-#endif
+		// For geometry, check if we have a dopimport SOP in the chain.
+		if(node_info_in->getMaxObjectPoints() > 0)
+		{
+    #ifdef UT_DEBUG
+		    double vc_start_time, vc_end_time;
+		    vc_start_time = clock();
+    #endif
+		    OP_Network* geo_net = dynamic_cast<OP_Network*>(node);
+		    OP_Node* vc_node;
+		    if(node_type == "instance")
+			vc_node = node;
+		    else
+			vc_node = geo_net->getRenderNodePtr();
+		    outputVertexCache(fbx_node, vc_node, myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
+    #ifdef UT_DEBUG
+		    vc_end_time = clock();
+		    ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
+    #endif
+		}
+	    }
+	    else if(node_type == "hlight")
+	    {
+		// Output its colour, intensity, and cone angle channels
+		curr_fbx_curve = curr_fbx_take->GetLightIntensity();
+		exportChannel(curr_fbx_curve, node, "light_intensity", 0, 100.0);
+
+		curr_fbx_curve = curr_fbx_take->GetLightConeAngle();
+		exportChannel(curr_fbx_curve, node, "coneangle", 0);
+
+		curr_fbx_curve = curr_fbx_take->GetColorR();
+		exportChannel(curr_fbx_curve, node, "light_color", 0);
+
+		curr_fbx_curve = curr_fbx_take->GetColorG();
+		exportChannel(curr_fbx_curve, node, "light_color", 1);
+
+		curr_fbx_curve = curr_fbx_take->GetColorB();
+		exportChannel(curr_fbx_curve, node, "light_color", 2);
+	    }
+	    else if(node_type == "cam")
+	    {
+		curr_fbx_curve = curr_fbx_take->GetCameraFocalLength();
+		exportChannel(curr_fbx_curve, node, "focal", 0);
 	    }
 	}
-	else if(node_type == "hlight")
-	{
-	    // Output its colour, intensity, and cone angle channels
-	    curr_fbx_curve = curr_fbx_take->GetLightIntensity();
-	    exportChannel(curr_fbx_curve, node, "light_intensity", 0, 100.0);
-
-	    curr_fbx_curve = curr_fbx_take->GetLightConeAngle();
-	    exportChannel(curr_fbx_curve, node, "coneangle", 0);
-
-	    curr_fbx_curve = curr_fbx_take->GetColorR();
-	    exportChannel(curr_fbx_curve, node, "light_color", 0);
-
-	    curr_fbx_curve = curr_fbx_take->GetColorG();
-	    exportChannel(curr_fbx_curve, node, "light_color", 1);
-
-	    curr_fbx_curve = curr_fbx_take->GetColorB();
-	    exportChannel(curr_fbx_curve, node, "light_color", 2);
-	}
-	else if(node_type == "cam")
-	{
-	    curr_fbx_curve = curr_fbx_take->GetCameraFocalLength();
-	    exportChannel(curr_fbx_curve, node, "focal", 0);
-	}
-    }
-
+    } // end for over all fbx nodes
     return res_type;
 }
 /********************************************************************************************************/
@@ -532,6 +545,9 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 KFbxVertexCacheDeformer* 
 ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const char* file_name)
 {
+    if(!fbx_node || !fbx_node->GetGeometry())
+	return NULL;
+
     // By convention, all cache files are created in a .fpc folder located at the same
     // place as the .fbx file.     
     string cache_file_name(myFBXFileSourceFolder);
@@ -590,6 +606,12 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 //	return false;
 
     KFbxVertexCacheDeformer* vc_deformer = addedVertexCacheDeformerToNode(fbx_node, file_name);
+
+    if(!vc_deformer)
+    {
+	myErrorManager->addError("Cannot create the vertex cache deformer. Node: ",geo_node->getName(), NULL,  false );
+	return false;
+    }
 
     CH_Manager *ch_manager = CHgetManager();
     float start_frame, end_frame;
@@ -696,7 +718,10 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 	    return false;
 
 	int dummy_int;
-	ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp, dummy_int);
+	if(node_info_in->getIsSurfacesOnly())
+	    conv_gdp.duplicate(*gdp);
+	else
+	    ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp, dummy_int);
 	final_gdp = &conv_gdp;
     }
     else
@@ -715,18 +740,66 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
     int arr_offset;
 
     double add_offset = 1.0;
-    for(curr_point = 0; curr_point < num_array_points; curr_point++)
-    //for(curr_point = 0; curr_point < actual_gdp_points; curr_point++)
-    {
-	if(curr_point < actual_gdp_points)	
-	    ut_vec = final_gdp->points()(curr_point%actual_gdp_points)->getPos();
-	else
-	    ut_vec = 0;
 
-	arr_offset = curr_point*3;
-	vert_array[arr_offset] = ut_vec.x();
-	vert_array[arr_offset+1] = ut_vec.y();
-	vert_array[arr_offset+2] = ut_vec.z();
+    if(node_info_in->getIsSurfacesOnly())
+    {
+	// The order of points is different for surfaces
+	const GU_PrimNURBSurf* hd_nurb;
+	const GEO_Primitive* prim;
+	int i_row, i_col, i_idx, i_curr_vert;
+
+	int curr_prim_cnt;
+	int source_prim_cnt = node_pair_info->getSourcePrimitive();
+	i_curr_vert = 0;
+	curr_prim_cnt = -1;
+	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMNURBSURF)
+	{
+	    curr_prim_cnt++;
+	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
+		continue;
+
+	    hd_nurb = dynamic_cast<const GU_PrimNURBSurf*>(prim);
+	    if(!hd_nurb)
+		continue;
+
+	    int v_point_count = hd_nurb->getNumRows();
+	    int u_point_count = hd_nurb->getNumCols();
+
+	    for(i_row = 0; i_row < u_point_count; i_row++)
+	    {
+		for(i_col = 0; i_col < v_point_count; i_col++)
+		{
+		    i_idx = i_col*u_point_count + i_row;
+		    if(i_idx < actual_gdp_points)	
+			ut_vec = prim->getVertex(i_idx).getPos();
+//			ut_vec = final_gdp->points()(i_idx)->getPos();
+		    else
+			ut_vec = 0;
+
+		    arr_offset = i_curr_vert*3;
+		    vert_array[arr_offset] = ut_vec.x();
+		    vert_array[arr_offset+1] = ut_vec.y();
+		    vert_array[arr_offset+2] = ut_vec.z();
+//		    ut_vec = final_gdp->points()(curr_point%actual_gdp_points)->getPos();
+		    i_curr_vert++;
+		}
+	    }
+	}
+    }
+    else
+    {
+	for(curr_point = 0; curr_point < num_array_points; curr_point++)
+	{
+	    if(curr_point < actual_gdp_points)	
+		ut_vec = final_gdp->points()(curr_point%actual_gdp_points)->getPos();
+	    else
+		ut_vec = 0;
+
+	    arr_offset = curr_point*3;
+	    vert_array[arr_offset] = ut_vec.x();
+	    vert_array[arr_offset+1] = ut_vec.y();
+	    vert_array[arr_offset+2] = ut_vec.z();
+	}
     }
 
     return true;

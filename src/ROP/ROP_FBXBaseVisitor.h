@@ -26,6 +26,7 @@
 
 class OP_Network;
 class OP_Node;
+class GEO_Primitive;
 class FBX_FILMBOX_NAMESPACE::KFbxNode;
 /********************************************************************************************************/
 enum ROP_FBXVisitorResultType
@@ -65,6 +66,12 @@ public:
     ROP_FBXVertexCacheMethodType getVertexCacheMethod(void);
     void setVertexCacheMethod(ROP_FBXVertexCacheMethodType vc_method);
 
+    void setIsSurfacesOnly(bool value);
+    bool getIsSurfacesOnly(void);
+
+    void setSourcePrimitive(int prim_cnt);
+    int getSourcePrimitive(void);
+
 private:
 
     OP_Node* myHdNode;
@@ -74,6 +81,9 @@ private:
     // Used for vertex caching
     int myMaxObjectPoints;
     ROP_FBXVertexCacheMethodType myVertexCacheMethod;
+
+    bool myIsSurfacesOnly;
+    int mySourcePrim;
 };
 
 typedef vector  < string > TStringVector;

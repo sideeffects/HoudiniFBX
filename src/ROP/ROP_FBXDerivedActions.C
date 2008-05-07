@@ -63,11 +63,13 @@ ROP_FBXLookAtAction::performAction(void)
 	return;
 
     // Find the FBX node corresponding to the look at HD node
-    KFbxNode *fbx_lookat_node = getNodeManager().findFbxNode(myLookAtHdNode);
-    if(!fbx_lookat_node)
-	return;
+    TFbxNodeInfoVector target_nodes;
 
-    acted_on_node->SetTarget(fbx_lookat_node);
+    getNodeManager().findNodeInfos(myLookAtHdNode, target_nodes);
+    if(target_nodes.size() == 0 || !target_nodes[0]->getFbxNode())
+	return;
+    
+    acted_on_node->SetTarget(target_nodes[0]->getFbxNode());
 }
 /********************************************************************************************************/
 // ROP_FBXSkinningAction
@@ -98,7 +100,14 @@ ROP_FBXSkinningAction::performAction(void)
 	return;
 
     KFbxSdkManager *sdk_manager = getParentManager().getExporter().getSDKManager();
-    KFbxNode* fbx_deformed_node = getNodeManager().findFbxNode(myDeformNode->getParentNetwork());
+    KFbxNode* fbx_deformed_node = NULL; 
+
+    TFbxNodeInfoVector res_nodes;
+    getNodeManager().findNodeInfos(myDeformNode->getParentNetwork(), res_nodes);
+    if(res_nodes.size() == 0)
+	return;
+
+    fbx_deformed_node = res_nodes[0]->getFbxNode();
     if(!fbx_deformed_node)
 	return;
 
@@ -135,7 +144,7 @@ ROP_FBXSkinningAction::performAction(void)
 
     KFbxSkin* fbx_skin = NULL; 
     OP_Node* cregion_node, *cregion_parent;
-    KFbxNode* fbx_cregion_parent;
+    //KFbxNode* fbx_cregion_parent;
 
     float capture_time = CHgetManager()->getTime(myCaptureFrame);
     OP_Context capt_context(capture_time);
@@ -162,8 +171,10 @@ ROP_FBXSkinningAction::performAction(void)
 	else
 	{
 	    // Try find the FBX node corresponding to the parent
-	    fbx_cregion_parent = getNodeManager().findFbxNode(cregion_parent);
-	    if(fbx_cregion_parent)
+	    TFbxNodeInfoVector cregion_parent_infos;
+	    getNodeManager().findNodeInfos(cregion_parent, cregion_parent_infos);
+	    //fbx_cregion_parent = getNodeManager().findFbxNode(cregion_parent);
+	    if(cregion_parent_infos.size() > 0 && cregion_parent_infos[0]->getFbxNode())
 	    {
 		// TODO: we need to create, parent, and set the transform of a fake
 		// null node that will symbolize the center of the capture region in question.
@@ -172,7 +183,7 @@ ROP_FBXSkinningAction::performAction(void)
 
 		if(!fbx_skin)
 		    fbx_skin = KFbxSkin::Create(sdk_manager, "");
-		createSkinningInfo(fbx_cregion_parent, fbx_deformed_node, fbx_skin, cap_data, curr_region, capt_context);
+		createSkinningInfo(cregion_parent_infos[0]->getFbxNode(), fbx_deformed_node, fbx_skin, cap_data, curr_region, capt_context);
 	    }
 	    else
 	    {
@@ -405,7 +416,7 @@ ROP_FBXCreateInstancesAction::performAction(void)
     bool are_all_instances_set = false;
 
     ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
-    KFbxNode* target_fbx;
+    //KFbxNode* target_fbx;
     KFbxNodeAttribute* fbx_target_attr;
 
     OP_Node *hd_inst, *hd_inst_target;
@@ -419,6 +430,8 @@ ROP_FBXCreateInstancesAction::performAction(void)
     ROP_FBXMainNodeVisitInfo *target_node_info;
     geom_visitor.addVisitableNetworkTypes(ROP_FBXtypesToDiveInto);
 
+    TFbxNodeInfoVector inst_nodes;
+    int curr_inst_node, num_inst_nodes;
     while(!are_all_instances_set && did_find_any_targets)
     {
 	did_find_any_targets = false;
@@ -439,33 +452,40 @@ ROP_FBXCreateInstancesAction::performAction(void)
 		continue;
 
 	    // Find the corresponding FBX node
-	    target_fbx = node_manager.findFbxNode(hd_inst_target);
-	    if(!target_fbx || !target_fbx->GetNodeAttribute())
-		continue;
+	    //node_manager.findNodeInfos(hd_inst_target, inst_nodes);
+//		target_fbx = inst_nodes[curr_inst_node]->getFbxNode();
+//		if(!target_fbx || !target_fbx->GetNodeAttribute())
+//		    continue;
+	    inst_nodes.clear();
+	    node_manager.findNodeInfos(hd_inst, inst_nodes);
+	    num_inst_nodes = inst_nodes.size();
+	    for(curr_inst_node = 0; curr_inst_node < num_inst_nodes; curr_inst_node++)
+	    {
+		this_node_info = inst_nodes[curr_inst_node];
+//		this_node_info = node_manager.findNodeInfo(hd_inst);
+		if(!this_node_info)
+		    continue;
 
-	    this_node_info = node_manager.findNodeInfo(hd_inst);
-	    if(!this_node_info)
-		continue;
+		// Unbelievably, there is no way to make a copy of a node's attribute
+		// in FBX, and they can't be instanced. We're forced to re-create
+		// the node from scratch. Arghhh.
+    	    
+		//fbx_target_attr = target_fbx->GetNodeAttribute();
+		//myItems[curr_inst_idx].myFbxNode->AddNodeAttribute(fbx_target_attr);
+		visit_info = this_node_info->getVisitInfo();
+		visit_info.setFbxNode(myItems[curr_inst_idx].myFbxNode->GetParent());
+		visit_info.setHdNode(hd_inst);
 
-	    // Unbelievably, there is no way to make a copy of a node's attribute
-	    // in FBX, and they can't be instanced. We're forced to re-create
-	    // the node from scratch. Arghhh.
-	    
-	    //fbx_target_attr = target_fbx->GetNodeAttribute();
-	    //myItems[curr_inst_idx].myFbxNode->AddNodeAttribute(fbx_target_attr);
-	    visit_info = this_node_info->getVisitInfo();
-	    visit_info.setFbxNode(myItems[curr_inst_idx].myFbxNode->GetParent());
-	    visit_info.setHdNode(hd_inst);
+		target_node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(geom_visitor.visitBegin(hd_inst_target));
+		target_node_info->setParentInfo(&visit_info);
+		target_node_info->setFbxNode(myItems[curr_inst_idx].myFbxNode);
+		target_node_info->setIsVisitingFromInstance(true);
 
-	    target_node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(geom_visitor.visitBegin(hd_inst_target));
-	    target_node_info->setParentInfo(&visit_info);
-	    target_node_info->setFbxNode(myItems[curr_inst_idx].myFbxNode);
-	    target_node_info->setIsVisitingFromInstance(true);
+		geom_visitor.visit(hd_inst_target, target_node_info);
+		did_find_any_targets = true;
 
-	    geom_visitor.visit(hd_inst_target, target_node_info);
-	    did_find_any_targets = true;
-
-	    delete target_node_info;
+		delete target_node_info;
+	    }
 	}
     }
 

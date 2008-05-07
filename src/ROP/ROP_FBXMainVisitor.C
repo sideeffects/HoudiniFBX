@@ -23,13 +23,27 @@
 
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_BoundingRect.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Director.h>
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_ConvertParms.h>
+#include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimNURBCurve.h>
+#include <GU/GU_PrimPoly.h>
+#include <GU/GU_PrimRBezCurve.h>
+#include <GU/GU_PrimRBezSurf.h>
+#include <GD/GD_TrimRegion.h>
+#include <GD/GD_PrimRBezCurve.h>
+#include <GD/GD_Detail.h>
+#include <GD/GD_Face.h>
+#include <GD/GD_PrimPoly.h>
+#include <GD/GD_TrimPiece.h>
 #include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_Point.h>
+#include <GEO/GEO_Profiles.h>
+#include <GEO/GEO_TPSurf.h>
 #include <GEO/GEO_Vertex.h>
 #include <GEO/GEO_PrimPoly.h>
 #include <GU/GU_Detail.h>
@@ -96,7 +110,9 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     if(myBoss->opInterrupt())
 	return ROP_FBXVisitorResultAbort;
 
-    KFbxNode* res_new_node = NULL;
+    //KFbxNode* res_new_node = NULL;
+    KFbxNode* temp_new_node;
+    TFbxNodesVector res_nodes;
     KFbxNode* fbx_parent_node = NULL;
     if(node_info_in && node_info_in->getParentInfo() != NULL)
 	fbx_parent_node = node_info_in->getParentInfo()->getFbxNode();
@@ -122,14 +138,14 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	if(node_type == "geo")
 	{
 	    bool did_cancel;
-	    res_new_node = outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel);
+	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
 
 	    // We don't need to dive into the geo node
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 
 	    if(did_cancel)
 	    {
-		UT_ASSERT(res_new_node == NULL);
+		UT_ASSERT(res_nodes.size() == 0);
 		return ROP_FBXVisitorResultAbort;
 	    }
 	}
@@ -139,11 +155,12 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // *but* we need to attach the instance attribute later, as a post-action,
 	    // in case it's not created at this point.
 	    UT_String node_name = node->getName();
-	    res_new_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
+	    temp_new_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
+	    res_nodes.push_back(temp_new_node);
 
 	    if(!myInstancesActionPtr)	    
 		myInstancesActionPtr = myActionManager->addCreateInstancesAction();
-	    myInstancesActionPtr->addInstance(node, res_new_node);
+	    myInstancesActionPtr->addInstance(node, temp_new_node);
 
 	    // See if we're an instance of a light or a camera, in which case
 	    // we need to apply special transforms to this node.
@@ -165,7 +182,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    if(is_joint_null_node || is_last_joint_node)
 	    {
 		// This is really a joint. Export it as such.
-		res_new_node = outputBoneNode(node, node_info, fbx_parent_node, true);
+		outputBoneNode(node, node_info, fbx_parent_node, true, res_nodes);
 		res_type = ROP_FBXVisitorResultSkipSubnet;
 
 		if(!is_joint_null_node && is_last_joint_node)
@@ -174,13 +191,13 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    else
 	    {
 		// Regular null node.
-		res_new_node = outputNullNode(node, node_info, fbx_parent_node);
+		outputNullNode(node, node_info, fbx_parent_node, res_nodes);
 		res_type = ROP_FBXVisitorResultSkipSubnet;
 	    }
 	}
 	else if(node_type == "hlight")
 	{
-	    res_new_node = outputLightNode(node, node_info, fbx_parent_node);
+	    outputLightNode(node, node_info, fbx_parent_node, res_nodes);
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 
 	    // Light, of course, is special.
@@ -188,7 +205,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 	else if(node_type == "cam")
 	{
-	    res_new_node = outputCameraNode(node, node_info, fbx_parent_node);
+	    outputCameraNode(node, node_info, fbx_parent_node, res_nodes);
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 	}
 	else if(node_type == "bone")
@@ -196,7 +213,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // Export bones - only if this isn't a dummy bone for display only.
 	    if(ROP_FBXUtil::isDummyBone(node) == false)
 	    {
-		res_new_node = outputBoneNode(node, node_info, fbx_parent_node, false);
+		outputBoneNode(node, node_info, fbx_parent_node, false, res_nodes);
 		res_type = ROP_FBXVisitorResultSkipSubnet;
 	    }
 	    else
@@ -225,10 +242,11 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
     }
 
-    if(!res_new_node && !force_ignore_node)
+    //if(!res_new_node && !force_ignore_node)
+    if(res_nodes.size() == 0 && !force_ignore_node)
     {
 	// Treat everything else as a null node
-	res_new_node = outputNullNode(node, node_info, fbx_parent_node);
+	outputNullNode(node, node_info, fbx_parent_node, res_nodes);
 
 	// We do this because some invisible nodes may have extremely complex subnets that will
 	// take forever to export. Might make this an option later.
@@ -236,70 +254,91 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
     }
 
-    if(res_new_node && fbx_parent_node)
+    if(res_nodes.size() > 0 && fbx_parent_node)
     {
 	UT_ASSERT(node_info);
-	UT_String lookatobjectpath;
-	ROP_FBXUtil::getStringOPParm(node, lookat_parm_name.c_str(), lookatobjectpath, true, myStartTime);
 
-	ROP_FBXNodeInfo *res_node_pair_info;
-	if(node_info->getIsVisitingFromInstance() && node_info->getFbxNode())
+	int curr_node, num_nodes = res_nodes.size();
+	for(curr_node = 0; curr_node < num_nodes; curr_node++)
 	{
-	    // Special trick to re-parent the attribute.
-	    node_info->getFbxNode()->SetNodeAttribute(res_new_node->GetNodeAttribute());
-	    res_new_node->SetNodeAttribute(NULL);
-	    res_new_node->Destroy();
-	    res_new_node = node_info->getFbxNode();
-
-	    res_node_pair_info = myNodeManager->findNodeInfo(node_info->getFbxNode());
-	    UT_ASSERT(res_node_pair_info);
+	    finalizeNewNode(res_nodes[curr_node], node, node_info, fbx_parent_node, override_node_type,
+		lookat_parm_name.c_str(), res_type, v_cache);
 	}
-	else
-	{
-	    res_new_node->SetVisibility(node->getDisplay());
-
-	    // Set the standard transformations (unless we're in the instance)
-	    float bone_length = 0.0;
-	    if(node_info_in && node_info_in->getParentInfo())
-		bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info_in->getParentInfo())->getBoneLength();
-	    UT_String* override_type_ptr = NULL;
-	    if(override_node_type.isstring())
-		override_type_ptr = &override_node_type;
-	    ROP_FBXUtil::setStandardTransforms(node, res_new_node, (lookatobjectpath.length() > 0), bone_length, myStartTime, override_type_ptr);
-
-	    // If there's a lookat object, queue up the action
-	    if(lookatobjectpath.length() > 0)
-	    {
-		// Get the actual node ptr
-		OP_Node *lookat_node = node->findNode((const char*)lookatobjectpath);
-
-		// Queue up an object to look at. Post-action because it may not have been created yet.
-		if(lookat_node)
-		    myActionManager->addLookAtAction(res_new_node, lookat_node);
-	    }
-
-	    // Add nodes to the map
-	    res_node_pair_info = &myNodeManager->addNodePair(node, res_new_node, *node_info);
-	}
-
-
-	// Export materials
-	exportMaterials(node, res_new_node);
-
-	res_node_pair_info->setVertexCacheMethod(node_info->getVertexCacheMethod());
-	res_node_pair_info->setMaxObjectPoints(node_info->getMaxObjectPoints());
-	res_node_pair_info->setVertexCache(v_cache);
-	res_node_pair_info->setVisitResultType(res_type);
-
-	// Add it to the hierarchy
-	if(!node_info->getIsVisitingFromInstance())
-	{
-	    fbx_parent_node->AddChild(res_new_node);
-	    node_info_in->setFbxNode(res_new_node);
-	}	
     }
 
     return res_type;
+}
+/********************************************************************************************************/
+void
+ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
+		UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type,
+		ROP_FBXGDPCache *v_cache)
+{
+    UT_ASSERT(lookat_parm_name);
+
+    UT_String lookatobjectpath;
+    ROP_FBXUtil::getStringOPParm(hd_node, lookat_parm_name, lookatobjectpath, true, myStartTime);
+
+    KFbxNode* new_node = constr_info.getFbxNode();
+
+    ROP_FBXNodeInfo *res_node_pair_info;
+    if(node_info->getIsVisitingFromInstance() && node_info->getFbxNode())
+    {
+	// Special trick to re-parent the attribute.
+	node_info->getFbxNode()->SetNodeAttribute(new_node->GetNodeAttribute());
+	new_node->SetNodeAttribute(NULL);
+	new_node->Destroy();
+	new_node = node_info->getFbxNode();
+
+	res_node_pair_info = myNodeManager->findNodeInfo(node_info->getFbxNode());
+	UT_ASSERT(res_node_pair_info);
+    }
+    else
+    {
+	new_node->SetVisibility(hd_node->getDisplay());
+
+	// Set the standard transformations (unless we're in the instance)
+	float bone_length = 0.0;
+	if(node_info && node_info->getParentInfo())
+	    bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info->getParentInfo())->getBoneLength();
+	UT_String* override_type_ptr = NULL;
+	if(override_node_type.isstring())
+	    override_type_ptr = &override_node_type;
+	ROP_FBXUtil::setStandardTransforms(hd_node, new_node, (lookatobjectpath.length() > 0), bone_length, myStartTime, override_type_ptr);
+
+	// If there's a lookat object, queue up the action
+	if(lookatobjectpath.length() > 0)
+	{
+	    // Get the actual node ptr
+	    OP_Node *lookat_node = hd_node->findNode((const char*)lookatobjectpath);
+
+	    // Queue up an object to look at. Post-action because it may not have been created yet.
+	    if(lookat_node)
+		myActionManager->addLookAtAction(new_node, lookat_node);
+	}
+
+	// Add nodes to the map
+	res_node_pair_info = &myNodeManager->addNodePair(hd_node, new_node, *node_info);
+    }
+
+
+    // Export materials
+    exportMaterials(hd_node, new_node);
+
+    res_node_pair_info->setVertexCacheMethod(node_info->getVertexCacheMethod());
+    res_node_pair_info->setMaxObjectPoints(node_info->getMaxObjectPoints());
+    res_node_pair_info->setIsSurfacesOnly(node_info->getIsSurfacesOnly());
+    res_node_pair_info->setVertexCache(v_cache);
+    res_node_pair_info->setVisitResultType(res_type);
+    res_node_pair_info->setSourcePrimitive(constr_info.getHdPrimitiveIndex());
+
+    // Add it to the hierarchy
+    if(!node_info->getIsVisitingFromInstance())
+    {
+	fbx_parent_node->AddChild(new_node);
+	node_info->setFbxNode(new_node);
+    }	
+
 }
 /********************************************************************************************************/
 void 
@@ -328,8 +367,8 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
     }
 }
 /********************************************************************************************************/
-KFbxNode* 
-ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, bool is_a_null)
+bool
+ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, bool is_a_null, TFbxNodesVector& res_nodes)
 {
     // NOTE: This may get called on a null nodes, as well, if they are being exported as joints.
     UT_String node_name = node->getName();
@@ -358,24 +397,36 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length", 0, myStartTime);
     node_info->setBoneLength(bone_length);
 
-    return res_node;
+    res_nodes.push_back(res_node);
+    return true;
 }
 /********************************************************************************************************/
-KFbxNode* 
-ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out)
+/*
+Thoughts on multi types:
+- Anything that is vertex cacheable shall be of one monolithic type. If it's not, it shall be converted to
+    polygons. In practice, we can limit this to: Either it is 1) Pure NURBS or 2) Convert it all to polygons.
+- The above means we only worry about multiple types when they're non-vc. However, we still have to take caching 
+into account.
+- Remember that we can be here in an instance.
+
+- For all other objects, we need to break them apart...?
+*/
+
+bool
+ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes)
 {
     did_cancel_out = false;
 
     KFbxNode* res_node = NULL;
     OP_Network* op_net = dynamic_cast<OP_Network*>(node);
     if(!op_net)
-	return res_node;
+	return false;
     OP_Node *rend_node = op_net->getRenderNodePtr();
     if(!rend_node)
-	return res_node;
+	return false;
     SOP_Node* sop_node = dynamic_cast<SOP_Node*>(rend_node);
     if(!sop_node)
-	return res_node;
+	return false;
 
     bool temp_bool, found_particles;
     bool is_vertex_cacheable = false;
@@ -434,6 +485,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     // We need this here so that the number of points in the static geometry
     // matches the number of points in the vertex cache files. Otherwise Maya
     // crashes and burns.
+    bool is_pure_surfaces = false;
     if(is_vertex_cacheable)
     {
 #ifdef UT_DEBUG
@@ -450,14 +502,16 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
 	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(node_to_use, geom_export_time, end_time, 
 	    myParentExporter->getExportOptions()->getPolyConvertLOD(),
-	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), myBoss, v_cache_out);
+	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), 
+	    myParentExporter->getExportOptions()->getConvertSurfaces(),
+	    myBoss, v_cache_out, is_pure_surfaces);
 
 	if(max_vc_verts < 0)
 	{
 	    // The user cancelled.
 	    delete v_cache_out;
 	    did_cancel_out = true;
-	    return NULL;
+	    return false;
 	}
 
 #ifdef UT_DEBUG
@@ -468,67 +522,117 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     else
 	v_cache_out = NULL;
 
+
     GU_DetailHandle gdh;
     if (!ROP_FBXUtil::getGeometryHandle(sop_node, geom_export_time, gdh))
-	return res_node;
+	return false;
 
     GU_DetailHandleAutoReadLock	 gdl(gdh);
     const GU_Detail		*gdp = gdl.getGdp();
     if(!gdp)
-	return res_node;
+	return false;
 
-    // Try to guess from the first primitive what the SOP represents
+    // See what types we have in our GDP
     unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
     KFbxNodeAttribute *res_attr = NULL;
     UT_String node_name = node->getName();
-    if(prim_type == GEOPRIMPOLY && (!is_vertex_cacheable || v_cache_out->getIsNumPointsConstant())) 
+    if(is_vertex_cacheable)
     {
-	if(is_vertex_cacheable && v_cache_out && v_cache_out->getIsNumPointsConstant())
+	// We can only cache these:
+	// 1) Pure polygons;
+	// 2) Pure NURBS;
+	// 3) Pure Beziers;
+	// 4) Anything else, converted to polygons.
+	if(prim_type == GEOPRIMPOLY && v_cache_out->getIsNumPointsConstant())
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
 	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
+	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
 	}
-	else
-	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
-    }
-    else if(prim_type == GEOPRIMPART)
-    {
-	UT_ASSERT(v_cache_out && is_vertex_cacheable);
+	else if(prim_type == GEOPRIMPART)
+	{
+	    UT_ASSERT(v_cache_out && is_vertex_cacheable);
 
-	// Particles.
-	// We cleverly create a square for each particle, then. Use the cache.
-	GU_Detail *final_detail;
-	//ROP_FBXUtil::convertParticleGDPtoPolyGDP(gdp, max_vc_verts, conv_gdp);
-	final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
-	node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodParticles);
-	res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
+	    // Particles.
+	    // We cleverly create a square for each particle, then. Use the cache.
+	    GU_Detail *final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
+	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodParticles);
+	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
+	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+	}
+	else if(is_pure_surfaces && v_cache_out->getIsNumPointsConstant())
+	{
+	    // NURBS or Bezier surfaces
+	    //GU_Detail *final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
+	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
+	    node_info->setIsSurfacesOnly(true);
 
-	// TODO: Make sure we're not leaking vertices when we're done with this GDP.
+	    // Note: unfortunately, the order of these is important, and matters to the ROP_FBXAnimVisitor::fillVertexArray().
+	    int prim_cntr = -1;
+	    if(prim_type & GEOPRIMNURBSURF)
+		outputNURBSSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
+	    if(prim_type & GEOPRIMBEZSURF)
+		outputBezierSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
+	}
+	else // Mixed types
+	{
+	    // Convert
+	    GU_Detail *final_detail;
+	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
+	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
+	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
+	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+	}
     }
     else
     {
-	// Convert
-	GU_Detail conv_gdp, *final_detail;
-	if(is_vertex_cacheable)
-	{
-	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
-	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
-	}
-	else
-	{
-	    float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
+	// Convert the types we don't natively export.
+	unsigned supported_types = GEOPRIMPOLY | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE;
 
+	if(myParentExporter->getExportOptions()->getConvertSurfaces() == false)
+	    supported_types |= ( GEOPRIMNURBSURF  | GEOPRIMBEZSURF );
+
+	GU_Detail conv_gdp;
+	const GU_Detail* final_detail;
+
+	if( (prim_type & (~supported_types)) != 0)
+	{
+	    // We have some primitives that are not supported
+	    float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
 	    conv_gdp.duplicate(*gdp);
 	    GU_ConvertParms conv_parms;
-	    conv_parms.fromType = GEOPRIMALL;
+	    conv_parms.fromType = GEOPRIMALL & (~supported_types);
 	    conv_parms.toType = GEOPRIMPOLY;
 	    conv_parms.method.setULOD(lod);
 	    conv_parms.method.setVLOD(lod);
 	    conv_gdp.convert(conv_parms);
 	    final_detail = &conv_gdp;
+
+	    prim_type = ROP_FBXUtil::getGdpPrimId(final_detail);
 	}
-	res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
+	else
+	    final_detail = gdp;
+
+	// No vertex caching. Output several separate nodes
+	if( prim_type & GEOPRIMPOLY )
+	{
+	    // There are polygons in this gdp. Output them.
+	    res_attr = outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
+	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+
+	    // Try output any polylines, if they exist. Unlike Houdini, they're a separate type in FBX.
+	    // We ignore them in the about polygon function.
+	    outputPolylines(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+	}
+	if(prim_type & GEOPRIMNURBSURF)
+	    outputNURBSSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+	if(prim_type & GEOPRIMNURBCURVE)
+	    outputNURBSCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+	if(prim_type & GEOPRIMBEZCURVE)
+	    outputBezierCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+	if(prim_type & GEOPRIMBEZSURF)
+	    outputBezierSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
     }
 
     if(is_vertex_cacheable)
@@ -541,18 +645,574 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    node_info->setMaxObjectPoints(max_vc_verts);
     }
 
-    if(res_attr)
-    {	
-	res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
-	res_node->SetNodeAttribute(res_attr);
+    return true;
+}
+/********************************************************************************************************/
+void
+ROP_FBXMainVisitor::finalizeGeoNode(KFbxNodeAttribute *res_attr, const char* node_name, OP_Node* skin_deform_node, 
+				    int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes)
+{
+    if(!res_attr || !node_name)
+	return;
 
-	if(skin_deform_node)
+    KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
+    res_node->SetNodeAttribute(res_attr);
+
+    ROP_FBXConstructionInfo constr_info(res_node);
+    constr_info.setHdPrimitiveIndex(opt_prim_cnt);
+    res_nodes.push_back(constr_info);
+
+    if(skin_deform_node)
+    {
+	myActionManager->addSkinningAction(res_node, skin_deform_node, capture_frame);
+    }
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
+					 int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
+{
+    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
+    orig_name += "_bezier_surf";
+    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    int obj_cntr = 0;
+    KFbxNurbsSurface *nurbs_surf_attr;
+
+    GEO_Primitive* prim;
+    GU_PrimRBezSurf* hd_line;
+    GU_PrimNURBSurf* hd_nurb;
+
+    GU_Detail copy_gdp;
+    copy_gdp.duplicate(*gdp);
+
+    int prim_cnt = -1;
+    if(prim_cntr)
+	prim_cnt = *prim_cntr;
+    int curr_prim, num_prims = copy_gdp.primitives().entries();
+    for(curr_prim = num_prims - 1; curr_prim >= 0; curr_prim--)
+    {
+	if(prim_cntr)
+	    prim_cnt++;
+	prim = copy_gdp.primitives()(curr_prim);
+	if(prim->getPrimitiveId() != GEOPRIMBEZSURF)
+	    continue;
+
+	hd_line = dynamic_cast<GU_PrimRBezSurf*>(prim);
+	if(!hd_line)
 	{
-	    myActionManager->addSkinningAction(res_node, skin_deform_node, capture_frame);
+	    UT_ASSERT(0);
+	    continue;
+	}
+
+	hd_nurb = dynamic_cast<GU_PrimNURBSurf*>(hd_line->convertToNURBNew());
+	if(!hd_nurb)
+	    continue;
+
+	// Generate the name
+	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
+	obj_cntr++;
+
+	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+
+    }
+
+    if(prim_cntr)
+	*prim_cntr = prim_cnt;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes)
+{
+    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
+    orig_name += "_bezier_curve";
+    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    int obj_cntr = 0;
+    KFbxNurbsCurve *nurbs_curve_attr;
+
+    GEO_Primitive* prim;
+    GU_PrimRBezCurve* hd_line;
+    GU_PrimNURBCurve* hd_nurb;
+
+    GU_Detail copy_gdp;
+    copy_gdp.duplicate(*gdp);
+
+    int prim_cnt = -1;
+    int curr_prim, num_prims = copy_gdp.primitives().entries();
+    for(curr_prim = num_prims - 1; curr_prim >= 0; curr_prim--)
+    {
+	prim_cnt++;
+	prim = copy_gdp.primitives()(curr_prim);
+	if(prim->getPrimitiveId() != GEOPRIMBEZCURVE)
+	    continue;
+
+	hd_line = dynamic_cast<GU_PrimRBezCurve*>(prim);
+	if(!hd_line)
+	{
+	    UT_ASSERT(0);
+	    continue;
+	}
+
+	hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(hd_line->convertToNURBNew());
+	if(!hd_nurb)
+	    continue;
+
+	// Generate the name
+	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
+	obj_cntr++;
+
+	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
+	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
+	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+    }
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes)
+{
+    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
+    orig_name += "_polyline";
+    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    int obj_cntr = 0;
+    KFbxNurbsCurve *nurbs_curve_attr;
+
+    const GEO_Primitive* const_prim;
+    const GU_PrimPoly* const_hd_line;
+    GEO_Primitive* prim;
+    GU_PrimPoly* hd_line;
+    GU_PrimNURBCurve* hd_nurb;
+
+    bool did_find_open = false;
+
+    FOR_MASK_PRIMITIVES(gdp, const_prim, GEOPRIMPOLY)
+    {
+	const_hd_line = dynamic_cast<const GU_PrimPoly*>(const_prim);
+	if(const_hd_line->isClosed() == false)
+	{
+	    did_find_open = true;
+	    break;
 	}
     }
 
-    return res_node;
+    if(!did_find_open)
+	return;
+
+    GU_Detail copy_gdp;
+    copy_gdp.duplicate(*gdp);
+
+    int prim_cnt = -1;
+    int curr_prim, num_prims = copy_gdp.primitives().entries();
+    for(curr_prim = num_prims - 1; curr_prim >= 0; curr_prim--)
+    {
+	prim_cnt++;
+	prim = copy_gdp.primitives()(curr_prim);
+	if(prim->getPrimitiveId() != GEOPRIMPOLY)
+	    continue;
+
+	hd_line = dynamic_cast<GU_PrimPoly*>(prim);
+	if(!hd_line)
+	{
+	    UT_ASSERT(0);
+	    continue;
+	}
+	if(hd_line->isClosed())
+	    continue;
+
+	hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(hd_line->convertToNURBNew(4));
+	if(!hd_nurb)
+	    continue;
+
+	// Generate the name
+	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
+	obj_cntr++;
+
+	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
+	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
+	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+    }
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
+				      int capture_frame, TFbxNodesVector& res_nodes)
+{
+    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
+    orig_name += "_nurbs_curve";
+    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    int obj_cntr = 0;
+    KFbxNurbsCurve *nurbs_curve_attr;
+    
+    const GEO_Primitive* prim;
+    const GU_PrimNURBCurve* hd_nurb;
+    int prim_cnt = -1;
+    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMNURBCURVE)
+    {
+	prim_cnt++;
+	hd_nurb = dynamic_cast<const GU_PrimNURBCurve*>(prim);
+	if(!hd_nurb)
+	{
+	    UT_ASSERT(0);
+	    continue;
+	}
+
+	// Generate the name
+	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
+	obj_cntr++;
+
+	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
+	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
+	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+    }
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU_PrimNURBCurve* hd_nurb)
+{
+    GB_NUBBasis* basis;
+    int point_count;
+    KFbxNurbsCurve::EType curve_type;
+    int curr_knot, num_knots;
+    double *knot_vector;
+    float* hd_knot_vector;
+    UT_Vector4 temp_vec;
+    KFbxVector4* fbx_points;
+    int curr_point, num_points;
+
+    basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getBasis());
+    point_count = hd_nurb->getVertexCount();
+
+    if(hd_nurb->isClosed())
+    {
+	if(basis->interpolatesEnds())
+	    curve_type = KFbxNurbsCurve::eCLOSED;
+	else
+	    curve_type = KFbxNurbsCurve::ePERIODIC;
+    }
+    else
+	curve_type = KFbxNurbsCurve::eOPEN;
+
+    nurbs_curve_attr->SetOrder(hd_nurb->getOrder());
+    nurbs_curve_attr->InitControlPoints(point_count, curve_type);
+
+    // Set the basis
+    num_knots = nurbs_curve_attr->GetKnotCount();
+    knot_vector = nurbs_curve_attr->GetKnotVector();
+    hd_knot_vector = basis->getData();
+    for(curr_knot = 0; curr_knot < num_knots; curr_knot++)
+	knot_vector[curr_knot] = hd_knot_vector[curr_knot];
+
+
+    fbx_points = nurbs_curve_attr->GetControlPoints();
+    num_points = nurbs_curve_attr->GetControlPointsCount();
+
+    for(curr_point = 0; curr_point < num_points; curr_point++)
+    {
+	temp_vec = hd_nurb->getVertex(curr_point).getPos();
+	fbx_points[curr_point].Set(temp_vec[0],temp_vec[1],temp_vec[2],temp_vec[3]);
+    }
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurface *trim_nurbs_surf_attr, 
+				      bool& have_fbx_region)
+{
+    GD_TrimLoop* loop;
+    KFbxBoundary* fbx_boundary; 
+
+    UT_BoundingRect brect(0,0,1,1);
+    loop = region->getLoop(brect);
+
+    // Add a boundary
+    GD_TrimLoop* curr_loop = loop;
+    GD_TrimPiece* curr_piece;
+
+    bool is_clockwise;
+    KFbxNurbsCurve* fbx_curve;
+    while(curr_loop) 
+    {
+	is_clockwise = curr_loop->isClockwise();
+	if(!is_clockwise)
+	{
+	    if(have_fbx_region)
+		trim_nurbs_surf_attr->EndTrimRegion();
+	    trim_nurbs_surf_attr->BeginTrimRegion();
+	    have_fbx_region = true;
+	}
+//	if( (is_outer && is_clockwise) || (!is_outer && !is_clockwise))
+//	    curr_loop->reverse();
+
+	curr_loop->flatten();
+
+	if(!curr_loop->isClosed())
+	    curr_loop->close(1);
+
+	fbx_boundary = KFbxBoundary::Create(mySDKManager, "");
+	curr_piece = curr_loop->getPiece(NULL);
+	while(curr_piece)
+	{
+	    fbx_curve = KFbxNurbsCurve::Create(mySDKManager, "");
+
+	    unsigned face_id = curr_piece->getPrimitiveId();
+
+	    if(face_id == GDPRIMBEZCURVE)
+	    {
+		GU_Detail temp_gdp;
+		GU_PrimNURBSurf *temp_prim = dynamic_cast<GU_PrimNURBSurf *>(temp_gdp.appendPrimitive(GEOPRIMNURBSURF));
+		GEO_TPSurf *tp_surf = dynamic_cast<GEO_TPSurf *>(temp_prim);
+		GEO_Profiles* profiles = tp_surf->profiles(1);
+
+		GD_PrimRBezCurve* temp_face;
+		temp_face = dynamic_cast<GD_PrimRBezCurve*>(curr_piece->createFace(profiles));
+
+		// Make a copy of the face and convert it to the GU_* Curve. We can then dump it to NURBS.
+		if(temp_face)
+		{
+		    GU_PrimRBezCurve* bez_curve = GU_PrimRBezCurve::build(&temp_gdp,  temp_face->getVertexCount(), temp_face->getOrder(), temp_face->isClosed(), true);
+		    UT_ASSERT(bez_curve);
+
+		    // Copy the points
+		    int curr_pt, num_pts = temp_face->getVertexCount();
+		    UT_Vector3 temp_vec;
+		    for(curr_pt = 0; curr_pt < num_pts; curr_pt++)
+		    {
+			temp_vec = temp_face->getVertex(curr_pt).getPos();
+			temp_vec.z() = 0;
+			bez_curve->getVertex(curr_pt).getPt()->setPos(temp_vec);
+		    }
+
+		    // Convert it to NURBS
+		    GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(bez_curve->convertToNURBNew());
+		    setNURBSCurveInfo(fbx_curve, hd_nurb);
+		}
+	    }
+	    else if(face_id == GDPRIMPOLY)
+	    {
+		GU_Detail temp_gdp;
+		GU_PrimNURBSurf *temp_prim = dynamic_cast<GU_PrimNURBSurf *>(temp_gdp.appendPrimitive(GEOPRIMNURBSURF));
+		GEO_TPSurf *tp_surf = dynamic_cast<GEO_TPSurf *>(temp_prim);
+		GEO_Profiles* profiles = tp_surf->profiles(1);
+
+		GD_PrimPoly* temp_face;
+		temp_face = dynamic_cast<GD_PrimPoly*>(curr_piece->createFace(profiles));
+    
+		if(temp_face)
+		{
+		    GU_PrimPoly* poly = GU_PrimPoly::build(&temp_gdp, temp_face->getVertexCount(), (temp_face->isClosed() ? GU_POLY_CLOSED : GU_POLY_OPEN), true);
+		    if(poly)
+		    {
+			// Copy the points
+			int curr_pt, num_pts = temp_face->getVertexCount();
+			UT_Vector3 temp_vec;
+			for(curr_pt = 0; curr_pt < num_pts; curr_pt++)
+			{
+			    temp_vec = temp_face->getVertex(curr_pt).getPos();
+			    temp_vec.z() = 0;
+			    poly->getVertex(curr_pt).getPt()->setPos(temp_vec);
+			}
+			// Convert it to NURBS
+			GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(poly->convertToNURBNew(4));
+			setNURBSCurveInfo(fbx_curve, hd_nurb);
+		    }
+		}
+
+	    }
+	    else
+	    {
+		// Unknown trim curve type
+		UT_ASSERT(0);
+	    }
+
+	    fbx_boundary->AddCurve(fbx_curve);
+	    curr_piece = curr_loop->getPiece(curr_piece);
+	}
+
+	trim_nurbs_surf_attr->AddBoundary(fbx_boundary);
+	curr_loop = loop->getNext();
+    }         
+
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
+					int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
+{
+    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
+    orig_name += "_nurbs_surf";
+    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    int obj_cntr = 0;
+    const GEO_Primitive* prim;
+    const GU_PrimNURBSurf* hd_nurb;
+
+    bool have_profiles = false;
+    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMNURBSURF)
+    {
+	hd_nurb = dynamic_cast<const GU_PrimNURBSurf*>(prim);
+	if(hd_nurb && hd_nurb->hasProfiles())
+	{
+	    have_profiles = true;
+	    break;
+	}
+    }
+
+    const GU_Detail *final_gdp;
+    GU_Detail copy_gdp;
+    if(have_profiles)
+    {
+	copy_gdp.duplicate(*gdp);
+	final_gdp = &copy_gdp;
+    }
+    else
+	final_gdp = gdp;
+
+    int prim_cnt = -1;
+    if(prim_cntr)
+	prim_cnt = *prim_cntr;
+
+    FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMNURBSURF)
+    {
+	if(prim_cntr)
+	    prim_cnt++;
+
+	hd_nurb = dynamic_cast<const GU_PrimNURBSurf*>(prim);
+	if(!hd_nurb)
+	{
+	    UT_ASSERT(0);
+	    continue;
+	}
+
+	// Generate the name
+	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
+	obj_cntr++;
+
+	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+
+    }
+
+    if(prim_cntr)
+	*prim_cntr = prim_cnt;
+}
+/********************************************************************************************************/
+void
+ROP_FBXMainVisitor::outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, const char* curr_name, OP_Node* skin_deform_node, 
+					     int capture_frame, TFbxNodesVector& res_nodes, int prim_cnt)
+{
+    KFbxTrimNurbsSurface *trim_nurbs_surf_attr;
+    KFbxNurbsSurface *nurbs_surf_attr;
+    GU_PrimNURBSurf* nc_hd_nurb;
+
+    // Output each NURB
+    nurbs_surf_attr = KFbxNurbsSurface::Create(mySDKManager, curr_name);
+    if(hd_nurb->hasProfiles())
+    {
+	trim_nurbs_surf_attr = KFbxTrimNurbsSurface::Create(mySDKManager, curr_name);
+	trim_nurbs_surf_attr->SetNurbsSurface(nurbs_surf_attr);
+    }
+
+    // Set the main surface
+    setNURBSSurfaceInfo(nurbs_surf_attr, hd_nurb);
+
+    // Set the boundaries
+    if(hd_nurb->hasProfiles())
+    {
+	// We're guaranteed we're only here if this is a local copy
+	// of the gdp, so we can actually modify it. So this isn't
+	// as evil as it appears at first.
+	nc_hd_nurb = const_cast<GU_PrimNURBSurf*>(hd_nurb);
+	GD_TrimRegion* region;
+	GEO_Profiles* profiles  = nc_hd_nurb->profiles();
+	bool have_fbx_region = false;
+
+	// Make sure we have an outer loop
+	int curr_region, num_regions = profiles->trimRegions().entries();
+
+	// Output in reverse, starting a new FBX region for every counterclockwise 
+	// profile loop we find. In FBX, outer loops have to be output first.
+	for(curr_region = num_regions - 1; curr_region >= 0; curr_region--)
+	{
+	    region = profiles->trimRegions()(curr_region);
+	    setTrimRegionInfo(region, trim_nurbs_surf_attr, have_fbx_region);
+	}
+
+	// End the FBX region
+	if(have_fbx_region)
+	    trim_nurbs_surf_attr->EndTrimRegion();
+
+    }
+
+    if(hd_nurb->hasProfiles())
+	finalizeGeoNode(trim_nurbs_surf_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+    else
+	finalizeGeoNode(nurbs_surf_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+
+}
+/********************************************************************************************************/
+void
+ROP_FBXMainVisitor::setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const GU_PrimNURBSurf* hd_nurb)
+{
+    GB_NUBBasis* curr_u_basis;
+    GB_NUBBasis* curr_v_basis;
+    int v_point_count, u_point_count;
+    KFbxNurbsSurface::ENurbType u_type, v_type;
+    int curr_knot, num_knots;
+    double *knot_vector;
+    float* hd_knot_vector;
+    int i_row, i_col, i_idx;
+    UT_Vector4 temp_vec;
+    KFbxVector4* fbx_points;
+
+    curr_u_basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getUBasis());
+    curr_v_basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getVBasis());
+    v_point_count = hd_nurb->getNumRows();
+    u_point_count = hd_nurb->getNumCols();
+
+    // Determine types
+    if(hd_nurb->isWrappedU())
+    {
+	if(curr_u_basis->interpolatesEnds())
+	    u_type = KFbxNurbsSurface::eCLOSED;
+	else
+	    u_type = KFbxNurbsSurface::ePERIODIC;
+    }
+    else
+	u_type = KFbxNurbsSurface::eOPEN;
+
+    if(hd_nurb->isWrappedV())
+    {
+	if(curr_v_basis->interpolatesEnds())
+	    v_type = KFbxNurbsSurface::eCLOSED;
+	else
+	    v_type = KFbxNurbsSurface::ePERIODIC;
+    }
+    else
+	v_type = KFbxNurbsSurface::eOPEN;
+
+    nurbs_surf_attr->SetOrder(hd_nurb->getUOrder(), hd_nurb->getVOrder());
+    nurbs_surf_attr->SetStep(2, 2);
+    nurbs_surf_attr->InitControlPoints(u_point_count, u_type, v_point_count, v_type);
+
+    // Set bases (which are all belong to us...)
+    num_knots = nurbs_surf_attr->GetUKnotCount();
+    knot_vector = nurbs_surf_attr->GetUKnotVector();
+    hd_knot_vector = curr_u_basis->getData();
+    for(curr_knot = 0; curr_knot < num_knots; curr_knot++)
+	knot_vector[curr_knot] = hd_knot_vector[curr_knot];
+
+    num_knots = nurbs_surf_attr->GetVKnotCount();
+    knot_vector = nurbs_surf_attr->GetVKnotVector();
+    hd_knot_vector = curr_v_basis->getData();
+    for(curr_knot = 0; curr_knot < num_knots; curr_knot++)
+	knot_vector[curr_knot] = hd_knot_vector[curr_knot];
+
+    // Set control points
+    fbx_points = nurbs_surf_attr->GetControlPoints();
+    for(i_row = 0; i_row < u_point_count; i_row++)
+    {
+	for(i_col = 0; i_col < v_point_count; i_col++)
+	{
+	    i_idx = i_row*v_point_count + i_col;
+	    temp_vec = hd_nurb->getVertex(i_idx).getPos();
+	    fbx_points[i_idx].Set(temp_vec[0],temp_vec[1],temp_vec[2],temp_vec[3]);
+	}
+    }
 }
 /********************************************************************************************************/
 KFbxNodeAttribute* 
@@ -602,13 +1262,16 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 
     // Now set vertices
     int curr_vert, num_verts;
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMPOLY)
     {
-	mesh_attr->BeginPolygon();
-	num_verts = prim->getVertexCount();
-	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
-	    mesh_attr->AddPolygon(prim->getVertex(curr_vert).getBasePt()->getNum());
-	mesh_attr->EndPolygon();
+	if(dynamic_cast<const GEO_PrimPoly*>(prim)->isClosed())
+	{
+	    mesh_attr->BeginPolygon();
+	    num_verts = prim->getVertexCount();
+	    for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+		mesh_attr->AddPolygon(prim->getVertex(curr_vert).getBasePt()->getNum());
+	    mesh_attr->EndPolygon();
+	}
     }
 
     // Add dummy prims if we have to use the extra vertices available
@@ -768,8 +1431,8 @@ void exportDetailAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
 }
 /********************************************************************************************************/
 KFbxLayerElement* 
-ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, int attr_offset, 
-					     KFbxLayerElement::EMappingMode mapping_mode)
+ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, 
+					     int attr_offset, KFbxLayerElement::EMappingMode mapping_mode)
 {
     KFbxLayerElement::EReferenceMode ref_mode;
 
@@ -1232,19 +1895,20 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     user_attribs.clear();
 }
 /********************************************************************************************************/
-KFbxNode* 
-ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node)
+bool
+ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
     UT_String node_name = node->getName();
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)node_name);
     res_node->SetNodeAttribute(res_attr);
 
-    return res_node;
+    res_nodes.push_back(res_node);
+    return true;
 }
 /********************************************************************************************************/
-KFbxNode* 
-ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node)
+bool
+ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
     float float_parm[3];
     int int_param;
@@ -1305,12 +1969,13 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "coneangle");
     res_attr->SetDefaultConeAngle(float_parm[0]);
 
-    return res_node;
+    res_nodes.push_back(res_node);
+    return true;
     
 }
 /********************************************************************************************************/
-KFbxNode* 
-ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node)
+bool
+ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
     UT_String string_param;
     float float_parm[3];
@@ -1388,8 +2053,8 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     res_attr->SetFocusDistanceSource(KFbxCamera::eSPECIFIC_DISTANCE);
     res_attr->SetSpecificDistance(float_parm[0]);
 
-
-    return res_node;
+    res_nodes.push_back(res_node);
+    return true;
 }
 /********************************************************************************************************/
 UT_Color 

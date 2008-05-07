@@ -42,6 +42,7 @@ ROP_FBXExportOptions::reset(void)
     myExportDeformsAsVC = false;
     myExportTakeName = "";
     myInvisibleObjectsExportType = ROP_FBXInvisibleNodeExportAsNulls;
+    myConvertSurfaces = false;
 }
 /********************************************************************************************************/
 bool 
@@ -168,5 +169,17 @@ void
 ROP_FBXExportOptions::setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type)
 {
     myInvisibleObjectsExportType = exp_type;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setConvertSurfaces(bool value)
+{
+    myConvertSurfaces = value;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXExportOptions::getConvertSurfaces(void)
+{
+    return myConvertSurfaces;
 }
 /********************************************************************************************************/

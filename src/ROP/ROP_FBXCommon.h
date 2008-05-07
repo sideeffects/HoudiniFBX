@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 #include "ROP_API.h"
 
@@ -101,6 +102,9 @@ public:
     ROP_FBXInvisibleNodeExportType getInvisibleNodeExportMethod(void);
     void setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type);
 
+    void setConvertSurfaces(bool value);
+    bool getConvertSurfaces(void);
+
 private:
 
     // Sample every N frames
@@ -130,6 +134,9 @@ private:
 
     // Determines how invisible objects are to be exported.
     ROP_FBXInvisibleNodeExportType myInvisibleObjectsExportType;
+
+    // If true, NURBS and Bezier surfaces will be converted to polygons on export.
+    bool myConvertSurfaces;
 };
 /********************************************************************************************************/
 #endif
