@@ -256,33 +256,33 @@ ROP_FBX::renderFrame(float time, UT_Interrupt *)
     {
 	myFBXExporter.doExport();
 	myDidCallExport = true;
+
+	// Add any messages we might have had
+	if(myFBXExporter.getErrorManager())
+	{
+	    ROP_FBXError* error_ptr;
+	    int curr_error, num_errors = myFBXExporter.getErrorManager()->getNumItems();
+	    for(curr_error = 0; curr_error < num_errors; curr_error++)
+	    {
+		error_ptr = myFBXExporter.getErrorManager()->getError(curr_error);
+		if(error_ptr->getIsCritical())
+		{
+		    // Error		
+		    addError(ROP_MESSAGE, error_ptr->getMessage());
+		}
+		else
+		{
+		    // Warning
+		    addWarning(ROP_MESSAGE, error_ptr->getMessage());
+		}
+	    }
+	}
     }
 
     if (error() < UT_ERROR_ABORT)
     {
 	if( !executePostFrameScript(time) )
 	    return ROP_ABORT_RENDER;
-    }
-
-    // Add any messages we might have had
-    if(myFBXExporter.getErrorManager())
-    {
-	ROP_FBXError* error_ptr;
-	int curr_error, num_errors = myFBXExporter.getErrorManager()->getNumItems();
-	for(curr_error = 0; curr_error < num_errors; curr_error++)
-	{
-	    error_ptr = myFBXExporter.getErrorManager()->getError(curr_error);
-	    if(error_ptr->getIsCritical())
-	    {
-		// Error		
-		addError(ROP_MESSAGE, error_ptr->getMessage());
-	    }
-	    else
-	    {
-		// Warning
-		addWarning(ROP_MESSAGE, error_ptr->getMessage());
-	    }
-	}
     }
 
     return ROP_CONTINUE_RENDER;

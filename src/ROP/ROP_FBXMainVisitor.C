@@ -1969,6 +1969,23 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "coneangle");
     res_attr->SetDefaultConeAngle(float_parm[0]);
 
+    // Attenuation
+    ROP_FBXUtil::getStringOPParm(node, "atten_type", string_param, true);
+    KFbxLight::EDecayType decay_type = KFbxLight::eNONE;
+    if(string_param == "quadratic")
+	decay_type = KFbxLight::eQUADRATIC;
+    else if(string_param == "half")
+	decay_type = KFbxLight::eLINEAR;
+    else if(string_param != "off")
+    {
+	// Unsupported attentuation type.
+	myErrorManager->addError("Unsupported attenuation type. Node: ", node_name, NULL);
+    }
+    res_attr->SetDecayType(decay_type);
+
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "atten_dist");
+    res_attr->SetDecayStart(float_parm[0]*0.5);
+
     res_nodes.push_back(res_node);
     return true;
     
