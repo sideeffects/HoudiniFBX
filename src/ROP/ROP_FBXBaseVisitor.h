@@ -91,7 +91,7 @@ typedef vector  < string > TStringVector;
 class ROP_API ROP_FBXBaseVisitor
 {
 public:
-    ROP_FBXBaseVisitor();
+    ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode);
     virtual ~ROP_FBXBaseVisitor();
 
     /// Called before visiting a node. Must return a new instance of
@@ -105,8 +105,8 @@ public:
     /// Calls visitNodeAndChildren() on the root (given) node.
     void visitScene(OP_Node* start_node);
 
-    void addVisitableNetworkType(const char *net_type);
-    void addVisitableNetworkTypes(const char* const net_types[]);
+    void addNonVisitableNetworkType(const char *net_type);
+    void addNonVisitableNetworkTypes(const char* const net_types[]);
 
     bool getDidCancel(void);
 
@@ -118,10 +118,11 @@ private:
     /// Visits all nodes in a network, together with their hierarchies
     void visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info);
 
-    bool isNetworkVisitable(const char* type_name);
+    bool isNetworkVisitable(OP_Node* node);
 
 private:
-    TStringVector myNetworkTypesToVisit;
+    TStringVector myNetworkTypesNotToVisit;
+    ROP_FBXInvisibleNodeExportType myHiddenNodeExportMode;
 
     bool myDidCancel;
 };

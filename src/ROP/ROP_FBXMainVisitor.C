@@ -64,7 +64,8 @@ extern double ROP_FBXdb_maxVertsCountingTime;
 #endif
 
 /********************************************************************************************************/
-ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter)
+ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter) 
+: ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod())
 {
     myParentExporter = parent_exporter;
 

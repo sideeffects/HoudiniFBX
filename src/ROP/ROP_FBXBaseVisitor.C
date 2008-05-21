@@ -22,8 +22,9 @@
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 /********************************************************************************************************/
-ROP_FBXBaseVisitor::ROP_FBXBaseVisitor()
+ROP_FBXBaseVisitor::ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode)
 {
+    myHiddenNodeExportMode = hidden_node_export_mode;
     myDidCancel = false;
 }
 /********************************************************************************************************/
@@ -37,8 +38,7 @@ ROP_FBXBaseVisitor::visitScene(OP_Node* start_node)
 {
     myDidCancel = false;
 
-    UT_String node_type = start_node->getOperator()->getName();
-    if(start_node->isNetwork() && isNetworkVisitable(node_type))
+    if(start_node->isNetwork() && isNetworkVisitable(start_node))
     {
 	OP_Network* op_net = dynamic_cast<OP_Network*>(start_node);
 	UT_ASSERT(op_net);
@@ -99,8 +99,7 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
     OP_Network* test_net = dynamic_cast<OP_Network*>(node);
     if(test_net && visit_result != ROP_FBXVisitorResultSkipSubnet && visit_result != ROP_FBXVisitorResultSkipSubtreeAndSubnet)
     {
-	UT_String node_type = test_net->getOperator()->getName();
-	if(isNetworkVisitable(node_type))
+	if(isNetworkVisitable(test_net))
 	{
 	    visitNetworkNodes(test_net, thisNodeInfo);
 	}
@@ -131,33 +130,48 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 }
 /********************************************************************************************************/
 void 
-ROP_FBXBaseVisitor::addVisitableNetworkType(const char *net_type)
+ROP_FBXBaseVisitor::addNonVisitableNetworkType(const char *net_type)
 {
-    myNetworkTypesToVisit.push_back(net_type);
+    myNetworkTypesNotToVisit.push_back(net_type);
 }
 /********************************************************************************************************/
 void 
-ROP_FBXBaseVisitor::addVisitableNetworkTypes(const char* const net_types[])
+ROP_FBXBaseVisitor::addNonVisitableNetworkTypes(const char* const net_types[])
 {
     int arr_pos = 0;
     while(net_types[arr_pos])
     {
-	addVisitableNetworkType(net_types[arr_pos]);
+	addNonVisitableNetworkType(net_types[arr_pos]);
 	arr_pos++;
     }
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXBaseVisitor::isNetworkVisitable(const char* type_name)
+ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
 {
+    // TODO: Now check for excluded, not included, types; not visitable
+    // if hidden and export as nulls is set.
+
+    // Excluded types: dopnet, ropnet, chopnet, popnet, shopnet, vopnet
+    if(!node || !node->isNetwork())
+	return false;
+
+    // Check if the network type is black-listed.
+    UT_String type_name = node->getOperator()->getName();
     string string_type(type_name);
-    int curr_id, num_ids = myNetworkTypesToVisit.size();
+    int curr_id, num_ids = myNetworkTypesNotToVisit.size();
     for(curr_id = 0; curr_id < num_ids; curr_id++)
     {
-	if(string_type == myNetworkTypesToVisit[curr_id])
-	    return true;
+	if(string_type == myNetworkTypesNotToVisit[curr_id])
+	    return false;
     }
-    return false;
+
+    // If not, check if it is hidden and if we're set to export hidden nodes
+    // as nulls.
+    if(!node->getDisplay() && myHiddenNodeExportMode == ROP_FBXInvisibleNodeExportAsNulls)
+	return false;
+
+    return true;
 }
 /********************************************************************************************************/
 bool 

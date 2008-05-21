@@ -51,7 +51,8 @@
 extern double ROP_FBXdb_vcacheExportTime;
 #endif
 /********************************************************************************************************/
-ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter)
+ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter) 
+: ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod())
 {
     myParentExporter = parent_exporter;
 

@@ -416,7 +416,6 @@ ROP_FBXCreateInstancesAction::performAction(void)
     bool are_all_instances_set = false;
 
     ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
-    //KFbxNode* target_fbx;
     KFbxNodeAttribute* fbx_target_attr;
 
     OP_Node *hd_inst, *hd_inst_target;
@@ -428,7 +427,7 @@ ROP_FBXCreateInstancesAction::performAction(void)
     ROP_FBXMainVisitor geom_visitor(&getParentManager().getExporter());
     ROP_FBXMainNodeVisitInfo visit_info(NULL);
     ROP_FBXMainNodeVisitInfo *target_node_info;
-    geom_visitor.addVisitableNetworkTypes(ROP_FBXtypesToDiveInto);
+    geom_visitor.addNonVisitableNetworkTypes(ROP_FBXnetworkTypesToIgnore);
 
     TFbxNodeInfoVector inst_nodes;
     int curr_inst_node, num_inst_nodes;
