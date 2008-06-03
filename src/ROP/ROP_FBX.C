@@ -78,7 +78,8 @@ static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 
 
 static PRM_Template	 geoTemplates[] = {
-    PRM_Template(PRM_FILE,  1, &sopOutput, &sopOutputDefault, NULL),
+    PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
+			      0, 0, &PRM_SpareData::fileChooserModeWrite),
     PRM_Template(PRM_STRING,  PRM_TYPE_DYNAMIC_PATH, 1, &startNode, &startNodeDefault, NULL),
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
     PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
