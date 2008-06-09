@@ -1100,13 +1100,17 @@ ROP_FBXMainVisitor::outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, con
     KFbxNurbsSurface *nurbs_surf_attr;
     GU_PrimNURBSurf* nc_hd_nurb;
 
-    // Output each NURB
-    nurbs_surf_attr = KFbxNurbsSurface::Create(mySDKManager, curr_name);
+    // Output each NURB   
     if(hd_nurb->hasProfiles())
     {
-	trim_nurbs_surf_attr = KFbxTrimNurbsSurface::Create(mySDKManager, curr_name);
+	string temp_name(curr_name);
+	temp_name += "_trim_surf";
+	nurbs_surf_attr = KFbxNurbsSurface::Create(mySDKManager, temp_name.c_str());
+	trim_nurbs_surf_attr = KFbxTrimNurbsSurface::Create(mySDKManager, curr_name);	
 	trim_nurbs_surf_attr->SetNurbsSurface(nurbs_surf_attr);
     }
+    else
+	nurbs_surf_attr = KFbxNurbsSurface::Create(mySDKManager, curr_name);
 
     // Set the main surface
     setNURBSSurfaceInfo(nurbs_surf_attr, hd_nurb);
