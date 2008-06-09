@@ -238,6 +238,9 @@ ROP_FBXExporter::doExport(void)
 	    ROP_FBXAnimVisitor anim_visitor(this);
 	    anim_visitor.addNonVisitableNetworkTypes(ROP_FBXnetworkTypesToIgnore);
 
+	    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
+	    myScene->SetCurrentTake(const_cast<char*>(curr_hd_take->getName()));
+
 	    // Export the main world_root animation if applicable
 	    if(myDummyRootNullNode)
 	    {			

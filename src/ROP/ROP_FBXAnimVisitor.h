@@ -58,7 +58,7 @@ public:
     void reset(void);
 
     void exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take, KFbxNode* fbx_node);
-    static KFbxTakeNode* addFBXTakeNode(KFbxNode *fbx_node);
+    static KFbxTakeNode* addFBXTakeNode(KFbxTakeNodeContainer *fbx_node);
 
 protected:
 
