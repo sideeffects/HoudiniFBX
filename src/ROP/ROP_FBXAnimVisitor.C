@@ -149,12 +149,12 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // since this FBX node corresponds to the end tip of the bone.
 	    //KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
 	    //exportBonesAnimation(curr_fbx_bone_take, node);
-	    exportBonesAnimation(curr_fbx_take, node);
+	    exportBonesAnimation(curr_fbx_take, node, fbx_node);
 	}
 	else
 	{
 
-	    exportTRSAnimation(node, curr_fbx_take);
+	    exportTRSAnimation(node, curr_fbx_take, fbx_node);
 
 	    if(node_type == "geo" || node_type == "instance")
 	    {
@@ -222,7 +222,7 @@ ROP_FBXAnimVisitor::addFBXTakeNode(KFbxNode *fbx_node)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take)
+ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take, KFbxNode* fbx_node)
 {
     KFCurve* curr_fbx_curve;
 
@@ -235,6 +235,11 @@ ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_tak
 	channel_prefix = "i_";
     else if(node_type == "hlight")
 	channel_prefix = "l_";
+
+    // Create the curves
+    fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
+    fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
+    fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
 
     string channel_name;
 
@@ -807,7 +812,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node)
+ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node)
 {
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
@@ -848,6 +853,11 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
     // No animation.
     if(start_time == FLT_MAX || start_time >= end_time)
 	return;
+
+    // Create the curves
+    fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
+    fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
+    fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
 
     // Get fbx curves
     KFCurve* fbx_t[num_trs_channels];

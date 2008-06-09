@@ -54,6 +54,8 @@ enum ROP_FBXAttributeType
 /********************************************************************************************************/
 typedef vector < GB_Attribute* > THDAttributeVector;
 typedef map < OP_Node* , KFbxSurfaceMaterial* > THdFbxMaterialMap;
+typedef map < OP_Node* , int > THdNodeIntMap;
+//typedef set < OP_Node* > THdNodeSet;
 typedef map < string , KFbxTexture* > THdFbxTextureMap;
 typedef vector < KFbxLayerElementTexture* > TFbxLayerElemsVector;
 //typedef vector < KFbxNode* > TFbxNodesVector;
@@ -162,6 +164,8 @@ protected:
 
     void outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, const char* curr_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int prim_cnt);
 
+    void createTexturesForMaterial(OP_Node* mat_node, KFbxSurfaceMaterial* fbx_material, THdFbxTextureMap& tex_map);
+
     KFbxNodeAttribute* outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method);
     void outputNURBSSurface(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
     void addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager, KFbxMesh* mesh_attr, KFbxLayerElement::EMappingMode mapping_mode );
@@ -177,7 +181,7 @@ protected:
 
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
     KFbxLayerElement* getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
-	const GU_Detail* gdp, int attr_offset, KFbxLayerElement::EMappingMode mapping_mode);
+	const GU_Detail* gdp, int attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container);
 
     void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
 	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 

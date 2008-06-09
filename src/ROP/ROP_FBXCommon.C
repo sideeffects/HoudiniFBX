@@ -43,6 +43,7 @@ ROP_FBXExportOptions::reset(void)
     myExportTakeName = "";
     myInvisibleObjectsExportType = ROP_FBXInvisibleNodeExportAsNulls;
     myConvertSurfaces = false;
+    mySdkVersion = "";
 }
 /********************************************************************************************************/
 bool 
@@ -181,5 +182,25 @@ bool
 ROP_FBXExportOptions::getConvertSurfaces(void)
 {
     return myConvertSurfaces;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setVersion(const char* sdk_version)
+{
+    if(sdk_version)
+    {
+	if(strcmp(sdk_version, "(Current)") == 0)
+	    mySdkVersion = "";
+	else
+	    mySdkVersion = sdk_version;
+    }
+    else
+	mySdkVersion = "";
+}
+/********************************************************************************************************/
+const char* 
+ROP_FBXExportOptions::getVersion(void)
+{
+    return mySdkVersion.c_str();
 }
 /********************************************************************************************************/

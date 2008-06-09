@@ -57,12 +57,12 @@ public:
 
     void reset(void);
 
-    void exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take);
+    void exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take, KFbxNode* fbx_node);
     static KFbxTakeNode* addFBXTakeNode(KFbxNode *fbx_node);
 
 protected:
 
-    void exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node);
+    void exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node);
     void exportChannel(KFCurve* fbx_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
     void outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_IntArray& frame_array, bool do_insert);
 

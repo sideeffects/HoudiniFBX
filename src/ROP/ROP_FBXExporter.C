@@ -102,7 +102,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float t
     myActionManager = new ROP_FBXActionManager(*myNodeManager, *myErrorManager, *this);
 
     // Initialize the fbx scene manager
-    mySDKManager = KFbxSdkManager::CreateKFbxSdkManager();
+    mySDKManager = KFbxSdkManager::Create();
 
     if (!mySDKManager)
     {
@@ -242,7 +242,7 @@ ROP_FBXExporter::doExport(void)
 	    if(myDummyRootNullNode)
 	    {			
 		KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
-		anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node);
+		anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node, myDummyRootNullNode);
 	    }	    
 
 	    anim_visitor.reset();
@@ -285,22 +285,21 @@ ROP_FBXExporter::finishExport(void)
 	    return false;
 	}
 
-
 	//Try to export in ASCII if possible
-	int format_index, format_count = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatCount();
+	int format_index, format_count = mySDKManager->GetIOPluginRegistry()->GetWriterFormatCount();
 	int out_file_format = -1;
 
 	for (format_index = 0; format_index < format_count; format_index++)
 	{
-	    if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(format_index))
+	    if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(format_index))
 	    {
-		KString lDesc = KFbxIOPluginRegistryAccessor::Get()->GetWriterFormatDescription(format_index);
-		if (lDesc.Find("ascii")>=0 && myExportOptions.getExportInAscii())
+		KString format_desc = mySDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
+		if (format_desc.Find("ascii")>=0 && myExportOptions.getExportInAscii())
 		{
 		    out_file_format = format_index;
 		    break;
 		}
-		else if (lDesc.Find("ascii")<0 && !myExportOptions.getExportInAscii())
+		else if (format_desc.Find("ascii")<0 && !myExportOptions.getExportInAscii())
 		{
 		    out_file_format = format_index;
 		    break;
@@ -310,8 +309,12 @@ ROP_FBXExporter::finishExport(void)
 
 	fbx_exporter->SetFileFormat(out_file_format);
 
+	string sdk_version = myExportOptions.getVersion();
+	if(sdk_version.length() > 0)
+	    fbx_exporter->SetFileExportVersion(sdk_version.c_str(), KFbxSceneRenamer::eFBX_TO_FBX);
+	
 	KFbxStreamOptionsFbxWriter* export_options = KFbxStreamOptionsFbxWriter::Create(mySDKManager, "");
-	if (KFbxIOPluginRegistryAccessor::Get()->WriterIsFBX(out_file_format))
+	if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(out_file_format))
 	{
 	    // Set the export states. By default, the export states are always set to 
 	    // true except for the option eEXPORT_TEXTURE_AS_EMBEDDED. The code below 
@@ -328,7 +331,7 @@ ROP_FBXExporter::finishExport(void)
 	}
 
 	// Export the scene.
-	bool exp_status = fbx_exporter->Export(*myScene, export_options); 
+	bool exp_status = fbx_exporter->Export(myScene, export_options); 
 
 	if(export_options)
 	    export_options->Destroy();
@@ -338,12 +341,13 @@ ROP_FBXExporter::finishExport(void)
 	fbx_exporter->Destroy();
     }
 
+
     if(myScene)
 	myScene->Destroy();
     myScene = NULL;
 
     if(mySDKManager)
-	mySDKManager->DestroyKFbxSdkManager();
+	mySDKManager->Destroy();
     mySDKManager = NULL;
 
     deallocateQueuedStrings();
@@ -517,5 +521,63 @@ UT_Interrupt*
 ROP_FBXExporter::GetBoss(void)
 {
     return myBoss;
+}
+/********************************************************************************************************/
+UT_String* 
+ROP_FBXExporter::getVersions(void)
+{
+    KFbxSdkManager* tempSDKManager = KFbxSdkManager::Create();
+    if(!tempSDKManager)
+	return NULL;
+
+    // Get versions for the first available format. This assumes that versions for the
+    // ascii and binary exporters are the same. Which they are.
+    int format_index, format_count = tempSDKManager->GetIOPluginRegistry()->GetWriterFormatCount();
+    int out_file_format = -1;
+
+    for (format_index = 0; format_index < format_count; format_index++)
+    {
+	if (tempSDKManager->GetIOPluginRegistry()->WriterIsFBX(format_index))
+	{
+	    KString format_desc = tempSDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
+	    if (format_desc.Find("ascii")>=0)
+	    {
+		out_file_format = format_index;
+		break;
+	    }
+	    else if (format_desc.Find("ascii")<0)
+	    {
+		out_file_format = format_index;
+		break;
+	    }
+	}
+    }
+
+    if(out_file_format < 0)
+	return NULL;
+
+    char const* const* format_versions = tempSDKManager->GetIOPluginRegistry()->GetWritableVersions(out_file_format);
+    if(!format_versions)
+	return NULL;
+
+    // Count the number
+    int curr_ver, num_versions = 0;
+    while(format_versions[num_versions])
+	num_versions++;
+
+    if(num_versions == 0)
+	return NULL;
+
+    UT_String* res_array = new UT_String[num_versions + 1];
+    for(curr_ver = 0; curr_ver < num_versions; curr_ver++)
+    {
+	res_array[curr_ver].setAlwaysDeep(true);
+	res_array[curr_ver] = format_versions[curr_ver];
+    }
+    res_array[curr_ver] = "";
+    
+    tempSDKManager->Destroy();
+
+    return res_array;
 }
 /********************************************************************************************************/

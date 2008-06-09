@@ -61,6 +61,12 @@ ROP_FBXExporterWrapper::getErrorManager(void)
     return myFBXExporter->getErrorManager();
 }
 /********************************************************************************************************/
+UT_String* 
+ROP_FBXExporterWrapper::getVersions(void)
+{
+    return ROP_FBXExporter::getVersions();
+}
+/********************************************************************************************************/
 bool 
 ROP_FBXExporterWrapper::isSupported(void) 
 { 

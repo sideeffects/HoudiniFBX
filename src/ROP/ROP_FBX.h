@@ -46,6 +46,7 @@ enum {
 
     ROP_FBX_STARTNODE,
     ROP_FBX_EXPORTASCII,
+    ROP_FBX_SDKVERSION,
     ROP_FBX_VCFORMAT,
     ROP_FBX_INVISOBJ,
     ROP_FBX_POLYLOD,
@@ -80,6 +81,9 @@ public:
 						OP_Operator *op);
 
     static void			 buildGeoSaveMenu(void *data, PRM_Name *,
+						  int, const PRM_SpareData *,
+						  PRM_Parm *);
+    static void			 buildVersionsMenu(void *data, PRM_Name *,
 						  int, const PRM_SpareData *,
 						  PRM_Parm *);
     virtual void		 resolveObsoleteParms(
@@ -143,6 +147,10 @@ private:
 
     void STARTNODE(UT_String& str)
     { STR_PARM("startnode",  0, 0, 0); }
+
+    void SDKVERSION(UT_String& str)
+    { STR_PARM("sdkversion",  0, 0, 0); }
+    
 
     // Script commands
     void	PRERENDER(UT_String &str, float t)

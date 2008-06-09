@@ -105,6 +105,9 @@ public:
     void setConvertSurfaces(bool value);
     bool getConvertSurfaces(void);
 
+    void setVersion(const char* sdk_version);
+    const char* getVersion(void);
+
 private:
 
     // Sample every N frames
@@ -137,6 +140,10 @@ private:
 
     // If true, NURBS and Bezier surfaces will be converted to polygons on export.
     bool myConvertSurfaces;
+
+    //  Which version of the SDK to use for export. Defaults to an empty string,
+    //	meaning the most current version.
+    string mySdkVersion;
 };
 /********************************************************************************************************/
 #endif

@@ -57,6 +57,7 @@ static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
 static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
 static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
 static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
+static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
@@ -72,6 +73,8 @@ static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 
 static PRM_ChoiceList	vcTypeMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				| PRM_CHOICELIST_REPLACE), vcType);
+static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
+				   | PRM_CHOICELIST_REPLACE), &ROP_FBX::buildVersionsMenu);
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
 
@@ -88,6 +91,7 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0, &vcTypeMenu),
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName, 0, &invisObjMenu),
     PRM_Template(PRM_TOGGLE,  1, &convertSurfacesName, &convertSurfacesDefault, NULL),
+    PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName, 0, &skdVersionsMenu),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -113,6 +117,7 @@ ROP_FBX::getTemplates()
 
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
     theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[2];
+    theTemplate[ROP_FBX_SDKVERSION] = geoTemplates[9];
     theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[6];
     theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[7];
     theTemplate[ROP_FBX_POLYLOD] = geoTemplates[3];
@@ -216,9 +221,11 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
     }
 
     UT_String str_start_node(UT_String::ALWAYS_DEEP);
+    UT_String str_sdk_version(UT_String::ALWAYS_DEEP);
 
     OUTPUT(mySavePath, tstart);
     STARTNODE(str_start_node);
+    SDKVERSION(str_sdk_version);
 
     if(str_start_node.length() <= 0)
 	str_start_node = "/obj";
@@ -233,6 +240,7 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
 	export_options.setVertexCacheFormat(ROP_FBXVertexCacheExportFormat3DStudio);
 
     export_options.setInvisibleNodeExportMethod((ROP_FBXInvisibleNodeExportType)((int)INVISOBJ()));
+    export_options.setVersion(str_sdk_version);
     
     export_options.setExportInAscii(EXPORTASCII());
     export_options.setPolyConvertLOD(POLYLOD());
@@ -319,12 +327,36 @@ void
 ROP_FBX::buildGeoSaveMenu(void *, PRM_Name *menu, int,
 			       const PRM_SpareData *, PRM_Parm *)
 {
-    int		i;
-    i = 0;
+    int i = 0;
     setMenu(menu[i++], "$HIP/$F.fbx",	"HIP: binary FBX file");
     setMenu(menu[i++], "$JOB/$F.fbx",	"JOB: binary FBX file");
 
     setMenu(menu[i], 0, 0);
+}
+
+void			 
+ROP_FBX::buildVersionsMenu(void *, PRM_Name *menu, int,
+		  const PRM_SpareData *, PRM_Parm *)
+{
+    // Fill in the SDK versions
+    int menu_item = 0;
+    UT_String* fbx_formats = ROP_FBXExporterWrapper::getVersions();
+    if(fbx_formats)
+    {
+	while(fbx_formats[menu_item].length() > 0)
+	{
+	    setMenu(menu[menu_item], fbx_formats[menu_item], fbx_formats[menu_item]);
+	    menu_item++;
+	}
+	delete[] fbx_formats;
+    }
+    else
+    {
+	// Shouldn't happen, but make sure we play nice anyway.
+	setMenu(menu[menu_item], "(Current)", "(Current)");
+	menu_item++;
+    }
+    setMenu(menu[menu_item], 0, 0);
 }
 
 void

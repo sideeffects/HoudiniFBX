@@ -41,6 +41,7 @@ public:
 
     ROP_FBXErrorManager* getErrorManager(void);
     static bool isSupported(void);
+    static UT_String* getVersions(void);
 
 private:
 
@@ -64,6 +65,7 @@ public:
 
     ROP_FBXErrorManager* getErrorManager(void) { return NULL; }
     static bool isSupported(void) { return false; }
+    static UT_String* getVersions(void) { return NULL; }
 };
 
 #endif // FBX_SUPPORTED
