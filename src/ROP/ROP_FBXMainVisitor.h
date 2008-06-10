@@ -164,7 +164,7 @@ protected:
 
     void outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, const char* curr_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int prim_cnt);
 
-    void createTexturesForMaterial(OP_Node* mat_node, KFbxSurfaceMaterial* fbx_material, THdFbxTextureMap& tex_map);
+    int createTexturesForMaterial(OP_Node* mat_node, KFbxSurfaceMaterial* fbx_material, THdFbxTextureMap& tex_map);
 
     KFbxNodeAttribute* outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method);
     void outputNURBSSurface(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
@@ -178,6 +178,7 @@ protected:
     KFbxTexture* getDefaultTexture(THdFbxTextureMap& tex_map);
     OP_Node* getSurfaceNodeFromMaterialNode(OP_Node* material_node);
     KFbxTexture* generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFbxTextureMap& tex_map);
+    bool isTexturePresent(OP_Node* mat_node, int texture_idx, UT_String* texture_path_out);
 
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
     KFbxLayerElement* getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 

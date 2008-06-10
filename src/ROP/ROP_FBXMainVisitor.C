@@ -2189,10 +2189,8 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
     if(per_face_mats)
     {
 	// Per-primitive materials
-	//KFbxLayerElementMaterial* temp_layer_elem = mySDKManager->CreateKFbxLayerElementMaterial("");
 	temp_layer_elem = KFbxLayerElementMaterial::Create(node_attr, "");
 	temp_layer_elem->SetMappingMode(KFbxLayerElement::eBY_POLYGON);
-	//temp_layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
 	temp_layer_elem->SetReferenceMode(KFbxLayerElement::eINDEX_TO_DIRECT);
 	mat_layer->SetMaterials(temp_layer_elem);
 
@@ -2240,19 +2238,19 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
     else
     {
 	// One material for the entire object
-//	KFbxLayerElementMaterial* temp_layer_elem = mySDKManager->CreateKFbxLayerElementMaterial("");
-	temp_layer_elem = KFbxLayerElementMaterial::Create(node_attr, "");
-	temp_layer_elem->SetMappingMode(KFbxLayerElement::eALL_SAME);
-	temp_layer_elem->SetReferenceMode(KFbxLayerElement::eDIRECT);
-	mat_layer->SetMaterials(temp_layer_elem);
-
 	// Set the value
 	fbx_material = generateFbxMaterial(main_mat_node, myMaterialsMap);
 	if(!fbx_material)
 	    fbx_material = getDefaultMaterial(myMaterialsMap);
-	temp_layer_elem->GetDirectArray().Add(fbx_material);
-
+	
 	createTexturesForMaterial(main_mat_node, fbx_material, myTexturesMap);
+
+	temp_layer_elem = KFbxLayerElementMaterial::Create(node_attr, "");
+	temp_layer_elem->SetMappingMode(KFbxLayerElement::eALL_SAME);
+	temp_layer_elem->SetReferenceMode(KFbxLayerElement::eINDEX_TO_DIRECT);
+	temp_layer_elem->GetDirectArray().Add(fbx_material);
+	mat_layer->SetMaterials(temp_layer_elem);
+	temp_layer_elem->GetIndexArray().Add(0);
     }
 
     // Do textures
@@ -2398,19 +2396,26 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 	delete[] per_face_mats;
 }
 /********************************************************************************************************/
-void
+int
 ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, KFbxSurfaceMaterial* fbx_material, THdFbxTextureMap& tex_map)
 {
     if(!fbx_material)
-	return;
+	return 0;
 
     // See how many layers of textures are there
     OP_Node* surf_node = getSurfaceNodeFromMaterialNode(mat_node);
-    int curr_texture, num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
+    int curr_texture, num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
+    int num_textures = 0;
     KFbxTexture* fbx_texture, *fbx_default_texture;
+
+    for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
+    {
+	if(isTexturePresent(mat_node, curr_texture, NULL))
+	    num_textures++;
+    }
     
     if(num_textures == 0)
-	return;
+	return 0;
     else if(num_textures == 1)
     {
 	// Single-layer texture
@@ -2423,22 +2428,26 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, KFbxSurfaceMate
     {
 	KFbxProperty diffuse_prop = fbx_material->FindProperty( KFbxSurfaceMaterial::sDiffuse );
 	if( !diffuse_prop.IsValid() )
-	    return;
+	    return 0;
 
-	KFbxLayeredTexture* layered_texture = KFbxLayeredTexture::Create(mySDKManager, (const char*)"");
+	UT_String texture_name(UT_String::ALWAYS_DEEP);
+	texture_name.sprintf("%s_ltexture", (const char*)mat_node->getName());    
+	KFbxLayeredTexture* layered_texture = KFbxLayeredTexture::Create(mySDKManager, (const char*)texture_name);
 	diffuse_prop.ConnectSrcObject( layered_texture );
 
 	// Multi-layer texture
 	fbx_default_texture = getDefaultTexture(myTexturesMap);
-	for(curr_texture = 0; curr_texture < num_textures; curr_texture++)
+	for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
 	{
 	    fbx_texture = generateFbxTexture(mat_node, curr_texture, myTexturesMap);
 	    if(!fbx_texture)
-		fbx_texture = fbx_default_texture;
+		continue;
 	    layered_texture->ConnectSrcObject( fbx_texture );
 	    layered_texture->SetTextureBlendMode(curr_texture, KFbxLayeredTexture::eTRANSLUCENT);
 	}
     }
+
+    return num_textures;
 }
 /********************************************************************************************************/
 KFbxTexture* 
@@ -2529,16 +2538,16 @@ ROP_FBXMainVisitor::getSurfaceNodeFromMaterialNode(OP_Node* material_node)
     return surface_node;
 }
 /********************************************************************************************************/
-KFbxTexture* 
-ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFbxTextureMap& tex_map)
+bool 
+ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, int texture_idx, UT_String* texture_path_out)
 {
     if(!mat_node)
-	return NULL;
+	return false;
 
     OP_Node* surface_node = getSurfaceNodeFromMaterialNode(mat_node);
 
     if(!surface_node)
-	return NULL;
+	return false;
 
     const UT_String& mat_name = mat_node->getName();
     UT_String text_parm_name(UT_String::ALWAYS_DEEP);
@@ -2547,7 +2556,22 @@ ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFb
     ROP_FBXUtil::getStringOPParm(surface_node, (const char *)text_parm_name, texture_path, true);
 
     if(texture_path.isstring() == false || texture_path.length() == 0)
+	return false;
+
+    if(texture_path_out)
+	*texture_path_out = texture_path;
+
+    return true;
+}
+/********************************************************************************************************/
+KFbxTexture* 
+ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFbxTextureMap& tex_map)
+{
+    UT_String texture_path(UT_String::ALWAYS_DEEP);
+    if(!isTexturePresent(mat_node, texture_idx, &texture_path))
 	return NULL;
+
+    const UT_String& mat_name = mat_node->getName();
 
     // Find the texture if it is already created
     const char* full_name = (const char*)texture_path;
@@ -2556,6 +2580,7 @@ ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFb
 	return mi->second;
 
     // Create the texture and set its properties
+    UT_String texture_name(UT_String::ALWAYS_DEEP);
     texture_name.sprintf("%s_texture%d", (const char*)mat_name, texture_idx+1);    
     KFbxTexture* new_tex = KFbxTexture::Create(mySDKManager, (const char*)texture_name);
     new_tex->SetFileName((const char*)texture_path);
