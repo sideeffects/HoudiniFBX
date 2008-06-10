@@ -769,7 +769,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
     if(look_at_path.isstring() == false)
 	return false;
 
-    look_at_node = OPgetDirector()->findNode(look_at_path);
+    look_at_node = bone_node->findNode(look_at_path);
     if(!look_at_node)
 	return false;
 
