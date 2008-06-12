@@ -562,9 +562,9 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	for( i = op->getConnectedInputIndex(-1); !found && i >= 0;
 	    i = op->getConnectedInputIndex(i) )
 	{
-	    // Only traverse up real inputs, not reference inputs. But we
-	    // do want to search up out of subnets, which getInput() does.
-	    if( op->getInput(i) && !op->isRefInput(i) )
+	    // We need to traverse reference inputs as well, in cases,
+	    // for example, where particles are present.
+	    if( op->getInput(i) ) //  && !op->isRefInput(i) )
 	    {
 		is_time_dependent |= ROP_FBXUtil::findTimeDependentNode(op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
 	    }
@@ -658,9 +658,9 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 	for( i = op->getConnectedInputIndex(-1); !found && i >= 0;
 	     i = op->getConnectedInputIndex(i) )
 	{
-	    // Only traverse up real inputs, not reference inputs. But we
-	    // do want to search up out of subnets, which getInput() does.
-	    if( op->getInput(i) && !op->isRefInput(i) )
+	    // We need to traverse reference inputs as well, in cases,
+	    // for example, where particles are present.
+	    if( op->getInput(i)) // && !op->isRefInput(i) )
 	    {
         	child_did_find_allowed_types_only = false;
 		found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1 );
