@@ -237,7 +237,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 		UT_Color this_amb_color;
 		this_amb_color.setRGB(amb_light_col[0] * amb_intensity, amb_light_col[1] * amb_intensity, amb_light_col[2] * amb_intensity);
-		myAmbientColor += this_amb_color;
+		myAmbientColor.addRGB(this_amb_color);
 	    }
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 	}
