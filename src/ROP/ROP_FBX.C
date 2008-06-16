@@ -67,7 +67,7 @@ static PRM_Default	deformsAsVcsDefault(0);
 static PRM_Default	convertSurfacesDefault(0);
 static PRM_Default	polyLODDefault(1.0);
 static PRM_Default	startNodeDefault(0, "/obj");
-static PRM_Default	sopOutputDefault(0, "$HIP/$F.fbx");
+static PRM_Default	sopOutputDefault(0, "$HIP/out.fbx");
 static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 					 &ROP_FBX::buildGeoSaveMenu);
 
@@ -328,8 +328,8 @@ ROP_FBX::buildGeoSaveMenu(void *, PRM_Name *menu, int,
 			       const PRM_SpareData *, PRM_Parm *)
 {
     int i = 0;
-    setMenu(menu[i++], "$HIP/$F.fbx",	"HIP: binary FBX file");
-    setMenu(menu[i++], "$JOB/$F.fbx",	"JOB: binary FBX file");
+    setMenu(menu[i++], "$HIP/out.fbx",	"HIP: binary FBX file");
+    setMenu(menu[i++], "$JOB/out.fbx",	"JOB: binary FBX file");
 
     setMenu(menu[i], 0, 0);
 }
