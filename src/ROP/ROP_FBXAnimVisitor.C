@@ -219,6 +219,12 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		exportChannel(curr_fbx_curve, node, "focal", 0);
 	    }
 	}
+
+	// Export visibility channel
+	fbx_node->Visibility.GetKFCurveNode(true, curr_fbx_take->GetName());
+	curr_fbx_curve = fbx_node->Visibility.GetKFCurve(NULL, curr_fbx_take->GetName());
+	exportChannel(curr_fbx_curve, node, "vm_renderable", 0);
+
     } // end for over all fbx nodes
     return res_type;
 }
