@@ -654,7 +654,6 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     KFbxCache*               v_cache = vc_deformer->GetCache();
     bool res;
 
-    // Write samples for 4 seconds
     KTime fbx_curr_time;
     float hd_time;
     int curr_frame;
@@ -669,7 +668,7 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
 	res = v_cache->OpenFileForWrite(KFbxCache::eMC_ONE_FILE, curr_fps, fbx_node->GetName());
     else
-	res = v_cache->OpenFileForWrite(0.0, curr_fps, frame_count, num_vc_points);  
+	res = v_cache->OpenFileForWrite(start_frame, curr_fps, frame_count, num_vc_points);  
 
     if (!res)
     {
@@ -700,7 +699,7 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 	}
 	else
 	{
-	    v_cache->Write(curr_frame, vert_coords);
+	    v_cache->Write(curr_frame - start_frame, vert_coords);
 	}
     }
 
