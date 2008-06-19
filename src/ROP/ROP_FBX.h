@@ -98,8 +98,6 @@ public:
     virtual void	 getNodeSpecificInfoText(OP_Context &context,
 						 int verbose,
 						 UT_WorkBuffer &text);
-//    virtual bool	getGeometryHandle(const char *path, float t,
-//				  GU_DetailHandle &gdh);
 
 protected:
 	     ROP_FBX(OP_Network *net, const char *name, OP_Operator *op);
