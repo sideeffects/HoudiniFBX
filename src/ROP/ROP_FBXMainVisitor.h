@@ -105,8 +105,12 @@ public:
     bool getIsVisitingFromInstance(void);
     void setIsVisitingFromInstance(bool value);
 
+    bool getIgnoreBoneLengthForTransforms(void);
+    void setIgnoreBoneLengthForTransforms(bool bValue);
+
 private:
 
+    bool myIgnoreLengthForTransforms;
     bool myIsVisitingFromInstance;
     double myBoneLength;
 };

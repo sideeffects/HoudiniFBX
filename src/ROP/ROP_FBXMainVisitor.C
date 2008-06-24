@@ -303,7 +303,11 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	// Set the standard transformations (unless we're in the instance)
 	float bone_length = 0.0;
 	if(node_info && node_info->getParentInfo())
+	{
 	    bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info->getParentInfo())->getBoneLength();
+	    if(dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info->getParentInfo())->getIgnoreBoneLengthForTransforms())
+		bone_length = 0;
+	}
 	UT_String* override_type_ptr = NULL;
 	if(override_node_type.isstring())
 	    override_type_ptr = &override_node_type;
@@ -397,7 +401,10 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     // Get the bone's length
     float bone_length = 0.0;
     if(is_a_null)
+    {
 	bone_length = 1.0; // Some dummy value so the next joint knows it's not a root.
+	node_info->setIgnoreBoneLengthForTransforms(true);
+    }
     else
 	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length", 0, myStartTime);
     node_info->setBoneLength(bone_length);
@@ -2725,6 +2732,7 @@ ROP_FBXMainNodeVisitInfo::ROP_FBXMainNodeVisitInfo(OP_Node* hd_node) : ROP_FBXBa
 {
     myBoneLength = 0.0;
     myIsVisitingFromInstance = false;
+    myIgnoreLengthForTransforms = false;
 }
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo::~ROP_FBXMainNodeVisitInfo()
@@ -2754,5 +2762,17 @@ void
 ROP_FBXMainNodeVisitInfo::setIsVisitingFromInstance(bool value)
 {
     myIsVisitingFromInstance = value;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXMainNodeVisitInfo::getIgnoreBoneLengthForTransforms(void)
+{
+    return myIgnoreLengthForTransforms;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXMainNodeVisitInfo::setIgnoreBoneLengthForTransforms(bool bValue)
+{
+    myIgnoreLengthForTransforms = bValue;
 }
 /********************************************************************************************************/
