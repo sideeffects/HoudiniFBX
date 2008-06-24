@@ -42,6 +42,12 @@ enum ROP_FBXInternalVisitorResultType
     ROP_FBXInternalVisitorResultStop = 0,
     ROP_FBXInternalVisitorResultContinue
 };
+enum ROP_FBXNetNodesToVisitType
+{
+    ROP_FBXNetNodesToVisitAll = 0,
+    ROP_FBXNetNodesToVisitConnected,
+    ROP_FBXNetNodesToVisitDisconnected
+};
 /********************************************************************************************************/
 /// This is an object which gets pushed onto the stack when a node is entered,
 /// and gets automatically popped (and destroyed) when it is left.
@@ -72,6 +78,9 @@ public:
     void setSourcePrimitive(int prim_cnt);
     int getSourcePrimitive(void);
 
+    void setTraveledInputIndex(int index);
+    int getTraveledInputIndex(void);
+
 private:
 
     OP_Node* myHdNode;
@@ -84,6 +93,8 @@ private:
 
     bool myIsSurfacesOnly;
     int mySourcePrim;
+    // Index on myHdNode through which we're visiting. -1 if none.
+    int myTraveledInputIndex;
 };
 
 typedef vector  < string > TStringVector;
@@ -96,7 +107,7 @@ public:
 
     /// Called before visiting a node. Must return a new instance of
     /// the node info visit structure or a class derived from it.
-    virtual ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node) = 0;
+    virtual ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node, int input_idx_on_this_node) = 0;
 
     virtual ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info) = 0;
 
@@ -113,12 +124,15 @@ public:
 private:
     /// Calls visit() on the specified node and then calls itself
     /// on all children.
-    ROP_FBXInternalVisitorResultType visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info);
+    ROP_FBXInternalVisitorResultType visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info, int input_idx_on_this_node);
 
     /// Visits all nodes in a network, together with their hierarchies
-    void visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info);
+    void visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info, int connected_input_idx,ROP_FBXNetNodesToVisitType nodes_to_visit_flag);
 
     bool isNetworkVisitable(OP_Node* node);
+
+    int whichInputIs(OP_Node* source_node, int counter, OP_Node* target_node);
+    OP_Node* whichNetworkNodeIs(OP_Node* input_node, int input_counter, OP_Network* network);
 
 private:
     TStringVector myNetworkTypesNotToVisit;

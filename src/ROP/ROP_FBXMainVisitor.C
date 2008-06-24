@@ -95,7 +95,7 @@ ROP_FBXMainVisitor::~ROP_FBXMainVisitor()
 }
 /********************************************************************************************************/
 ROP_FBXBaseNodeVisitInfo* 
-ROP_FBXMainVisitor::visitBegin(OP_Node* node)
+ROP_FBXMainVisitor::visitBegin(OP_Node* node, int input_idx_on_this_node)
 {
     return new ROP_FBXMainNodeVisitInfo(node);
 }
@@ -155,7 +155,8 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // We need to create a node (in case we have children),
 	    // *but* we need to attach the instance attribute later, as a post-action,
 	    // in case it's not created at this point.
-	    UT_String node_name = node->getName();
+	    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+	    myNodeManager->makeNameUnique(node_name);
 	    temp_new_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
 	    res_nodes.push_back(temp_new_node);
 
@@ -351,7 +352,8 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
     if(cast_info && cast_info->getBoneLength() > 0.0 && ROP_FBXUtil::isDummyBone(last_node) == false && ROP_FBXUtil::isJointNullNode(last_node) == false)
     {
 	// Create the end effector
-	UT_String node_name = last_node->getName();
+	UT_String node_name(UT_String::ALWAYS_DEEP, last_node->getName());
+	myNodeManager->makeNameUnique(node_name);
 	node_name += "_end_effector";
 
 	KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
@@ -372,7 +374,8 @@ bool
 ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, bool is_a_null, TFbxNodesVector& res_nodes)
 {
     // NOTE: This may get called on a null nodes, as well, if they are being exported as joints.
-    UT_String node_name = node->getName();
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
 
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     KFbxSkeleton *res_attr = KFbxSkeleton::Create(mySDKManager, (const char*)node_name);
@@ -537,7 +540,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
     KFbxNodeAttribute *res_attr = NULL;
-    UT_String node_name = node->getName();
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
     if(is_vertex_cacheable)
     {
 	// We can only cache these:
@@ -650,11 +653,14 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 }
 /********************************************************************************************************/
 void
-ROP_FBXMainVisitor::finalizeGeoNode(KFbxNodeAttribute *res_attr, const char* node_name, OP_Node* skin_deform_node, 
+ROP_FBXMainVisitor::finalizeGeoNode(KFbxNodeAttribute *res_attr, const char* node_name_in, OP_Node* skin_deform_node, 
 				    int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes)
 {
-    if(!res_attr || !node_name)
+    if(!res_attr || !node_name_in)
 	return;
+
+    UT_String node_name(UT_String::ALWAYS_DEEP, node_name_in);
+    myNodeManager->makeNameUnique(node_name);
 
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     res_node->SetNodeAttribute(res_attr);
@@ -1909,7 +1915,9 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 bool
 ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
-    UT_String node_name = node->getName();
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
+
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)node_name);
     res_node->SetNodeAttribute(res_attr);
@@ -1925,7 +1933,8 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     int int_param;
     UT_String string_param;
     KFbxColor fbx_col;
-    UT_String node_name = node->getName();
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
 
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     KFbxLight *res_attr = KFbxLight::Create(mySDKManager, (const char*)node_name);
@@ -2009,7 +2018,8 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     float float_parm[3];
     double fov_angle, foc_len;
     KFbxVector4 fbx_vec4;
-    UT_String node_name = node->getName();
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
 
     KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
     KFbxCamera *res_attr = KFbxCamera::Create(mySDKManager, (const char*)node_name);
@@ -2431,7 +2441,7 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, KFbxSurfaceMate
 	    return 0;
 
 	UT_String texture_name(UT_String::ALWAYS_DEEP);
-	texture_name.sprintf("%s_ltexture", (const char*)mat_node->getName());    
+	texture_name.sprintf("%s_ltexture", fbx_material->GetName());
 	KFbxLayeredTexture* layered_texture = KFbxLayeredTexture::Create(mySDKManager, (const char*)texture_name);
 	diffuse_prop.ConnectSrcObject( layered_texture );
 
@@ -2609,7 +2619,8 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	return NULL;
 
     bool did_find;
-    const UT_String& mat_name = mat_node->getName();
+    UT_String mat_name(UT_String::ALWAYS_DEEP, mat_node->getName());
+    myNodeManager->makeNameUnique(mat_name);
     float temp_col[3];
     bool is_specular = false;
     fbxDouble3 temp_fbx_col;

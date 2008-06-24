@@ -149,6 +149,7 @@ private:
 typedef multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
 typedef map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
 typedef vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
+typedef set < string > TStringSet;
 /********************************************************************************************************/
 class ROP_FBXNodeManager
 {
@@ -161,9 +162,13 @@ public:
 
     ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info);
 
+    void makeNameUnique(UT_String& strName);
+
 private:
     THDToNodeInfoMap myHdToNodeInfoMap;
     TFbxToNodeInfoMap myFbxToNodeInfoMap;
+
+    TStringSet myNamesSet;
 };
 /********************************************************************************************************/
 class ROP_FBXGDPCacheItem

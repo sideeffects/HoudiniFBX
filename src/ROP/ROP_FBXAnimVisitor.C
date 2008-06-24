@@ -86,7 +86,7 @@ ROP_FBXAnimVisitor::reset(void)
 }
 /********************************************************************************************************/
 ROP_FBXBaseNodeVisitInfo* 
-ROP_FBXAnimVisitor::visitBegin(OP_Node* node)
+ROP_FBXAnimVisitor::visitBegin(OP_Node* node, int input_idx_on_this_node)
 {
     return new ROP_FBXBaseNodeVisitInfo(node);
 }

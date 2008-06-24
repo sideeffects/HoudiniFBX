@@ -502,8 +502,11 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 
     if(!myDummyRootNullNode)
     {
-	myDummyRootNullNode = KFbxNode::Create(mySDKManager, (const char*)"world_root");
-	KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)"world_root");
+	UT_String node_name(UT_String::ALWAYS_DEEP, "world_root");
+	myNodeManager->makeNameUnique(node_name);
+
+	myDummyRootNullNode = KFbxNode::Create(mySDKManager, (const char*)node_name);
+	KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)node_name);
 	myDummyRootNullNode->SetNodeAttribute(res_attr);
 
 	// Set world transform

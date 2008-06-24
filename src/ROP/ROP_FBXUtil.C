@@ -934,6 +934,30 @@ ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMai
     return *new_info;
 }
 /********************************************************************************************************/
+void 
+ROP_FBXNodeManager::makeNameUnique(UT_String& strName)
+{
+    // Special case - never, ever, ever, export a node named "Scene", since this will
+    // send older FBX SDKs into an infinite recursion and eventually crash.
+    if(strName == "Scene")
+	strName.incrementNumberedName();
+
+    TStringSet::iterator si;
+    si = myNamesSet.find((const char*)strName);
+
+    // NOTE: This will be slow if we sequentially generate names
+    // since it will grow through all previously numbered names first
+    // for each new name. It's really meant for a small number of
+    // possibly identically named objeccts.
+    while(si != myNamesSet.end())
+    {
+	strName.incrementNumberedName();
+	si = myNamesSet.find((const char*)strName);
+    }
+
+    myNamesSet.insert((const char*)strName); 
+}
+/********************************************************************************************************/
 // ROP_FBXNodeInfo
 /********************************************************************************************************/
 ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)

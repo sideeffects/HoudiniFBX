@@ -51,7 +51,7 @@ public:
     ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter);
     virtual ~ROP_FBXAnimVisitor();
 
-    ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node);
+    ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node, int input_idx_on_this_node);
     ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info);
     void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info);
 

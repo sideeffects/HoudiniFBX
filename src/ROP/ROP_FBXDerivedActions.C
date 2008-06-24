@@ -475,7 +475,7 @@ ROP_FBXCreateInstancesAction::performAction(void)
 		visit_info.setFbxNode(myItems[curr_inst_idx].myFbxNode->GetParent());
 		visit_info.setHdNode(hd_inst);
 
-		target_node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(geom_visitor.visitBegin(hd_inst_target));
+		target_node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(geom_visitor.visitBegin(hd_inst_target, -1));
 		target_node_info->setParentInfo(&visit_info);
 		target_node_info->setFbxNode(myItems[curr_inst_idx].myFbxNode);
 		target_node_info->setIsVisitingFromInstance(true);

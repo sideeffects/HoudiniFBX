@@ -40,19 +40,30 @@ ROP_FBXExporterWrapper::~ROP_FBXExporterWrapper()
 bool 
 ROP_FBXExporterWrapper::initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options)
 {
-    return myFBXExporter->initializeExport(output_name, tstart, tend, options);
+    if(ROP_FBXExporterWrapper::isSupported())
+	return myFBXExporter->initializeExport(output_name, tstart, tend, options);
+    else
+    {
+	if(this->getErrorManager())
+	    this->getErrorManager()->addError("FBX Export is only supported in Escape and Master versions.", true);
+	return false;
+    }
 }
 /********************************************************************************************************/
 void 
 ROP_FBXExporterWrapper::doExport(void)
 {
-    myFBXExporter->doExport();
+    if(ROP_FBXExporterWrapper::isSupported())
+	myFBXExporter->doExport();
 }
 /********************************************************************************************************/
 bool 
 ROP_FBXExporterWrapper::finishExport(void)
 {
-    return myFBXExporter->finishExport();
+    if(ROP_FBXExporterWrapper::isSupported())
+	return myFBXExporter->finishExport();
+    else
+	return false;
 }
 /********************************************************************************************************/
 ROP_FBXErrorManager* 

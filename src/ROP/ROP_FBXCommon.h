@@ -39,7 +39,8 @@ using namespace std;
 const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
 
 // Determines which network types the visitor dives into
-const char* const ROP_FBXnetworkTypesToIgnore[] = { "dopnet", "ropnet", "chopnet",  "popnet",  "vopnet",  "shopnet", 0 };
+const char* const ROP_FBXnetworkTypesToIgnore[] = { "geo", "bone", "null", "cam", "instance", "hlight", 
+	"ambient", "dopnet", "ropnet", "chopnet",  "popnet",  "vopnet",  "shopnet", 0 };
 
 // These declare any node that does not modify the mesh, its vertices or points.
 const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
