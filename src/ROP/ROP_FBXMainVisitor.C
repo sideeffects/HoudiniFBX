@@ -586,6 +586,10 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 		outputNURBSSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
 	    if(prim_type & GEOPRIMBEZSURF)
 		outputBezierSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
+	    if(prim_type & GEOPRIMBEZCURVE)
+		outputBezierCurves(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
+	    if(prim_type & GEOPRIMNURBCURVE)
+		outputNURBSCurves(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
 	}
 	else // Mixed types
 	{
@@ -593,7 +597,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    GU_Detail *final_detail;
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
 	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
-	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
+	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());	    
 	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
 	}
     }
@@ -704,13 +708,15 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
     if(prim_cntr)
 	prim_cnt = *prim_cntr;
     int curr_prim, num_prims = copy_gdp.primitives().entries();
-    for(curr_prim = num_prims - 1; curr_prim >= 0; curr_prim--)
+
+    for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
     {
-	if(prim_cntr)
-	    prim_cnt++;
 	prim = copy_gdp.primitives()(curr_prim);
 	if(prim->getPrimitiveId() != GEOPRIMBEZSURF)
 	    continue;
+
+	if(prim_cntr)
+	    prim_cnt++;
 
 	hd_line = dynamic_cast<GU_PrimRBezSurf*>(prim);
 	if(!hd_line)
@@ -736,7 +742,8 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
 }
 /********************************************************************************************************/
 void 
-ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes)
+ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, 
+				       TFbxNodesVector& res_nodes, int* prim_cntr)
 {
     UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
     orig_name += "_bezier_curve";
@@ -752,13 +759,17 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
     copy_gdp.duplicate(*gdp);
 
     int prim_cnt = -1;
+    if(prim_cntr)
+	prim_cnt = *prim_cntr;
     int curr_prim, num_prims = copy_gdp.primitives().entries();
-    for(curr_prim = num_prims - 1; curr_prim >= 0; curr_prim--)
+
+    for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
     {
-	prim_cnt++;
 	prim = copy_gdp.primitives()(curr_prim);
 	if(prim->getPrimitiveId() != GEOPRIMBEZCURVE)
 	    continue;
+
+	prim_cnt++;
 
 	hd_line = dynamic_cast<GU_PrimRBezCurve*>(prim);
 	if(!hd_line)
@@ -778,7 +789,11 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+
     }
+
+    if(prim_cntr)
+	*prim_cntr = prim_cnt;
 }
 /********************************************************************************************************/
 void 
@@ -848,7 +863,7 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 /********************************************************************************************************/
 void 
 ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
-				      int capture_frame, TFbxNodesVector& res_nodes)
+				      int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
     UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
     orig_name += "_nurbs_curve";
@@ -859,6 +874,8 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
     const GEO_Primitive* prim;
     const GU_PrimNURBCurve* hd_nurb;
     int prim_cnt = -1;
+    if(prim_cntr)
+	prim_cnt = *prim_cntr;
     FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMNURBCURVE)
     {
 	prim_cnt++;
@@ -877,6 +894,9 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
     }
+
+    if(prim_cntr)
+	*prim_cntr = prim_cnt;
 }
 /********************************************************************************************************/
 void 
@@ -891,6 +911,8 @@ ROP_FBXMainVisitor::setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU
     UT_Vector4 temp_vec;
     KFbxVector4* fbx_points;
     int curr_point, num_points;
+
+    nurbs_curve_attr->SetDimension(KFbxNurbsCurve::e3D);
 
     basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getBasis());
     point_count = hd_nurb->getVertexCount();

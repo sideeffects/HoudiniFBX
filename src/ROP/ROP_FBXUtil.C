@@ -172,6 +172,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
     int curr_num_unconverted_points;
     bool is_num_verts_constant = true;
     bool is_surfs_only = true;
+    int prim_type_res;
 
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
     {
@@ -206,7 +207,8 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 	    }
 	    else
 	    {
-		if(prim_type & (~(GEOPRIMNURBSURF | GEOPRIMBEZSURF)) != 0)
+		prim_type_res = prim_type & (~(GEOPRIMNURBSURF | GEOPRIMBEZSURF | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE));
+		if(prim_type_res != 0)
 		    is_surfs_only = false;
 
 	    	convertGeoGDPtoVertexCacheableGDP(gdp, lod, true, *conv_gdp, curr_num_unconverted_points);
@@ -349,8 +351,9 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 
     cook_start = clock();
 #endif
-    conv_gdp.convert(conv_parms);
     num_pre_proc_points = conv_gdp.points().entries();
+    conv_gdp.convert(conv_parms);
+//    num_pre_proc_points = conv_gdp.points().entries();
 
     if(!do_triangulate_and_rearrange)
     {
@@ -440,21 +443,12 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
     }
 
     // Get and set transforms
-    UT_Matrix4 full_xform, pre_xform, xform;
     OP_Context op_context(time_in);
-
+    UT_Matrix4 full_xform;
     if(obj_node)
-    {
-	obj_node->getPreLocalTransform(op_context, pre_xform);
-	obj_node->getParmTransform(op_context, xform);
-    }
+	obj_node->getLocalTransform(op_context, full_xform);
     else
-    {
-	pre_xform.identity();
-	xform.identity();
-    }
-
-    full_xform = xform * pre_xform; // normal
+	full_xform.identity();
 
     if(SYSequalZero(bone_length) == false)
     {
@@ -534,6 +528,13 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 		is_time_dependent |= op->isTimeDependent(op_context);		
 	}
 
+	// Found a time-dependent node. That's all we need.
+	if(is_time_dependent)
+	{
+	    op->flags().setRecursion( false );
+	    return true;
+	}
+
 	// If we are a subnet, try to find an appropriate node within the
 	// subnet, starting with the subnet's display node.
 	if(op->isSubNetwork(false) )
@@ -542,7 +543,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	}
 
 	// if we're a switch SOP, then look up the appropriate input chain
-	if( !found && op->getOperator()->getName() == "switch" )
+	if(op->getOperator()->getName() == "switch" )
 	{
 	    PRM_Parm *	parm;
 
@@ -555,6 +556,14 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 		if( op->getInput(i) != NULL )
 		{
 		    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode( op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
+
+		    // Found a time-dependent node. That's all we need.
+		    if(is_time_dependent)
+		    {
+			op->flags().setRecursion( false );
+			return true;
+		    }
+
 		}
 	    }
 	}
@@ -567,6 +576,12 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	    if( op->getInput(i) ) //  && !op->isRefInput(i) )
 	    {
 		is_time_dependent |= ROP_FBXUtil::findTimeDependentNode(op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
+		// Found a time-dependent node. That's all we need.
+		if(is_time_dependent)
+		{
+		    op->flags().setRecursion( false );
+		    return true;
+		}
 	    }
 	}
 

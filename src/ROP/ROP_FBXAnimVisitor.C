@@ -40,6 +40,9 @@
 #include <GEO/GEO_Vertex.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimNURBCurve.h>
+#include <GU/GU_PrimRBezCurve.h>
+#include <GU/GU_PrimRBezSurf.h>
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
 
@@ -141,7 +144,20 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 	UT_String node_type = node->getOperator()->getName();
 
-	if(node_type == "bone")
+	bool account_for_pivot = hasPivotInfo(node);
+	bool has_pretransform = false;
+	OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(node);
+	if(obj_node)
+	{
+	    // Check for pre-transform
+	    UT_Matrix4 pretransform;
+	    OP_Context op_context(myParentExporter->getStartTime());
+	    obj_node->getPreLocalTransform(op_context, pretransform);
+	    if(pretransform.isIdentity() == false)
+		has_pretransform = true;
+	}
+
+	if(node_type == "bone" || account_for_pivot || has_pretransform)
 	{
 	    // Bones are special, since we have to force-resample them and
 	    // output all channels at the same time.
@@ -149,8 +165,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // Also, we have to put the bone animation onto the parent of the fbx node,
 	    // since this FBX node corresponds to the end tip of the bone.
 	    //KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
-	    //exportBonesAnimation(curr_fbx_bone_take, node);
-	    exportBonesAnimation(curr_fbx_take, node, fbx_node);
+	    //exportResampledAnimation(curr_fbx_bone_take, node);
+	    exportResampledAnimation(curr_fbx_take, node, fbx_node);
 	}
 	else
 	{
@@ -660,9 +676,15 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 
     unsigned int frame_count = end_frame - start_frame + 1;
 
-    int max_gdp_points = node_info_in->getMaxObjectPoints();
-    int num_vc_points;
-    num_vc_points = max_gdp_points;
+    int num_vc_points = node_info_in->getMaxObjectPoints();
+
+    if(node_info_in->getIsSurfacesOnly() && node_pair_info->getVertexCacheMethod() == ROP_FBXVertexCacheMethodGeometryConstant)
+    {
+	// We've got to have the exact number of vertices in the cache, or else FBX SDK will refuse to read invalid caches back in.
+	int temp_pts = lookupExactPointCount(geo_node, ch_manager->getTime(start_frame), node_pair_info->getSourcePrimitive());
+	if(temp_pts > 0)
+	    num_vc_points = temp_pts;
+    }
 
     // Open the file for writing
     if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
@@ -680,6 +702,7 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 
     // Allocate our buffer array
     double *vert_coords = new double[num_vc_points*3];
+    bool bWriteRes;
 
     // Output the points. Remember that when outputting this mesh, the points were reversed.
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
@@ -695,11 +718,11 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 
 	if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
 	{
-	    v_cache->Write(channel_index, fbx_curr_time, vert_coords, num_vc_points);
+	    bWriteRes = v_cache->Write(channel_index, fbx_curr_time, vert_coords, num_vc_points);
 	}
 	else
 	{
-	    v_cache->Write(curr_frame - start_frame, vert_coords);
+	    bWriteRes = v_cache->Write(curr_frame - start_frame, vert_coords);
 	}
     }
 
@@ -773,8 +796,13 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
     {
 	// The order of points is different for surfaces
 	const GU_PrimNURBSurf* hd_nurb;
+	const GU_PrimNURBCurve* hd_nurb_curve;
+	GU_PrimRBezCurve* hd_bez_curve;
+	GU_PrimRBezSurf* hd_bez;
 	const GEO_Primitive* prim;
 	int i_row, i_col, i_idx, i_curr_vert;
+
+	memset(vert_array, 0, sizeof(double)*3*num_array_points);
 
 	int curr_prim_cnt;
 	int source_prim_cnt = node_pair_info->getSourcePrimitive();
@@ -800,7 +828,6 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 		    i_idx = i_col*u_point_count + i_row;
 		    if(i_idx < actual_gdp_points)	
 			ut_vec = prim->getVertex(i_idx).getPos();
-//			ut_vec = final_gdp->points()(i_idx)->getPos();
 		    else
 			ut_vec = 0;
 
@@ -808,11 +835,102 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 		    vert_array[arr_offset] = ut_vec.x();
 		    vert_array[arr_offset+1] = ut_vec.y();
 		    vert_array[arr_offset+2] = ut_vec.z();
-//		    ut_vec = final_gdp->points()(curr_point%actual_gdp_points)->getPos();
 		    i_curr_vert++;
 		}
 	    }
-	}
+	} // end over NURBS surfaces
+
+	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMBEZSURF)
+	{
+	    curr_prim_cnt++;
+	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
+		continue;
+
+	    hd_bez = const_cast<GU_PrimRBezSurf*>(dynamic_cast<const GU_PrimRBezSurf*>(prim));
+	    if(!hd_bez)
+		continue;
+
+	    hd_nurb = dynamic_cast<GU_PrimNURBSurf*>(hd_bez->convertToNURBNew());
+	    if(!hd_nurb)
+		continue;
+
+	    int v_point_count = hd_nurb->getNumRows();
+	    int u_point_count = hd_nurb->getNumCols();
+
+	    for(i_row = 0; i_row < u_point_count; i_row++)
+	    {
+		for(i_col = 0; i_col < v_point_count; i_col++)
+		{
+		    i_idx = i_col*u_point_count + i_row;
+		    if(i_idx < actual_gdp_points)	
+			ut_vec = prim->getVertex(i_idx).getPos();
+		    else
+			ut_vec = 0;
+
+		    arr_offset = i_curr_vert*3;
+		    vert_array[arr_offset] = ut_vec.x();
+		    vert_array[arr_offset+1] = ut_vec.y();
+		    vert_array[arr_offset+2] = ut_vec.z();
+		    i_curr_vert++;
+		}
+	    }
+	} // end over Bezier surfaces
+
+	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMBEZCURVE)
+	{
+	    curr_prim_cnt++;
+	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
+		continue;
+
+	    hd_bez_curve = const_cast<GU_PrimRBezCurve*>(dynamic_cast<const GU_PrimRBezCurve*>(prim));
+	    if(!hd_bez_curve)
+		continue;
+
+	    hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew());
+
+	    int u_point_count = hd_nurb_curve->getVertexCount();
+	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
+	    {
+		if(i_idx < actual_gdp_points)	
+		    ut_vec = prim->getVertex(i_idx).getPos();
+		else
+		    ut_vec = 0;
+
+		arr_offset = i_curr_vert*3;
+		vert_array[arr_offset] = ut_vec.x();
+		vert_array[arr_offset+1] = ut_vec.y();
+		vert_array[arr_offset+2] = ut_vec.z();
+		i_curr_vert++;
+	    }
+	} // end over Bezier curves
+
+	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMNURBCURVE)
+	{
+	    curr_prim_cnt++;
+	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
+		continue;
+
+	    hd_nurb_curve = dynamic_cast<const GU_PrimNURBCurve*>(prim);
+	    if(!hd_nurb_curve)
+		continue;
+    
+	    int u_point_count = hd_nurb_curve->getVertexCount();
+	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
+	    {
+		if(i_idx < actual_gdp_points)	
+		    ut_vec = prim->getVertex(i_idx).getPos();
+		else
+		    ut_vec = 0;
+
+		arr_offset = i_curr_vert*3;
+		vert_array[arr_offset] = ut_vec.x();
+		vert_array[arr_offset+1] = ut_vec.y();
+		vert_array[arr_offset+2] = ut_vec.z();
+		i_curr_vert++;
+	    }
+	} // end over NURBS curves
+
+
     }
     else
     {
@@ -834,7 +952,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node)
+ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node)
 {
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
@@ -981,6 +1099,125 @@ ROP_FBXAnimVisitor::exportBonesAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* s
 	fbx_r[curr_channel_idx]->KeyModifyEnd();
 	fbx_s[curr_channel_idx]->KeyModifyEnd();
     }
+}
+/********************************************************************************************************/
+int 
+ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, float time, int selected_prim_idx)
+{
+    // Get at the gdp
+    GU_DetailHandle gdh;
+    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(node);
+
+    if(!sop_node)
+	return -1;
+    ROP_FBXUtil::getGeometryHandle(sop_node, time, gdh);
+
+    if(gdh.isNull())
+	return -1;
+
+    GU_DetailHandleAutoReadLock	 gdl(gdh);
+    const GU_Detail *gdp;
+    gdp = gdl.getGdp();
+    if(!gdp)
+	return -1;
+
+    GU_Detail conv_gdp;
+    conv_gdp.duplicate(*gdp);
+
+    const GU_PrimNURBSurf* hd_nurb;
+    const GU_PrimNURBCurve* hd_nurb_curve;
+    GU_PrimRBezCurve* hd_bez_curve;
+    GU_PrimRBezSurf* hd_bez;
+    const GEO_Primitive* prim;
+    int curr_prim_cnt = -1;
+    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMNURBSURF)
+    {
+	curr_prim_cnt++;
+	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
+	    continue;
+
+	hd_nurb = dynamic_cast<const GU_PrimNURBSurf*>(prim);
+	if(!hd_nurb)
+	    return -1;
+
+	int v_point_count = hd_nurb->getNumRows();
+	int u_point_count = hd_nurb->getNumCols();
+	return v_point_count * u_point_count;
+    }
+
+    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMBEZSURF)
+    {
+	curr_prim_cnt++;
+	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
+	    continue;
+
+	hd_bez_curve = const_cast<GU_PrimRBezCurve*>(dynamic_cast<const GU_PrimRBezCurve*>(prim));
+	if(!hd_bez_curve)
+	    continue;
+
+	hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew());
+	return hd_nurb_curve->getVertexCount();
+    }
+
+    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMBEZCURVE)
+    {
+	curr_prim_cnt++;
+	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
+	    continue;
+
+	hd_bez_curve = const_cast<GU_PrimRBezCurve*>(dynamic_cast<const GU_PrimRBezCurve*>(prim));
+	if(!hd_bez_curve)
+	    continue;
+
+	hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew());
+
+	return hd_nurb_curve->getVertexCount();
+    }
+
+    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMNURBCURVE)
+    {
+	curr_prim_cnt++;
+	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
+	    continue;
+
+	hd_nurb_curve = dynamic_cast<const GU_PrimNURBCurve*>(prim);
+	if(!hd_nurb_curve)
+	    continue;
+
+	return hd_nurb_curve->getVertexCount();
+    }
+
+    return -1;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXAnimVisitor::hasPivotInfo(OP_Node* node)
+{
+    float px = ROP_FBXUtil::getFloatOPParm(node, "p", 0, myParentExporter->getStartTime());
+    float py = ROP_FBXUtil::getFloatOPParm(node, "p", 1, myParentExporter->getStartTime());
+    float pz = ROP_FBXUtil::getFloatOPParm(node, "p", 2, myParentExporter->getStartTime());
+
+    if(!SYSequalZero(px) || !SYSequalZero(py) || !SYSequalZero(pz))
+	return true;
+
+    // Check if we have any channels on pivots
+    CH_Channel  *ch;
+    PRM_Parm    *parm;
+    int count;
+
+    // Get parameter.
+    parm = &node->getParm("p");
+    if (!parm)
+	return false;
+
+    for(count = 0; count < 3; count++) 
+    {
+	ch = parm->getChannel(count);
+	if(ch && ch->getLastSegment() != NULL && ch->getLastSegment()->getLength() > 0.0)
+	    return true;
+    }
+
+    return false;
 }
 /********************************************************************************************************/
 // ROP_FBXAnimNodeVisitInfo
