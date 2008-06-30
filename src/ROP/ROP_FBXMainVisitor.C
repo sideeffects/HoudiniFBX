@@ -2725,21 +2725,21 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	}
 	new_mat->GetShininess().Set(temp_col[0]*100.0);
     }
-    
+
     // Alpha
     temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", 0);
-    new_mat->GetTransparencyFactor().Set(1.0 - temp_col[0]);
+    lamb_new_mat->GetTransparencyFactor().Set(1.0 - temp_col[0]);
     temp_col[0] = 1.0;
     temp_col[1] = 1.0;
     temp_col[2] = 1.0;
     temp_fbx_col[0] = temp_col[0];
     temp_fbx_col[1] = temp_col[1];
     temp_fbx_col[2] = temp_col[2];
-    new_mat->GetTransparentColor().Set(temp_fbx_col);
+    lamb_new_mat->GetTransparentColor().Set(temp_fbx_col);
 
     // Add the new material to our map
-    mat_map[mat_node] = new_mat;
-    return new_mat;
+    mat_map[mat_node] = lamb_new_mat;
+    return lamb_new_mat;
 }
 /********************************************************************************************************/
 ROP_FBXCreateInstancesAction* 
