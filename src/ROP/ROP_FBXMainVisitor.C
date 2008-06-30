@@ -130,6 +130,14 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     string lookat_parm_name("lookatpath");
     UT_String node_type = node->getOperator()->getName();
     bool is_visible = node->getDisplay();
+
+    float start_time = myParentExporter->getStartTime();
+    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", start_time);
+    if(use_display_parm)
+    {
+	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", start_time));
+    }    
+
     ROP_FBXGDPCache *v_cache = NULL;
     bool force_ignore_node = false;
     UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
@@ -265,7 +273,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	for(curr_node = 0; curr_node < num_nodes; curr_node++)
 	{
 	    finalizeNewNode(res_nodes[curr_node], node, node_info, fbx_parent_node, override_node_type,
-		lookat_parm_name.c_str(), res_type, v_cache);
+		lookat_parm_name.c_str(), res_type, v_cache, is_visible);
 	}
     }
 
@@ -275,7 +283,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 void
 ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
 		UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type,
-		ROP_FBXGDPCache *v_cache)
+		ROP_FBXGDPCache *v_cache, bool is_visible)
 {
     UT_ASSERT(lookat_parm_name);
 
@@ -298,7 +306,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     }
     else
     {
-	new_node->SetVisibility(hd_node->getDisplay());
+	new_node->SetVisibility(is_visible);
 
 	// Set the standard transformations (unless we're in the instance)
 	float bone_length = 0.0;
@@ -549,6 +557,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     KFbxNodeAttribute *res_attr = NULL;
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
+
     if(is_vertex_cacheable)
     {
 	// We can only cache these:
@@ -560,7 +570,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
 	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
-	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
 	}
 	else if(prim_type == GEOPRIMPART)
 	{
@@ -571,7 +581,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    GU_Detail *final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodParticles);
 	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
-	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
 	}
 	else if(is_pure_surfaces && v_cache_out->getIsNumPointsConstant())
 	{
@@ -598,7 +608,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
 	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
 	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());	    
-	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
 	}
     }
     else
@@ -635,7 +645,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	{
 	    // There are polygons in this gdp. Output them.
 	    res_attr = outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
-	    finalizeGeoNode(res_attr, node_name, skin_deform_node, capture_frame, -1, res_nodes);
+	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
 
 	    // Try output any polylines, if they exist. Unlike Houdini, they're a separate type in FBX.
 	    // We ignore them in the about polygon function.
@@ -665,16 +675,14 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 }
 /********************************************************************************************************/
 void
-ROP_FBXMainVisitor::finalizeGeoNode(KFbxNodeAttribute *res_attr, const char* node_name_in, OP_Node* skin_deform_node, 
+ROP_FBXMainVisitor::finalizeGeoNode(KFbxNodeAttribute *res_attr, OP_Node* skin_deform_node, 
 				    int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes)
 {
-    if(!res_attr || !node_name_in)
+    if(!res_attr)
 	return;
 
-    UT_String node_name(UT_String::ALWAYS_DEEP, node_name_in);
-    myNodeManager->makeNameUnique(node_name);
-
-    KFbxNode* res_node = KFbxNode::Create(mySDKManager, (const char*)node_name);
+    // The attribute name is already guaranteed to be unique.
+    KFbxNode* res_node = KFbxNode::Create(mySDKManager, res_attr->GetName());
     res_node->SetNodeAttribute(res_attr);
 
     ROP_FBXConstructionInfo constr_info(res_node);
@@ -788,7 +796,7 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 
 	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
-	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
 
     }
 
@@ -857,7 +865,7 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 
 	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
-	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
     }
 }
 /********************************************************************************************************/
@@ -892,7 +900,7 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
 
 	nurbs_curve_attr = KFbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
-	finalizeGeoNode(nurbs_curve_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
     }
 
     if(prim_cntr)
@@ -1180,9 +1188,9 @@ ROP_FBXMainVisitor::outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, con
     }
 
     if(hd_nurb->hasProfiles())
-	finalizeGeoNode(trim_nurbs_surf_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+	finalizeGeoNode(trim_nurbs_surf_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
     else
-	finalizeGeoNode(nurbs_surf_attr, curr_name, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+	finalizeGeoNode(nurbs_surf_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
 
 }
 /********************************************************************************************************/

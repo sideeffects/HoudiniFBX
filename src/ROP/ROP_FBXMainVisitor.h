@@ -190,8 +190,8 @@ protected:
 
     void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
 	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
-	ROP_FBXGDPCache *v_cache);
-    void finalizeGeoNode(KFbxNodeAttribute *res_attr, const char* node_name, OP_Node* skin_deform_node, int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes);
+	ROP_FBXGDPCache *v_cache, bool is_visible);
+    void finalizeGeoNode(KFbxNodeAttribute *res_attr, OP_Node* skin_deform_node, int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes);
 
     void setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const GU_PrimNURBSurf* hd_nurb);
     void setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU_PrimNURBCurve* hd_nurb);
