@@ -150,7 +150,6 @@ typedef multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
 typedef map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
 typedef vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
 typedef set < string > TStringSet;
-typedef set < OP_Node* > THDNodeSet;
 /********************************************************************************************************/
 class ROP_FBXNodeManager
 {
@@ -165,17 +164,11 @@ public:
 
     void makeNameUnique(UT_String& strName);
 
-    void addBundledNode(OP_Node* hd_node);
-    bool isNodeBundled(OP_Node* hd_node);
-
 private:
     THDToNodeInfoMap myHdToNodeInfoMap;
     TFbxToNodeInfoMap myFbxToNodeInfoMap;
 
     TStringSet myNamesSet;
-
-    // Includes all nodes that are in the bundles we're exporting.
-    THDNodeSet myNodesInBundles;
 };
 /********************************************************************************************************/
 class ROP_FBXGDPCacheItem

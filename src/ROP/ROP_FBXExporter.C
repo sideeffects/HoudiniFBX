@@ -27,8 +27,6 @@
 #include <GU/GU_Detail.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Director.h>
-#include <OP/OP_BundleList.h>
-#include <OP/OP_Bundle.h>
 #include <UT/UT_UndoManager.h>
 #include <UT/UT_Interrupt.h>
 #include <OBJ/OBJ_Node.h>
@@ -131,69 +129,6 @@ ROP_FBXExporter::doExport(void)
 
     if( !myBoss->opStart("Exporting FBX" ) )
 	return;
-
-    // See if we're exporting bundles
-    if(myExportOptions.isExportingBundles())
-    {
-	// Parse bundle names
-	//UT_String bundle_names(UT_String::ALWAYS_DEEP, myExportOptions.getBundlesString());
-
-	UT_String bundle_names(UT_String::ALWAYS_DEEP, myExportOptions.getBundlesString());
-
-	// Strip any '@' we might have
-	bundle_names.strip("@");
-
-	OP_Node* bundle_node;
-	OP_Bundle	    *bundle;
-	OP_BundleList   *bundles = OPgetDirector()->getBundles();
-	int bundle_idx, node_idx;
-
-	OP_Node* obj_net = OPgetDirector()->findNode("/obj");
-	OP_Node* top_network = NULL;
-
-	for (bundle_idx = 0; bundle_idx < bundles->entries(); bundle_idx++)
-	{
-	    bundle = bundles->getBundle(bundle_idx);
-	    UT_ASSERT(bundle);
-	    if (!bundle)
-		continue;
-	    UT_String	     bundle_name(bundle->getName());
-
-	    if (!bundle_name.multiMatch(bundle_names))
-		continue;
-
-	    // Process the bundle
-	    for (node_idx = 0; node_idx < bundle->entries(); node_idx++)
-	    {
-		bundle_node = bundle->getNode(node_idx);
-		UT_ASSERT(bundle_node);
-		if (!bundle_node)
-		    continue;
-		myNodeManager->addBundledNode(bundle_node);
-
-		if(!top_network)
-		{
-		    top_network = bundle_node->getParent();
-		    if(top_network->getIsContainedBy(obj_net) == false)
-			top_network = NULL;
-		}
-		else
-		{
-		    // Find the parent network which contains all nodes so far.
-		    while(top_network != obj_net && bundle_node->getIsContainedBy(top_network) == false)
-			top_network = top_network->getParent();
-		}
-	    } // end over all nodes in a bundle
-	} // end over all bundles
-
-	if(!top_network)
-	    top_network = obj_net;
-
-	// Now set the top exported network
-	UT_String start_path;
-	top_network->getFullPath(start_path);
-	myExportOptions.setStartNodePath(start_path, false);
-    }
 
     // Set the exported take
     OP_Take	*take_mgr = OPgetDirector()->getTakeManager();

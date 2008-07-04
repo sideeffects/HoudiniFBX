@@ -18,7 +18,6 @@
  */
 
 #include "ROP_FBXCommon.h"
-#include <UT/UT_String.h>
 /********************************************************************************************************/
 ROP_FBXExportOptions::ROP_FBXExportOptions()
 {
@@ -45,7 +44,6 @@ ROP_FBXExportOptions::reset(void)
     myInvisibleObjectsExportType = ROP_FBXInvisibleNodeExportAsNulls;
     myConvertSurfaces = false;
     mySdkVersion = "";
-    myBundleNames = "";
 }
 /********************************************************************************************************/
 bool 
@@ -97,25 +95,10 @@ ROP_FBXExportOptions::setExportInAscii(bool value)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXExportOptions::setStartNodePath(const char* node_path, bool autohandle_bundles)
+ROP_FBXExportOptions::setStartNodePath(const char* node_path)
 {
-    if(!node_path)
-	return;
-
-    myStartNodePath = node_path;
-
-    if(autohandle_bundles)
-    {
-	UT_String str_temp(UT_String::ALWAYS_DEEP, node_path);
-	str_temp.trimSpace();
-	
-	if(str_temp[0] == '@')
-	{
-	    // Bundles. 
-	    myStartNodePath = "";
-	    setBundlesString(node_path);
-	}
-    }
+    if(node_path)
+	myStartNodePath = node_path;
 }
 /********************************************************************************************************/
 const char* 
@@ -219,26 +202,5 @@ const char*
 ROP_FBXExportOptions::getVersion(void)
 {
     return mySdkVersion.c_str();
-}
-/********************************************************************************************************/
-void 
-ROP_FBXExportOptions::setBundlesString(const char* bundles)
-{
-    myBundleNames = bundles;
-}
-/********************************************************************************************************/
-const char* 
-ROP_FBXExportOptions::getBundlesString(void)
-{
-    return myBundleNames.c_str();
-}
-/********************************************************************************************************/
-bool 
-ROP_FBXExportOptions::isExportingBundles(void)
-{
-    if(myBundleNames.length() > 0)
-	return true;
-    else
-	return false;
 }
 /********************************************************************************************************/

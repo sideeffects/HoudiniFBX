@@ -85,7 +85,7 @@ public:
     bool getExportInAscii(void);
     void setExportInAscii(bool value);
 
-    void setStartNodePath(const char* node_path, bool autohandle_bundles);
+    void setStartNodePath(const char* node_path);
     const char* getStartNodePath(void);
 
     bool getDetectConstantPointCountObjects(void);
@@ -108,10 +108,6 @@ public:
 
     void setVersion(const char* sdk_version);
     const char* getVersion(void);
-
-    void setBundlesString(const char* bundles);
-    const char* getBundlesString(void);
-    bool isExportingBundles(void);
 
 private:
 
@@ -149,9 +145,6 @@ private:
     //  Which version of the SDK to use for export. Defaults to an empty string,
     //	meaning the most current version.
     string mySdkVersion;
-
-    // Optionally, contains the names of the bundles we're exporting. Empty by default.
-    string myBundleNames;
 };
 /********************************************************************************************************/
 #endif
