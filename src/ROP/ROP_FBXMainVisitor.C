@@ -138,9 +138,16 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", start_time));
     }    
 
+    bool force_exporting_as_null = false;
+    if(myParentExporter->getExportOptions()->isExportingBundles() &&
+	myParentExporter->getNodeManager()->isNodeBundled(node) == false)
+	force_exporting_as_null = true;
+
     ROP_FBXGDPCache *v_cache = NULL;
     bool force_ignore_node = false;
     UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
+
+    if(!force_exporting_as_null)
     if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
 	|| node_type == "null" || node_type == "hlight" || node_type == "cam" || node_type == "bone" || node_type == "ambient")
