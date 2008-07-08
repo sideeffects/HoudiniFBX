@@ -49,7 +49,8 @@ buildBundleMenu(void *, PRM_Name *menu, int max,
 PRM_SpareData		ROPoutFbxBundlesList(
 			"opfilter",	"!!OBJ!!",
 			"oprelative",	"/",
-			0);
+			"allownullbundles", "on",
+			0, 0);
 
 static PRM_ChoiceList	bundleMenu(PRM_CHOICELIST_REPLACE, ::buildBundleMenu);
 
