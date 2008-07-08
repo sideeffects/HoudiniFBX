@@ -29,8 +29,30 @@
 #include <SIM/SIM_Geometry.h>
 #include <DOP/DOP_Parent.h>
 #include <DOP/DOP_FullPathData.h>
+#include <PRM/PRM_Include.h>
+#include <PRM/PRM_SpareData.h>
+#include <PRM/PRM_DialogScript.h>
+#include <PRM/PRM_SharedFunc.h>
+#include <OP/OP_Bundle.h>
+#include <OP/OP_BundleList.h>
 #include "ROP_Error.h"
 #include "ROP_Templates.h"
+
+static void
+buildBundleMenu(void *, PRM_Name *menu, int max,
+		const PRM_SpareData *spare, PRM_Parm *)
+{
+    OPgetDirector()->getBundles()->buildBundleMenu(menu, max,
+	spare ? spare->getValue("opfilter") : 0);
+}
+
+static PRM_SpareData		ROPoutFbxBundlesList(
+			"opfilter",	"!!OBJ!!",
+			"oprelative",	"/",
+			"allownullbundles", "on",
+			0);
+
+static PRM_ChoiceList	bundleMenu(PRM_CHOICELIST_REPLACE, ::buildBundleMenu);
 
 static PRM_Name	vcType[] =
 {
@@ -78,20 +100,12 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
 
-/*
-static PRM_SpareData		fbxOutBundlesList(
-    "opfilter",	"!!OBJ!!",
-    "oprelative",	"/",
-    "allownullbundles", "on",
-    0);
-*/
-
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
 			      0, 0, &PRM_SpareData::fileChooserModeWrite),
-    PRM_Template(PRM_STRING_OPLIST,  PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL),
-    //PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL,  // &ROPbundleMenu
-	//						    0, 0, &fbxOutBundlesList),
+    //PRM_Template(PRM_STRING_OPLIST,  PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL),
+    PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, &bundleMenu,
+							    0, 0, &ROPoutFbxBundlesList),
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
     PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
     PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
