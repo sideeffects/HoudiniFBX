@@ -976,14 +976,15 @@ ROP_FBXNodeManager::makeNameUnique(UT_String& strName)
 void 
 ROP_FBXNodeManager::addBundledNode(OP_Node* hd_node)
 {
-    myNodesInBundles.insert(hd_node);
+//    myNodesInBundles.insert(hd_node);
 }
 /********************************************************************************************************/
 bool 
 ROP_FBXNodeManager::isNodeBundled(OP_Node* hd_node)
 {
-    THDNodeSet::iterator si = myNodesInBundles.find(hd_node);
-    return (si != myNodesInBundles.end());
+//    THDNodeSet::iterator si = myNodesInBundles.find(hd_node);
+//    return (si != myNodesInBundles.end());
+    return true;
 }
 /********************************************************************************************************/
 // ROP_FBXNodeInfo
