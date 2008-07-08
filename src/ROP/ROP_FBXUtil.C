@@ -973,6 +973,19 @@ ROP_FBXNodeManager::makeNameUnique(UT_String& strName)
     myNamesSet.insert((const char*)strName); 
 }
 /********************************************************************************************************/
+void 
+ROP_FBXNodeManager::addBundledNode(OP_Node* hd_node)
+{
+    myNodesInBundles.insert(hd_node);
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXNodeManager::isNodeBundled(OP_Node* hd_node)
+{
+    THDNodeSet::iterator si = myNodesInBundles.find(hd_node);
+    return (si != myNodesInBundles.end());
+}
+/********************************************************************************************************/
 // ROP_FBXNodeInfo
 /********************************************************************************************************/
 ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)

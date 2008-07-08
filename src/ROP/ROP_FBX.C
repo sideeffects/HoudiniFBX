@@ -49,7 +49,7 @@ static PRM_Name	invisObj[] =
 CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
-static PRM_Name		startNode("startnode", "Start At");
+static PRM_Name		startNode("startnode", "Export");
 static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
 static PRM_Name		detectConstPointObjs("detectconstpointobjs", "Detect Constant Point Count Dynamic Objects");
 static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches");
@@ -78,10 +78,20 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
 
+
+static PRM_SpareData		fbxOutBundlesList(
+    "opfilter",	"!!OBJ!!",
+    "oprelative",	"/",
+    "allownullbundles", "on",
+    0);
+
+
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
 			      0, 0, &PRM_SpareData::fileChooserModeWrite),
-    PRM_Template(PRM_STRING,  PRM_TYPE_DYNAMIC_PATH, 1, &startNode, &startNodeDefault, NULL),
+    //PRM_Template(PRM_STRING_OPLIST,  PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL),
+    PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL,  // &ROPbundleMenu
+							    0, 0, &fbxOutBundlesList),
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
     PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
     PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
@@ -244,7 +254,7 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
     export_options.setPolyConvertLOD(POLYLOD());
     export_options.setDetectConstantPointCountObjects(DETECTCONSTOBJS());
     export_options.setExportDeformsAsVC(DEFORMSASVCS());
-    export_options.setStartNodePath((const char*)str_start_node);
+    export_options.setStartNodePath((const char*)str_start_node, true);
     export_options.setConvertSurfaces(CONVERTSURFACES());
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
