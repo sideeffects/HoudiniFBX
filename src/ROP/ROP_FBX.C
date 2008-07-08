@@ -78,20 +78,20 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
 
-
+/*
 static PRM_SpareData		fbxOutBundlesList(
     "opfilter",	"!!OBJ!!",
     "oprelative",	"/",
     "allownullbundles", "on",
     0);
-
+*/
 
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
 			      0, 0, &PRM_SpareData::fileChooserModeWrite),
-    //PRM_Template(PRM_STRING_OPLIST,  PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL),
-    PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL,  // &ROPbundleMenu
-							    0, 0, &fbxOutBundlesList),
+    PRM_Template(PRM_STRING_OPLIST,  PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL),
+    //PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL,  // &ROPbundleMenu
+	//						    0, 0, &fbxOutBundlesList),
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
     PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
     PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
