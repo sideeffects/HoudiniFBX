@@ -23,6 +23,7 @@
 
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_FloatArray.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Director.h>
@@ -344,7 +345,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     float	     start_frame;
     float	     end_frame;
     UT_SuperInterval range;
-    UT_IntArray	     tmp_array;
+    UT_FloatArray	tmp_array;
     CH_Manager *ch_manager = CHgetManager();
 
     float start_time = myParentExporter->getStartTime();
@@ -352,7 +353,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
     CHbuildRange( start_frame, end_frame, range );
-    ch->getKeyFrames(range, tmp_array, false);
+    ch->getKeyTimes(range, tmp_array, false);
 
     fbx_curve->KeyModifyBegin();
 
@@ -363,6 +364,10 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     }
     else
     {
+	bool found_untied_keys = false;
+	bool failed_getting_key = false;
+	int first_failed_frame = -1;
+
 	int fbx_key_idx;
 	float key_time;
 	KTime fbx_time;
@@ -375,7 +380,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
-	    key_time = ch_manager->getTime(tmp_array[curr_frame]);
+	    key_time = tmp_array[curr_frame];
 	    ch->getFullKey(key_time, full_key);
 
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
@@ -386,8 +391,13 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
 	    // Convert frame to time
-	    key_time = ch_manager->getTime(tmp_array[curr_frame]);
-	    ch->getFullKey(key_time, full_key);
+	    key_time = tmp_array[curr_frame];
+	    if(ch->getFullKey(key_time, full_key) == false)
+	    {
+		failed_getting_key = true;
+		if(first_failed_frame == -1)
+		    first_failed_frame = curr_frame;
+	    }
 
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
 	    fbx_key_idx = fbx_curve->KeyFind(fbx_time, &c_index);
@@ -398,7 +408,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 		    key_val = full_key.k[0].myV[CH_VALUE];
 		else
 		{
-		    myErrorManager->addError("Untied key values encountered. This is not supported. Node: ", source_node->getName(), NULL, false );
+		    found_untied_keys = true;
 		    key_val = (full_key.k[0].myV[CH_VALUE] + full_key.k[1].myV[CH_VALUE])*0.5;
 		}
 	    }
@@ -502,12 +512,22 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	    }
 
 	}
+
+	if(found_untied_keys)
+	    myErrorManager->addError("Untied key values encountered. This is not supported. Node: ", source_node->getName(), NULL, false );
+
+	if(failed_getting_key)
+	{
+	    UT_String temp_error(UT_String::ALWAYS_DEEP);
+	    temp_error.sprintf(" frame: %d", first_failed_frame);
+	    myErrorManager->addError("Failed getting at least one key. Node, first failed frame: ", source_node->getName(), (const char*)temp_error, false );
+	}
     }
     fbx_curve->KeyModifyEnd();
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_IntArray& frame_array, bool do_insert)
+ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FloatArray& time_array, bool do_insert)
 {
     UT_ASSERT(start_array_idx <= end_array_idx);
     if(end_array_idx < start_array_idx)
@@ -532,11 +552,11 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
     for(curr_idx = start_array_idx; curr_idx < end_array_idx; curr_idx++)
     {
 	// Insert keyframes, evaluate the values at the channel
-	key_time = ch_manager->getTime(frame_array[curr_idx]);
+	key_time = time_array[curr_idx];
 	end_idx = curr_idx + 1;
 	if(end_idx > end_array_idx)
 	    end_idx = end_array_idx;
-	end_time = ch_manager->getTime(frame_array[end_idx]);
+	end_time = time_array[end_idx];
 
 	next_seg = ch->getSegmentAfterKey(key_time);
 
@@ -564,7 +584,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	CH_FullKey full_key;
 
 	// We skipped the last frame. Add it now.
-	end_time = ch_manager->getTime(frame_array[end_array_idx]);
+	end_time = time_array[end_array_idx];
 	ch->getFullKey(end_time, full_key);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
