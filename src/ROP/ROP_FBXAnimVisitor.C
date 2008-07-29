@@ -338,9 +338,27 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     if (!parm)
 	return;
 
+    bool use_override = false;
+    bool force_resample = false;
+
+    // See if we have any overrides
+    if(parm->getIsOverrideActive(parm_idx))
+    {
+	force_resample = true;
+	use_override = true;
+    }
+
     ch = parm->getChannel(parm_idx);
-    if(!ch || ch->getLastSegment() == NULL || ch->getLastSegment()->getLength() <= 0.0)
+    if(!force_resample && (!ch || ch->getLastSegment() == NULL))
 	return;
+
+    if(!force_resample && ch && ch->getLastSegment()->getLength() <= 0.0)
+    {
+	// It might be an expression. In this case, we force resampling.
+	force_resample = ch->isTimeDependent();
+	if(!force_resample)
+	    return;
+    }
 
     float	     start_frame;
     float	     end_frame;
@@ -352,15 +370,29 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     float end_time = myParentExporter->getEndTime();
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
-    CHbuildRange( start_frame, end_frame, range );
-    ch->getKeyTimes(range, tmp_array, false);
+
+    if(force_resample)
+    {
+	// Do the entire time range
+	tmp_array.entries(2);
+	tmp_array[0] = ch_manager->getTime(start_frame);
+	tmp_array[1] = ch_manager->getTime(end_frame);
+    }
+    else
+    {
+	CHbuildRange( start_frame, end_frame, range );
+	ch->getKeyTimes(range, tmp_array, false);
+    }
 
     fbx_curve->KeyModifyBegin();
 
     float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
-    if(myExportOptions->getResampleAllAnimation())
+    if(myExportOptions->getResampleAllAnimation() || force_resample)
     {
-	outputResampled(fbx_curve, ch, 0, tmp_array.entries()-1, tmp_array, false);
+	PRM_Parm* temp_parm_ptr = NULL;
+	if(use_override)
+	    temp_parm_ptr = parm;
+	outputResampled(fbx_curve, ch, 0, tmp_array.entries()-1, tmp_array, false, temp_parm_ptr, parm_idx);
     }
     else
     {
@@ -505,7 +537,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 			int next_frame_idx = curr_frame + 1;
 			if(next_frame_idx >= num_frames)
 			    next_frame_idx = curr_frame;
-			outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true);
+			outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true, NULL, -1);
 		    }
 		}
     	
@@ -527,7 +559,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FloatArray& time_array, bool do_insert)
+ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FloatArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx)
 {
     UT_ASSERT(start_array_idx <= end_array_idx);
     if(end_array_idx < start_array_idx)
@@ -546,7 +578,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
     KTime fbx_time;
     CH_Segment *next_seg;
     kFCurveIndex opt_idx;
-    float key_val;
+    float key_val = 0;
     float s;
     curr_time = 0;
     for(curr_idx = start_array_idx; curr_idx < end_array_idx; curr_idx++)
@@ -558,15 +590,21 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	    end_idx = end_array_idx;
 	end_time = time_array[end_idx];
 
-	next_seg = ch->getSegmentAfterKey(key_time);
+	if(ch)
+	    next_seg = ch->getSegmentAfterKey(key_time);
+	else
+	    next_seg = NULL;
 
-	if(next_seg)
+	if((ch && next_seg) || (direct_eval_parm && parm_idx >= 0))
 	{
 	    opt_idx = 0;
 	    is_last = false;
 	    for(curr_time = key_time; curr_time < end_time; curr_time += time_step)
 	    {
-		ch->sampleValueSlope(next_seg, curr_time, key_val, s);
+		if(direct_eval_parm && parm_idx >= 0)
+		    direct_eval_parm->getValue(curr_time, key_val, parm_idx);
+		else if(ch && next_seg)
+		    ch->sampleValueSlope(next_seg, curr_time, key_val, s);		    
 
 		fbx_time.SetSecondDouble(curr_time+secs_per_sample);
 		if(do_insert)
@@ -585,7 +623,16 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 
 	// We skipped the last frame. Add it now.
 	end_time = time_array[end_array_idx];
-	ch->getFullKey(end_time, full_key);
+	if(direct_eval_parm && parm_idx >= 0)
+	{
+	    direct_eval_parm->getValue(end_time, key_val, parm_idx);
+	    full_key.k[0].myVValid[CH_VALUE] = true;
+	    full_key.k[1].myVValid[CH_VALUE] = false;
+	    full_key.k[0].myV[CH_VALUE] = key_val;
+	    full_key.k[1].myV[CH_VALUE] = key_val;
+	}
+	else if(ch)
+	    ch->getFullKey(end_time, full_key);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	if(do_insert)
@@ -987,7 +1034,8 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     start_frame = ch_manager->getSample(gb_start_time);
     end_frame = ch_manager->getSample(gb_end_time);
 
-
+    bool uses_overrides = false;
+    bool force_resample = false;
     float start_time = FLT_MAX, end_time = -FLT_MAX;
 
     CH_Channel  *ch;
@@ -1002,17 +1050,36 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 
 	for(curr_trs_channel = 0; curr_trs_channel < num_trs_channels; curr_trs_channel++)
 	{
+	    if(parm->getIsOverrideActive(curr_trs_channel))
+	    {
+		uses_overrides = true;
+		force_resample = true;
+	    }
+
 	    ch = parm->getChannel(curr_trs_channel);
 	    if(!ch)
-		break;
+		continue;
 	    if(ch->getStart() < start_time) start_time = ch->getStart();
 	    if(ch->getEnd() > end_time) end_time = ch->getEnd();
+
+	    if(SYSequalZero(ch->getLength()))
+	    {
+		// This might be an expression.
+		force_resample |= ch->isTimeDependent();
+	    }
 	}
     }
 
     // No animation.
-    if(start_time == FLT_MAX || start_time >= end_time)
+    if((start_time == FLT_MAX || start_time >= end_time) && !force_resample)
 	return;
+
+    if(force_resample)
+    {
+	// Output the entire range
+	start_time = ch_manager->getTime(start_frame);
+	end_time = ch_manager->getTime(end_frame);
+    }
 
     // Create the curves
     fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
