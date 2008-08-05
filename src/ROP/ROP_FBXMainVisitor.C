@@ -2113,12 +2113,26 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     fbx_vec4.Set(float_parm[0], float_parm[1], float_parm[2]);
     res_attr->SetUpVector(fbx_vec4);
 
-    // Aperture. Let's hope "horizontal" means we think it means.
-    res_attr->SetApertureMode(KFbxCamera::eHORIZONTAL);
+    // Convert aperture. Because FBX SDK only recognizes animation if the 
+    // aperture mode is set to KFbxCamera::eFOCAL_LENGTH, we have to
+    // convert our aperture into aperture width and height, in inches,
+    // that the FBX SDK expects.
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aperture");
-    fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len) ) * 2.0;
-    fov_angle = fov_angle/M_PI * 180.0;
-    res_attr->SetDefaultFieldOfView(fov_angle);
+    fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len*length_mult) ) * 2.0;
+
+    // Get the x/y resolution of the camera to get aperture ratios.
+    float xres = ROP_FBXUtil::getFloatOPParm(node, "res",0);
+    float yres = ROP_FBXUtil::getFloatOPParm(node, "res",1);
+
+    float ap_height = float_parm[0];
+    if(SYSequalZero(xres) == false)
+	ap_height = float_parm[0]*yres/xres;
+
+    // Set the custom aperture format and convert our measurments 
+    // to inches.
+    res_attr->SetApertureFormat(KFbxCamera::eCUSTOM_APERTURE_FORMAT);
+    res_attr->SetApertureHeight( (ap_height / 10.0) / 2.54);
+    res_attr->SetApertureWidth((float_parm[0] / 10.0) / 2.54);
 
     // Near and far clip planes
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "near");
