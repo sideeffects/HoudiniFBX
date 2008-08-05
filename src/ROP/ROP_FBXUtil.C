@@ -568,7 +568,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	    }
 	}
 
-	for( i = op->getConnectedInputIndex(-1); !found && i >= 0;
+	for( i = op->getConnectedInputIndex(-1); !is_time_dependent && i >= 0;
 	    i = op->getConnectedInputIndex(i) )
 	{
 	    // We need to traverse reference inputs as well, in cases,
