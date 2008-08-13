@@ -173,69 +173,70 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	{
 
 	    exportTRSAnimation(node, curr_fbx_take, fbx_node);
+	}
 
-	    if(node_type == "geo" || node_type == "instance")
+	if(node_type == "geo" || node_type == "instance")
+	{
+	    // For geometry, check if we have a dopimport SOP in the chain.
+	    if(node_info_in->getMaxObjectPoints() > 0)
 	    {
-		// For geometry, check if we have a dopimport SOP in the chain.
-		if(node_info_in->getMaxObjectPoints() > 0)
-		{
-    #ifdef UT_DEBUG
-		    double vc_start_time, vc_end_time;
-		    vc_start_time = clock();
-    #endif
-		    OP_Network* geo_net = dynamic_cast<OP_Network*>(node);
-		    OP_Node* vc_node;
-		    if(node_type == "instance")
-			vc_node = node;
-		    else
-			vc_node = geo_net->getRenderNodePtr();
-		    outputVertexCache(fbx_node, vc_node, myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
-    #ifdef UT_DEBUG
-		    vc_end_time = clock();
-		    ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
-    #endif
-		}
-	    }
-	    else if(node_type == "hlight")
-	    {
-		KFbxLight *light_attrib = dynamic_cast<KFbxLight *>(fbx_node->GetNodeAttribute());
-
-		// Create curve nodes
-		if(light_attrib)
-		{
-		    fbx_attr_take_node = addFBXTakeNode(light_attrib);
-
-		    light_attrib->Color.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-		    light_attrib->ConeAngle.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-		    light_attrib->Intensity.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-
-		    // Output its colour, intensity, and cone angle channels
-		    curr_fbx_curve = light_attrib->Intensity.GetKFCurve(NULL, fbx_attr_take_node->GetName());
-		    exportChannel(curr_fbx_curve, node, "light_intensity", 0, 100.0);
-
-		    curr_fbx_curve = light_attrib->ConeAngle.GetKFCurve(NULL, fbx_attr_take_node->GetName());
-		    exportChannel(curr_fbx_curve, node, "coneangle", 0);
-
-		    curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_RED, fbx_attr_take_node->GetName());
-		    exportChannel(curr_fbx_curve, node, "light_color", 0);
-
-		    curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_GREEN, fbx_attr_take_node->GetName());
-		    exportChannel(curr_fbx_curve, node, "light_color", 1);
-
-		    curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_BLUE, fbx_attr_take_node->GetName());
-		    exportChannel(curr_fbx_curve, node, "light_color", 2);
-		}
-	    }
-	    else if(node_type == "cam")
-	    {
-		KFbxCamera *cam_attrib = dynamic_cast<KFbxCamera *>(fbx_node->GetNodeAttribute());
-		fbx_attr_take_node = addFBXTakeNode(cam_attrib);
-		cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-
-		curr_fbx_curve = cam_attrib->FocalLength.GetKFCurve(NULL, fbx_attr_take_node->GetName());
-		exportChannel(curr_fbx_curve, node, "focal", 0);
+#ifdef UT_DEBUG
+		double vc_start_time, vc_end_time;
+		vc_start_time = clock();
+#endif
+		OP_Network* geo_net = dynamic_cast<OP_Network*>(node);
+		OP_Node* vc_node;
+		if(node_type == "instance")
+		    vc_node = node;
+		else
+		    vc_node = geo_net->getRenderNodePtr();
+		outputVertexCache(fbx_node, vc_node, myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
+#ifdef UT_DEBUG
+		vc_end_time = clock();
+		ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
+#endif
 	    }
 	}
+	else if(node_type == "hlight")
+	{
+	    KFbxLight *light_attrib = dynamic_cast<KFbxLight *>(fbx_node->GetNodeAttribute());
+
+	    // Create curve nodes
+	    if(light_attrib)
+	    {
+		fbx_attr_take_node = addFBXTakeNode(light_attrib);
+
+		light_attrib->Color.GetKFCurveNode(true, fbx_attr_take_node->GetName());
+		light_attrib->ConeAngle.GetKFCurveNode(true, fbx_attr_take_node->GetName());
+		light_attrib->Intensity.GetKFCurveNode(true, fbx_attr_take_node->GetName());
+
+		// Output its colour, intensity, and cone angle channels
+		curr_fbx_curve = light_attrib->Intensity.GetKFCurve(NULL, fbx_attr_take_node->GetName());
+		exportChannel(curr_fbx_curve, node, "light_intensity", 0, 100.0);
+
+		curr_fbx_curve = light_attrib->ConeAngle.GetKFCurve(NULL, fbx_attr_take_node->GetName());
+		exportChannel(curr_fbx_curve, node, "coneangle", 0);
+
+		curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_RED, fbx_attr_take_node->GetName());
+		exportChannel(curr_fbx_curve, node, "light_color", 0);
+
+		curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_GREEN, fbx_attr_take_node->GetName());
+		exportChannel(curr_fbx_curve, node, "light_color", 1);
+
+		curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_BLUE, fbx_attr_take_node->GetName());
+		exportChannel(curr_fbx_curve, node, "light_color", 2);
+	    }
+	}
+	else if(node_type == "cam")
+	{
+	    KFbxCamera *cam_attrib = dynamic_cast<KFbxCamera *>(fbx_node->GetNodeAttribute());
+	    fbx_attr_take_node = addFBXTakeNode(cam_attrib);
+	    cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
+
+	    curr_fbx_curve = cam_attrib->FocalLength.GetKFCurve(NULL, fbx_attr_take_node->GetName());
+	    exportChannel(curr_fbx_curve, node, "focal", 0);
+	}
+
 
 	// Export visibility channel
 	fbx_node->Visibility.GetKFCurveNode(true, curr_fbx_take->GetName());
