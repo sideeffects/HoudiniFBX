@@ -211,10 +211,16 @@ public:
 
     void clearFrames(void);
 
+    bool getSaveMemory(void);
+    void setSaveMemory(bool value);
+
 private:
     TGeomCacheItems myFrameItems;
     float myMinFrame;
     int myNumConstantPoints;
+
+    // Use less memory by not actually caching anything
+    bool mySaveMemory;
 };
 typedef set < ROP_FBXGDPCache* > TGDPCacheSet;
 /********************************************************************************************************/

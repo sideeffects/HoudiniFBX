@@ -520,6 +520,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	max_vert_cnt_start = clock();
 #endif
 	v_cache_out = new ROP_FBXGDPCache();
+	v_cache_out->setSaveMemory(myParentExporter->getExportOptions()->getSaveMemory());
 
 	OP_Node* node_to_use;
 	if(node_info->getIsVisitingFromInstance() && node_info->getParentInfo())

@@ -198,7 +198,13 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 	    GU_Detail *conv_gdp;
 	    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
-	    conv_gdp = v_cache_out->addFrame(curr_frame);
+	    GU_Detail temp_detail;
+	    // We must save the start frame in any case since it is needed
+	    // elsewhere
+	    if(v_cache_out->getSaveMemory() && curr_frame != start_frame)
+		conv_gdp = &temp_detail;
+	    else
+		conv_gdp = v_cache_out->addFrame(curr_frame);
 
 	    if(prim_type == GEOPRIMPART)
 	    {
@@ -1132,6 +1138,7 @@ ROP_FBXNodeInfo::getSourcePrimitive(void)
 /********************************************************************************************************/
 ROP_FBXGDPCache::ROP_FBXGDPCache()
 {
+    mySaveMemory = false;
     myMinFrame = FLT_MAX;
     myNumConstantPoints = -1;
 }
@@ -1139,6 +1146,18 @@ ROP_FBXGDPCache::ROP_FBXGDPCache()
 ROP_FBXGDPCache::~ROP_FBXGDPCache()
 {
     clearFrames();
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXGDPCache::getSaveMemory(void)
+{
+    return mySaveMemory;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXGDPCache::setSaveMemory(bool value)
+{
+    mySaveMemory = value;
 }
 /********************************************************************************************************/
 void 

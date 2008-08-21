@@ -815,7 +815,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
     // If the object does not change the number of points in an animation,
     // we need its GDP converted, but not triangulated and not broken up (which is 
     // what the stored, cached GDP is).
-    if(vc_method == ROP_FBXVertexCacheMethodGeometryConstant)
+    if(vc_method == ROP_FBXVertexCacheMethodGeometryConstant || node_pair_info->getVertexCache()->getSaveMemory())
     {
 	// Get at the gdp
 	GU_DetailHandle gdh;
@@ -837,14 +837,27 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 	    return false;
 
 	int dummy_int;
-	if(node_info_in->getIsSurfacesOnly())
-	    conv_gdp.duplicate(*gdp);
+
+	if(vc_method == ROP_FBXVertexCacheMethodGeometryConstant)
+	{
+	    if(node_info_in->getIsSurfacesOnly())
+		conv_gdp.duplicate(*gdp);
+	    else
+		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp, dummy_int);
+	}
 	else
-	    ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp, dummy_int);
+	{
+	    // Re-do the geometry
+	    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
+	    if(prim_type == GEOPRIMPART)
+		ROP_FBXUtil::convertParticleGDPtoPolyGDP(gdp, conv_gdp);
+	    else
+		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), true, conv_gdp, dummy_int);
+	}
 	final_gdp = &conv_gdp;
     }
     else
-	final_gdp = node_pair_info->getVertexCache()->getFrameGeometry(frame_num);
+        final_gdp = node_pair_info->getVertexCache()->getFrameGeometry(frame_num);
 
     if(!final_gdp)
     {

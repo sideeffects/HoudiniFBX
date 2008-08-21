@@ -113,6 +113,9 @@ public:
     const char* getBundlesString(void);
     bool isExportingBundles(void);
 
+    void setSaveMemory(bool value);
+    bool getSaveMemory(void);
+
 private:
 
     // Sample every N frames
@@ -152,6 +155,10 @@ private:
 
     // Optionally, contains the names of the bundles we're exporting. Empty by default.
     string myBundleNames;
+
+    // If true, vertex cache frame snapshots will not be stored in memory, resulting in
+    // less memory usage, but slower performance.
+    bool mySaveMemory;
 };
 /********************************************************************************************************/
 #endif

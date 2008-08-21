@@ -46,6 +46,20 @@ ROP_FBXExportOptions::reset(void)
     myConvertSurfaces = false;
     mySdkVersion = "";
     myBundleNames = "";
+
+    mySaveMemory = false;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXExportOptions::setSaveMemory(bool value)
+{
+    mySaveMemory = value;
+}
+/********************************************************************************************************/
+bool 
+ROP_FBXExportOptions::getSaveMemory(void)
+{
+    return mySaveMemory;
 }
 /********************************************************************************************************/
 bool 

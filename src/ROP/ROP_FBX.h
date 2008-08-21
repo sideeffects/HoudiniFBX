@@ -52,6 +52,7 @@ enum {
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
     ROP_FBX_CONVERTSURFACES,
+    ROP_FBX_CONSERVEMEM,
     ROP_FBX_DEFORMSASVCS,
 
     ROP_FBX_TPRERENDER,
@@ -136,6 +137,9 @@ private:
 
     int DEFORMSASVCS(void)
     { INT_PARM("deformsasvcs", 0, 0, 0) }
+
+    int CONSERVEMEM(void)
+    { INT_PARM("conservemem", 0, 0, 0) }
 
     int VCFORMAT(void)
     { INT_PARM("vcformat", 0, 0, 0) }
