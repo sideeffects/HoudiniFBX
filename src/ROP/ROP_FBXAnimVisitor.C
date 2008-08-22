@@ -72,8 +72,15 @@ ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter)
 
     UT_String full_name(UT_String::ALWAYS_DEEP, myOutputFileName.c_str()), file_path(UT_String::ALWAYS_DEEP), file_name(UT_String::ALWAYS_DEEP);
     full_name.splitPath(file_path, file_name);	
-    myFBXFileSourceFolder = file_path;
-    myFBXShortFileName = file_name.pathUpToExtension();
+    if(file_path.isstring())
+	myFBXFileSourceFolder = file_path;
+    else
+	myFBXFileSourceFolder = "";
+
+    if(file_name.isstring())
+	myFBXShortFileName = file_name.pathUpToExtension();
+    else
+	myFBXShortFileName = full_name.pathUpToExtension();
 
     myBoss = myParentExporter->GetBoss();
 }
