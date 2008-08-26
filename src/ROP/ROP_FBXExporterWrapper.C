@@ -82,7 +82,7 @@ bool
 ROP_FBXExporterWrapper::isSupported(void) 
 { 
     // FBX export is only present in complete versions of Houdini:
-    if (!UTisTainted())
+    if (!UTisTainted() && !UTignoreTaint())
 	return true; 
     else
 	return false;
