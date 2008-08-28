@@ -65,7 +65,7 @@ extern double ROP_FBXdb_maxVertsCountingTime;
 
 /********************************************************************************************************/
 ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter) 
-: ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod())
+: ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod(), parent_exporter->getStartTime())
 {
     myParentExporter = parent_exporter;
 
@@ -353,6 +353,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     res_node_pair_info->setVertexCache(v_cache);
     res_node_pair_info->setVisitResultType(res_type);
     res_node_pair_info->setSourcePrimitive(constr_info.getHdPrimitiveIndex());
+    res_node_pair_info->setTraveledInputIndex(node_info->getTraveledInputIndex());
 
     // Add it to the hierarchy
     if(!node_info->getIsVisitingFromInstance())

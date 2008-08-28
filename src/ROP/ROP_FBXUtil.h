@@ -129,6 +129,9 @@ public:
     void setSourcePrimitive(int prim_cnt);
     int getSourcePrimitive(void);
 
+    void setTraveledInputIndex(int idx);
+    int getTraveledInputIndex(void);
+
 private:
     KFbxNode* myFbxNode;
 
@@ -143,6 +146,8 @@ private:
 
     // Needed for the ugly way in which we have to handle instancing...
     ROP_FBXMainNodeVisitInfo myVisitInfoCopy;
+
+    int myTravelledIndex;
 
     int mySourcePrim;
 };

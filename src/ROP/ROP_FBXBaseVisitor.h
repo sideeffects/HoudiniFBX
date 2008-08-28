@@ -98,11 +98,14 @@ private:
 };
 
 typedef vector  < string > TStringVector;
+typedef multimap < OP_Node*, ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfos;
+typedef vector < ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfoVector;
+typedef vector < OP_Node* > THDNodeVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXBaseVisitor
 {
 public:
-    ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode);
+    ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, float start_time);
     virtual ~ROP_FBXBaseVisitor();
 
     /// Called before visiting a node. Must return a new instance of
@@ -124,21 +127,29 @@ public:
 private:
     /// Calls visit() on the specified node and then calls itself
     /// on all children.
-    ROP_FBXInternalVisitorResultType visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info, int input_idx_on_this_node);
+    ROP_FBXInternalVisitorResultType visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info, int input_idx_on_this_node, int connection_count);
 
     /// Visits all nodes in a network, together with their hierarchies
-    void visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info, int connected_input_idx,ROP_FBXNetNodesToVisitType nodes_to_visit_flag);
+    void visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info, int connected_input_idx,ROP_FBXNetNodesToVisitType nodes_to_visit_flag, int connection_count);
+
+    int findParentInfoForChildren(OP_Node* op_parent, TBaseNodeVisitInfoVector* res_out);
 
     bool isNetworkVisitable(OP_Node* node);
 
     int whichInputIs(OP_Node* source_node, int counter, OP_Node* target_node);
-    OP_Node* whichNetworkNodeIs(OP_Node* input_node, int input_counter, OP_Network* network);
+
+    void addNodeVisitInfo(ROP_FBXBaseNodeVisitInfo* visit_info);
+    void clearVisitInfos(void);
+    void findVisitInfos(OP_Node* hd_node, TBaseNodeVisitInfoVector &res_infos);
 
 private:
     TStringVector myNetworkTypesNotToVisit;
     ROP_FBXInvisibleNodeExportType myHiddenNodeExportMode;
 
     bool myDidCancel;
+
+    TBaseNodeVisitInfos myAllVisitInfos;
+    float myStartTime;
 };
 /********************************************************************************************************/
 #endif

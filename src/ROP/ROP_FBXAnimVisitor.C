@@ -56,7 +56,7 @@ extern double ROP_FBXdb_vcacheExportTime;
 #endif
 /********************************************************************************************************/
 ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter) 
-: ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod())
+: ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod(), parent_exporter->getStartTime())
 {
     myParentExporter = parent_exporter;
 
@@ -368,6 +368,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	    return;
     }
 
+    float	     temp_float;
     float	     start_frame;
     float	     end_frame;
     UT_SuperInterval range;
@@ -456,8 +457,11 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 		key_val = full_key.k[0].myV[CH_VALUE];
 	    else if(full_key.k[1].myVValid[CH_VALUE])
 		key_val = full_key.k[1].myV[CH_VALUE];
-	    else 
-		key_val = 0.0;
+	    else
+	    {
+		parm->getValue(key_time, temp_float, parm_idx);
+		key_val = temp_float;
+	    }
 
 	    key_val *= scale_factor;
 
@@ -533,19 +537,21 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 		    }
 		    else
 		    {
-			// Unsupported segment. Treat as linear. 
+			// Unsupported segment. Treat as linear and resample. 
+/*
 			// To-do - resample?
 			string expr_string(", expression: ");
 			expr_string += (const char *)hd_seg_expr;
 			myErrorManager->addError("Unsupported segment type found. This segment will be resampled. Node: ", source_node->getName(), expr_string.c_str(), false );
-			UT_ASSERT(0);
+			UT_ASSERT(0); */
 
 			fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 
 			int next_frame_idx = curr_frame + 1;
 			if(next_frame_idx >= num_frames)
 			    next_frame_idx = curr_frame;
-			outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true, NULL, -1);
+			//outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true, NULL, -1);
+			outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true, parm, parm_idx);
 		    }
 		}
     	
@@ -1045,9 +1051,9 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
     const int num_trs_channels = 3;
-    const int num_channels = 4;
+    const int num_channels = 10;
     int curr_channel_idx;
-    const char* const channel_names[] = { "t", "r", "scale", "length"};
+    const char* const channel_names[] = { "t", "r", "scale", "length", "pathobjpath", "roll", "pathorient", "up", "bank", "pos"};
     CH_Manager *ch_manager = CHgetManager();
     float start_frame, end_frame;
     float gb_start_time = myParentExporter->getStartTime();
@@ -1137,15 +1143,16 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	s_opt_idx[curr_channel_idx] = 0;
     }
 
-    float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
-    float time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
-    float curr_time;
+    double secs_per_sample = 1.0/(double)ch_manager->getSamplesPerSec();
+    double time_step = secs_per_sample * (double)myExportOptions->getResampleIntervalInFrames();
+    double curr_time;
     KTime fbx_time;
     int fbx_key_idx;
     float bone_length;
     UT_Vector3 t_out, r_out, s_out;
 
     OP_Node* parent_node;
+    int prev_fbx_frame_idx;
 
     // Walk the time, compute the final transform matrix at each time, and break it.
     for(curr_time = start_time; curr_time < end_time; curr_time += time_step)
@@ -1160,15 +1167,26 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
-	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyInsert(fbx_time, &t_opt_idx[curr_channel_idx]);
+	    // Note that we can't use KeyInsert() here because sometimes (but not always) it returns
+	    // the same key index for different key times, essentially causing us to overwrite frames.
+	    // KeyAdd() does not do this.
+	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyAdd(fbx_time, &t_opt_idx[curr_channel_idx]);
 	    fbx_t[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 	    fbx_t[curr_channel_idx]->KeySetValue(fbx_key_idx, t_out[curr_channel_idx]);
+	    if(curr_channel_idx == 0)
+	    {
+		if(curr_time > start_time)
+		{
+		    UT_ASSERT_MSG(prev_fbx_frame_idx != fbx_key_idx, "Frame overwriting occurred.");
+		}
+		prev_fbx_frame_idx = fbx_key_idx;
+	    }
 
-	    fbx_key_idx = fbx_r[curr_channel_idx]->KeyInsert(fbx_time, &r_opt_idx[curr_channel_idx]);
+	    fbx_key_idx = fbx_r[curr_channel_idx]->KeyAdd(fbx_time, &r_opt_idx[curr_channel_idx]);
 	    fbx_r[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 	    fbx_r[curr_channel_idx]->KeySetValue(fbx_key_idx, r_out[curr_channel_idx]);
 
-	    fbx_key_idx = fbx_s[curr_channel_idx]->KeyInsert(fbx_time, &s_opt_idx[curr_channel_idx]);
+	    fbx_key_idx = fbx_s[curr_channel_idx]->KeyAdd(fbx_time, &s_opt_idx[curr_channel_idx]);
 	    fbx_s[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 	    fbx_s[curr_channel_idx]->KeySetValue(fbx_key_idx, s_out[curr_channel_idx]);
 	}
@@ -1187,15 +1205,15 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
-	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyInsert(fbx_time, &t_opt_idx[curr_channel_idx]);
+	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyAdd(fbx_time, &t_opt_idx[curr_channel_idx]);
 	    fbx_t[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 	    fbx_t[curr_channel_idx]->KeySetValue(fbx_key_idx, t_out[curr_channel_idx]);
 
-	    fbx_key_idx = fbx_r[curr_channel_idx]->KeyInsert(fbx_time, &r_opt_idx[curr_channel_idx]);
+	    fbx_key_idx = fbx_r[curr_channel_idx]->KeyAdd(fbx_time, &r_opt_idx[curr_channel_idx]);
 	    fbx_r[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 	    fbx_r[curr_channel_idx]->KeySetValue(fbx_key_idx, r_out[curr_channel_idx]);
 
-	    fbx_key_idx = fbx_s[curr_channel_idx]->KeyInsert(fbx_time, &s_opt_idx[curr_channel_idx]);
+	    fbx_key_idx = fbx_s[curr_channel_idx]->KeyAdd(fbx_time, &s_opt_idx[curr_channel_idx]);
 	    fbx_s[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 	    fbx_s[curr_channel_idx]->KeySetValue(fbx_key_idx, s_out[curr_channel_idx]);
 	}

@@ -450,16 +450,27 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 
     // Get and set transforms
     OP_Context op_context(time_in);
-    UT_Matrix4 full_xform;
+    UT_DMatrix4 full_xform;
     if(obj_node)
-	obj_node->getLocalTransform(op_context, full_xform);
+    {
+	UT_DMatrix4		 world_xform, lookat, local_xform, parm_xform;
+	obj_node->getPreLocalTransform(op_context, local_xform);
+	obj_node->getParmTransform(op_context, parm_xform);
+	full_xform = parm_xform * local_xform;
+
+	obj_node->getWorldTransform(world_xform, op_context);
+	if (obj_node->buildLookAt(op_context, world_xform, lookat))
+	{
+	    full_xform = lookat * full_xform;
+	}
+    }
     else
 	full_xform.identity();
 
     if(SYSequalZero(bone_length) == false)
     {
 	// Add a bone length transform
-	UT_Matrix4 bone_trans;
+	UT_DMatrix4 bone_trans;
 	UT_XformOrder xform_default;
 	bone_trans.identity();
 	bone_trans.xform(xform_default, 0.0,0.0,-bone_length, 
@@ -1003,6 +1014,7 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)
     myVertexCache = NULL;
     mySourcePrim = -1;
     myIsSurfacesOnly = false;
+    myTravelledIndex = -1;
 
     myVisitResultType = ROP_FBXVisitorResultOk;
 }
@@ -1016,6 +1028,7 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo(KFbxNode* main_node) : myVisitInfoCopy(NULL)
     myVertexCache = NULL;
     mySourcePrim = -1;
     myIsSurfacesOnly = false;
+    myTravelledIndex = -1;
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo::~ROP_FBXNodeInfo()
@@ -1025,6 +1038,18 @@ ROP_FBXNodeInfo::~ROP_FBXNodeInfo()
     if(myVertexCache)
 	delete myVertexCache;
     myVertexCache = NULL;
+}
+/********************************************************************************************************/
+void 
+ROP_FBXNodeInfo::setTraveledInputIndex(int idx)
+{
+    myTravelledIndex = idx;
+}
+/********************************************************************************************************/
+int 
+ROP_FBXNodeInfo::getTraveledInputIndex(void)
+{
+    return myTravelledIndex;
 }
 /********************************************************************************************************/
 OP_Node* 
