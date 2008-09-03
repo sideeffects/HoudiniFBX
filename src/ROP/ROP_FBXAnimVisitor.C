@@ -415,8 +415,8 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	CH_FullKey full_key;
 	CH_Segment* next_seg;
 	CH_Expression* hd_seg_expr;
+	UT_String str_expression(UT_String::ALWAYS_DEEP);
 	int curr_frame, num_frames = tmp_array.entries();
-	string str_temp_expr;
 	double key_val, db_val;
 
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
@@ -472,9 +472,10 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	    // Look at the next segment type
 	    next_seg = ch->getSegmentAfterKey(key_time);
 	    if(next_seg)
-	    {
+	    { 
 		hd_seg_expr = next_seg->getCHExpr();
-		if( hd_seg_expr->usesSlopes())	    
+		str_expression = hd_seg_expr->getExpression();
+		if(str_expression == "bezier()" || str_expression == "cubic()")
 		{
 		    fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_CUBIC);
 		    if(full_key.k[0].myVTied[CH_SLOPE] || full_key.k[1].myVTied[CH_SLOPE])
@@ -518,18 +519,18 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 		else
 		{
 		    // Try to look for the word linear in it
-		    if(hd_seg_expr->findString("linear()", true, false) || hd_seg_expr->findString("qlinear()", true, false))
+		    if(str_expression == "linear()" || str_expression == "qlinear()")
 		    {
 			// Linear segment
 			fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 		    }
-		    else if(hd_seg_expr->findString("constant()", true, false))
+		    else if(str_expression == "constant()")
 		    {
 			// Constant segment
 			fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_CONSTANT);
 			fbx_curve->KeySetConstantMode(fbx_key_idx, KFCURVE_CONSTANT_STANDARD);
 		    }
-		    else if(hd_seg_expr->findString("vmatchout()", true, false) || hd_seg_expr->findString("matchout()", true, false))
+		    else if(str_expression == "vmatchout()" || str_expression == "matchout()")
 		    {
 			// Constant segment
 			fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_CONSTANT);
@@ -538,19 +539,11 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 		    else
 		    {
 			// Unsupported segment. Treat as linear and resample. 
-/*
-			// To-do - resample?
-			string expr_string(", expression: ");
-			expr_string += (const char *)hd_seg_expr;
-			myErrorManager->addError("Unsupported segment type found. This segment will be resampled. Node: ", source_node->getName(), expr_string.c_str(), false );
-			UT_ASSERT(0); */
-
 			fbx_curve->KeySetInterpolation(fbx_key_idx, KFCURVE_INTERPOLATION_LINEAR);
 
 			int next_frame_idx = curr_frame + 1;
 			if(next_frame_idx >= num_frames)
 			    next_frame_idx = curr_frame;
-			//outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true, NULL, -1);
 			outputResampled(fbx_curve, ch, curr_frame, next_frame_idx, tmp_array, true, parm, parm_idx);
 		    }
 		}
