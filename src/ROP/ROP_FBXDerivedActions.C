@@ -199,8 +199,9 @@ ROP_FBXSkinningAction::performAction(void)
 
     if(fbx_skin)
     {
-        KFbxGeometry* node_attr = (KFbxGeometry*) fbx_deformed_node->GetNodeAttribute();
-	node_attr->AddDeformer(fbx_skin);
+	KFbxGeometry* node_attr = dynamic_cast<KFbxGeometry*>(fbx_deformed_node->GetNodeAttribute());
+	if(node_attr)
+	    node_attr->AddDeformer(fbx_skin);
 
 	// Store the bind pose
 	storeBindPose(fbx_deformed_node, myCaptureFrame);
