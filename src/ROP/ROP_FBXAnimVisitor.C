@@ -670,7 +670,8 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const cha
     // By convention, all cache files are created in a .fpc folder located at the same
     // place as the .fbx file.     
     string cache_file_name(myFBXFileSourceFolder);
-    cache_file_name += "/";
+    if(myFBXFileSourceFolder.length() > 0)
+	cache_file_name += "/";
     cache_file_name += myFBXShortFileName;
     cache_file_name += ".fpc";
 
