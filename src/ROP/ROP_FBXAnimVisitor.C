@@ -24,6 +24,7 @@
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_FloatArray.h>
+#include <UT/UT_Thread.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Director.h>
@@ -418,6 +419,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	UT_String str_expression(UT_String::ALWAYS_DEEP);
 	int curr_frame, num_frames = tmp_array.entries();
 	double key_val, db_val;
+	int thread = UTgetSTID();
 
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
@@ -459,7 +461,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 		key_val = full_key.k[1].myV[CH_VALUE];
 	    else
 	    {
-		parm->getValue(key_time, temp_float, parm_idx);
+		parm->getValue(key_time, temp_float, parm_idx, thread);
 		key_val = temp_float;
 	    }
 
@@ -573,6 +575,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	return;
 
     CH_Manager *ch_manager = CHgetManager();
+    int thread = UTgetSTID();
     int curr_idx;
     float key_time;
 
@@ -609,7 +612,8 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	    for(curr_time = key_time; curr_time < end_time; curr_time += time_step)
 	    {
 		if(direct_eval_parm && parm_idx >= 0)
-		    direct_eval_parm->getValue(curr_time, key_val, parm_idx);
+		    direct_eval_parm->getValue(curr_time, key_val, parm_idx,
+					       thread);
 		else if(ch && next_seg)
 		    ch->sampleValueSlope(next_seg, curr_time, key_val, s);		    
 
@@ -632,7 +636,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	end_time = time_array[end_array_idx];
 	if(direct_eval_parm && parm_idx >= 0)
 	{
-	    direct_eval_parm->getValue(end_time, key_val, parm_idx);
+	    direct_eval_parm->getValue(end_time, key_val, parm_idx, thread);
 	    full_key.k[0].myVValid[CH_VALUE] = true;
 	    full_key.k[1].myVValid[CH_VALUE] = false;
 	    full_key.k[0].myV[CH_VALUE] = key_val;

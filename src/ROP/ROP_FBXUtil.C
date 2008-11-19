@@ -20,6 +20,7 @@
 #include "ROP_FBXUtil.h"
 #include "ROP_FBXCommon.h"
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_Thread.h>
 #include <GU/GU_DetailHandle.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Node.h>
@@ -102,7 +103,7 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 	return;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm))
-	parm->getValue(ftime, strref, 0, do_expand);
+	parm->getValue(ftime, strref, 0, do_expand, UTgetSTID());
 }
 /********************************************************************************************************/
 int 
@@ -115,7 +116,7 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, float 
     int res = 0;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm))
-	parm->getValue(ftime, res, index);
+	parm->getValue(ftime, res, index, UTgetSTID());
 
     return res;
 }
@@ -133,7 +134,7 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
 
     if (node->getParameterOrProperty(parmName, 0, node, parm))
     {
-	parm->getValue(ftime, res, index);
+	parm->getValue(ftime, res, index, UTgetSTID());
 	if(did_find)
 	    *did_find = true;
     }
@@ -569,7 +570,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	    {
 		parm->getValue(
 		    OPgetDirector()->getChannelManager()->getEvaluateTime(),
-		    i, 0 );
+		    i, 0, op_context.getThread());
 		if( op->getInput(i) != NULL )
 		{
 		    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode( op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
@@ -615,6 +616,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
     int		i;
     bool did_is_allowed_only_local;
     bool child_did_find_allowed_types_only;
+    int thread = UTgetSTID();
 
     if(rec_level == 0 && did_find_allowed_only)
 	*did_find_allowed_only = true;
@@ -676,7 +678,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 	    {
 		parm->getValue(
 			OPgetDirector()->getChannelManager()->getEvaluateTime(),
-			i, 0 );
+			i, 0, thread);
 		if( op->getInput(i) != NULL )
 		{
 	    	    child_did_find_allowed_types_only = false;
