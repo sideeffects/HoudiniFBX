@@ -553,7 +553,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
 
     GU_DetailHandle gdh;
-    if (!ROP_FBXUtil::getGeometryHandle(sop_node, geom_export_time, gdh))
+    OP_Context	    context(geom_export_time);
+    if (!ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
 	return false;
 
     GU_DetailHandleAutoReadLock	 gdl(gdh);
@@ -2189,7 +2190,8 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
     if(sop_node)
     {
 	GU_DetailHandle gdh;
-	if (ROP_FBXUtil::getGeometryHandle(sop_node, start_time, gdh))
+	OP_Context	context(start_time);
+	if (ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
 	{
 	    GU_DetailHandleAutoReadLock	 gdl(gdh);
 	    const GU_Detail		*gdp = gdl.getGdp();

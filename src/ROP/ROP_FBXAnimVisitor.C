@@ -832,11 +832,12 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 	GU_DetailHandle gdh;
 	SOP_Node* sop_node = dynamic_cast<SOP_Node*>(node);
 	OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(node);
+	OP_Context context(time);
 
 	if(sop_node)
-	    ROP_FBXUtil::getGeometryHandle(sop_node, time, gdh);
+	    ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh);
 	else
-	    gdh = obj_node->getDisplayGeometryHandle(time);
+	    gdh = obj_node->getDisplayGeometryHandle(context);
 
 	if(gdh.isNull())
 	    return false;
@@ -1231,10 +1232,11 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, float time, int selecte
     // Get at the gdp
     GU_DetailHandle gdh;
     SOP_Node* sop_node = dynamic_cast<SOP_Node*>(node);
+    OP_Context context(time);
 
     if(!sop_node)
 	return -1;
-    ROP_FBXUtil::getGeometryHandle(sop_node, time, gdh);
+    ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh);
 
     if(gdh.isNull())
 	return -1;

@@ -125,8 +125,9 @@ ROP_FBXSkinningAction::performAction(void)
     // Read weights and capture regions from the GDP
     GU_DetailHandle gdh;
     const GU_Detail *gdp;
+    OP_Context	    context(start_time);
 
-    if(!ROP_FBXUtil::getGeometryHandle(sop_node, start_time, gdh))
+    if(!ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
 	return;
 
     GU_DetailHandleAutoReadLock	 gdl(gdh);

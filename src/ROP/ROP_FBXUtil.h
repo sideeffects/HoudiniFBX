@@ -32,6 +32,7 @@ class GU_DetailHandle;
 class GU_Detail;
 class ROP_FBXGDPCache;
 class SOP_Node;
+class OP_Context;
 class OP_Node;
 class OP_Network;
 class GEO_Primitive;
@@ -42,7 +43,7 @@ class ROP_API ROP_FBXUtil
 {
 public:
 
-    static bool getGeometryHandle(SOP_Node* sop_node, float time, GU_DetailHandle &gdh);
+    static bool getGeometryHandle(SOP_Node* sop_node, OP_Context &context, GU_DetailHandle &gdh);
     static void getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand = false, float ftime = 0.0);
     static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0);
     static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0, bool *did_find = NULL);

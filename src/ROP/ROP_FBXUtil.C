@@ -69,7 +69,7 @@ private:
 
 
 bool 
-ROP_FBXUtil::getGeometryHandle(SOP_Node* sop_node, float time, GU_DetailHandle &gdh)
+ROP_FBXUtil::getGeometryHandle(SOP_Node* sop_node, OP_Context &context, GU_DetailHandle &gdh)
 {
     if( sop_node )
     {
@@ -78,7 +78,6 @@ ROP_FBXUtil::getGeometryHandle(SOP_Node* sop_node, float time, GU_DetailHandle &
 	cook_start = clock();
 #endif
 	ropFBX_AutoCookRender	autopop(sop_node);
-	OP_Context	 context(time);
 	gdh = sop_node->getCookedGeoHandle(context);
 #ifdef UT_DEBUG
 	cook_end = clock();
@@ -184,10 +183,12 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 		return -1;
 	}
 
+	OP_Context  context(hd_time);
+
 	if(sop_node)
-	    ROP_FBXUtil::getGeometryHandle(sop_node, hd_time, gdh);
+	    ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh);
 	else
-	    gdh = obj_node->getDisplayGeometryHandle(hd_time);
+	    gdh = obj_node->getDisplayGeometryHandle(context);
 
 	if(gdh.isNull() == false)
 	{
