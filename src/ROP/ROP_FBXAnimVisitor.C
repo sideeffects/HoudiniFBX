@@ -615,7 +615,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 		    direct_eval_parm->getValue(curr_time, key_val, parm_idx,
 					       thread);
 		else if(ch && next_seg)
-		    ch->sampleValueSlope(next_seg, curr_time, key_val, s);		    
+		    ch->sampleValueSlope(next_seg, curr_time, thread, key_val, s);		    
 
 		fbx_time.SetSecondDouble(curr_time+secs_per_sample);
 		if(do_insert)

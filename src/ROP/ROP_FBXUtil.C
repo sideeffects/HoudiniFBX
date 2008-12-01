@@ -570,7 +570,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	    if( parm != NULL )
 	    {
 		parm->getValue(
-		    OPgetDirector()->getChannelManager()->getEvaluateTime(),
+		    ftime,
 		    i, 0, op_context.getThread());
 		if( op->getInput(i) != NULL )
 		{
@@ -678,7 +678,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 	    if( parm != NULL )
 	    {
 		parm->getValue(
-			OPgetDirector()->getChannelManager()->getEvaluateTime(),
+			CHgetEvalTime(),
 			i, 0, thread);
 		if( op->getInput(i) != NULL )
 		{
