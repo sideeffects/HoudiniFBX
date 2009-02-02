@@ -562,6 +562,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	}
 
 	// if we're a switch SOP, then look up the appropriate input chain
+	bool is_aswitch = false;
 	if(op->getOperator()->getName() == "switch" )
 	{
 	    PRM_Parm *	parm;
@@ -574,6 +575,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 		    i, 0, op_context.getThread());
 		if( op->getInput(i) != NULL )
 		{
+		    is_aswitch = true;
 		    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode( op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
 
 		    // Found a time-dependent node. That's all we need.
@@ -587,7 +589,7 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 	    }
 	}
 
-	for( i = op->getConnectedInputIndex(-1); !is_time_dependent && i >= 0;
+	for( i = op->getConnectedInputIndex(-1); !is_aswitch && !is_time_dependent && i >= 0;
 	    i = op->getConnectedInputIndex(i) )
 	{
 	    // We need to traverse reference inputs as well, in cases,
@@ -670,6 +672,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 	}
 
 	// if we're a switch SOP, then look up the appropriate input chain
+	bool is_aswitch = false;
 	if( !found && op->getOperator()->getName() == "switch" )
 	{
 	    PRM_Parm *	parm;
@@ -682,6 +685,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 			i, 0, thread);
 		if( op->getInput(i) != NULL )
 		{
+		    is_aswitch = true;
 	    	    child_did_find_allowed_types_only = false;
 		    found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1 );
 		    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
@@ -690,7 +694,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 	    }
 	}
 
-	for( i = op->getConnectedInputIndex(-1); !found && i >= 0;
+	for( i = op->getConnectedInputIndex(-1); !is_aswitch && !found && i >= 0;
 	     i = op->getConnectedInputIndex(i) )
 	{
 	    // We need to traverse reference inputs as well, in cases,
