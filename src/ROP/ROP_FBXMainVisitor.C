@@ -576,7 +576,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	// 2) Pure NURBS;
 	// 3) Pure Beziers;
 	// 4) Anything else, converted to polygons.
-	if(prim_type == GEOPRIMPOLY && v_cache_out->getIsNumPointsConstant())
+	if((prim_type == GEOPRIMPOLY || prim_type == GEOPRIMMESH || prim_type == (GEOPRIMPOLY | GEOPRIMMESH)) && v_cache_out->getIsNumPointsConstant())
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
 	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
@@ -1318,6 +1318,38 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     }
     // And the last one:
     //fbx_control_points[curr_point].Set(pos[0],pos[1],pos[2],pos[3]);
+
+    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMMESH)
+    {
+	const GEO_Hull		*hull = dynamic_cast<const GEO_Hull*>(prim);
+
+	const GB_Element		*p0, *p1, *p2, *p3;
+	int rows = hull->getNumRows();
+	int cols = hull->getNumCols();
+	int wrapr = hull->isWrappedV() ? rows : rows-1;
+	int wrapc = hull->isWrappedU() ? cols : cols-1;
+
+	int r,c,c1, r1;
+	for (r = 0; r < wrapr; r++)
+	{
+	    r1 = (r+1) % rows;
+	    for (c = 0; c < wrapc; c++)
+	    {
+		c1 = (c+1) % cols;
+		p0 = hull->getVertex(r,  c ).getBasePt();
+		p1 = hull->getVertex(r1, c ).getBasePt();
+		p2 = hull->getVertex(r1, c1).getBasePt();
+		p3 = hull->getVertex(r,  c1).getBasePt();
+
+		mesh_attr->BeginPolygon();
+		mesh_attr->AddPolygon(p0->getNum());
+		mesh_attr->AddPolygon(p1->getNum());
+		mesh_attr->AddPolygon(p2->getNum());
+		mesh_attr->AddPolygon(p3->getNum());
+		mesh_attr->EndPolygon();
+	    }
+	}
+    }
 
     // Now set vertices
     int curr_vert, num_verts;
