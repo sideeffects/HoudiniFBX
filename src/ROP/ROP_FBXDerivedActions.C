@@ -417,8 +417,7 @@ ROP_FBXCreateInstancesAction::performAction(void)
     bool did_find_any_targets = true;
     bool are_all_instances_set = false;
 
-    ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
-    KFbxNodeAttribute* fbx_target_attr;
+    ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();    
 
     OP_Node *hd_inst, *hd_inst_target;
     UT_String target_obj_path;

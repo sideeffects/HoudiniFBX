@@ -166,8 +166,6 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
     const GU_Detail *gdp;
     int max_points = 0;    
     int first_frame_num_points = -1;
-    const GU_Detail *final_gdp;
-    const GEO_Primitive *prim;
     
     int curr_num_unconverted_points;
     bool is_num_verts_constant = true;

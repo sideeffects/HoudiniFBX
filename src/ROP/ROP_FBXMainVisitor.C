@@ -713,7 +713,6 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
     orig_name += "_bezier_surf";
     UT_String curr_name(UT_String::ALWAYS_DEEP);
     int obj_cntr = 0;
-    KFbxNurbsSurface *nurbs_surf_attr;
 
     GEO_Primitive* prim;
     GU_PrimRBezSurf* hd_line;
@@ -1451,7 +1450,6 @@ void exportVertexAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
     // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
 
     // Go over all vertices
-    const GEO_Point* ppt;
     const HD_TYPE* hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
