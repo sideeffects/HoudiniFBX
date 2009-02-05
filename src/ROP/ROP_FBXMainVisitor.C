@@ -1483,7 +1483,6 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEl
 	return;
 
     // Go over all vertices
-    const GEO_Point* ppt;
     const HD_TYPE* hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
@@ -1506,10 +1505,8 @@ void exportDetailAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
 	return;
 
     // Go over all vertices
-    const GEO_Point* ppt;
     const HD_TYPE* hd_type;
     FBX_TYPE fbx_type;
-    const GEO_Primitive* prim;
 
     hd_type = gdp->attribs().template castAttribData<HD_TYPE>(attr_offset);
     if(hd_type)
@@ -1605,7 +1602,6 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
     const GEO_Point* ppt;
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
-    SIMPLE_TYPE val_copy;
 
     int attr_offset = gdp->findPointAttrib(attr);
     UT_ASSERT(attr_offset >= 0);
@@ -1634,7 +1630,6 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 
     // Go over all vertices
     const GEO_Primitive* prim;
-    const GEO_Point* ppt;
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
     int total_verts = 0;
@@ -1677,7 +1672,6 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 
     // Go over all vertices
     const GEO_Primitive* prim;
-    const GEO_Point* ppt;
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
 
@@ -1712,8 +1706,6 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 	return;
 
     // Go over all vertices
-    const GEO_Primitive* prim;
-    const GEO_Point* ppt;
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
 

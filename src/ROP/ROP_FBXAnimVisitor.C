@@ -879,7 +879,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 
 
     int actual_gdp_points = final_gdp->points().entries();
-    int curr_point, actual_max_points;
+    int curr_point;
     UT_Vector4 ut_vec;
     int arr_offset;
 
@@ -1253,7 +1253,6 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, float time, int selecte
     const GU_PrimNURBSurf* hd_nurb;
     const GU_PrimNURBCurve* hd_nurb_curve;
     GU_PrimRBezCurve* hd_bez_curve;
-    GU_PrimRBezSurf* hd_bez;
     const GEO_Primitive* prim;
     int curr_prim_cnt = -1;
     FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMNURBSURF)
