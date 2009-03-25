@@ -115,7 +115,7 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0, &vcTypeMenu),
     PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName, 0, &invisObjMenu),
     PRM_Template(PRM_TOGGLE,  1, &convertSurfacesName, &convertSurfacesDefault, NULL),
-    PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName, 0, &skdVersionsMenu),
+    PRM_Template(PRM_STRING,  PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName, 0, &skdVersionsMenu),
     PRM_Template(PRM_TOGGLE,  1, &conserveMem, &conserveMemDefault, NULL),
 };
 
