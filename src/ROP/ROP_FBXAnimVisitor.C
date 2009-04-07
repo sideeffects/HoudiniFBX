@@ -175,7 +175,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // since this FBX node corresponds to the end tip of the bone.
 	    //KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
 	    //exportResampledAnimation(curr_fbx_bone_take, node);
-	    exportResampledAnimation(curr_fbx_take, node, fbx_node);
+	    exportResampledAnimation(curr_fbx_take, node, fbx_node, node_info_in);
 	}
 	else
 	{
@@ -1045,7 +1045,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node)
+ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
 {
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
@@ -1161,7 +1161,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
 
 	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
@@ -1199,7 +1199,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)

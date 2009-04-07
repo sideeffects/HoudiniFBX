@@ -426,7 +426,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
+ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
 			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation)
 {
     bool set_post_rotation = false;
@@ -459,6 +459,24 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bo
 	full_xform = parm_xform * local_xform;
 
 	obj_node->getWorldTransform(world_xform, op_context);
+
+	if(node_type == "blend")
+	{
+	    OBJ_Node* parent_obj_node = NULL;
+	    if(node_info && node_info->getParentInfo())
+		parent_obj_node = dynamic_cast<OBJ_Node*>(node_info->getParentInfo()->getHdNode());
+
+	    if(parent_obj_node)
+	    {
+		UT_DMatrix4 parent_world_xform;
+		parent_obj_node->getWorldTransform(parent_world_xform, op_context);
+		parent_world_xform.invert();
+		full_xform = world_xform * parent_world_xform;
+	    }
+	    else
+		full_xform = world_xform;
+	}
+
 	if (obj_node->buildLookAt(op_context, world_xform, lookat))
 	{
 	    full_xform = lookat * full_xform;
@@ -713,7 +731,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, 
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, 
 				   float ftime, UT_String* override_node_type, bool use_world_transform)
 {
 
@@ -730,7 +748,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool ha
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate))
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate))
     {
 	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
 	fbx_node->SetRotationActive(true);

@@ -55,12 +55,12 @@ public:
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
     static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
-    static bool getFinalTransforms(OP_Node* hd_node, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
+    static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
 	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0);
     static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], float ftime, bool include_me);
-    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, bool has_lookat_node, float bone_length, float ftime, UT_String* override_node_type, bool use_world_transform = false);
+    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float ftime, UT_String* override_node_type, bool use_world_transform = false);
     static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
 
     static unsigned getGdpPrimId(const GU_Detail* gdp);

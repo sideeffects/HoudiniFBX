@@ -326,7 +326,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	UT_String* override_type_ptr = NULL;
 	if(override_node_type.isstring())
 	    override_type_ptr = &override_node_type;
-	ROP_FBXUtil::setStandardTransforms(hd_node, new_node, (lookatobjectpath.length() > 0), bone_length, myStartTime, override_type_ptr);
+	ROP_FBXUtil::setStandardTransforms(hd_node, new_node, node_info, (lookatobjectpath.length() > 0), bone_length, myStartTime, override_type_ptr);
 
 	// If there's a lookat object, queue up the action
 	if(lookatobjectpath.length() > 0)
@@ -384,7 +384,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 
 	res_node->SetVisibility(last_node->getDisplay());
 
-	ROP_FBXUtil::setStandardTransforms(NULL, res_node, false, cast_info->getBoneLength(), myStartTime, NULL );
+	ROP_FBXUtil::setStandardTransforms(NULL, res_node, last_node_info, false, cast_info->getBoneLength(), myStartTime, NULL );
 
 	if(last_node_info->getFbxNode())
 	    last_node_info->getFbxNode()->AddChild(res_node);
