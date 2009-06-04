@@ -381,7 +381,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
 
-    if(force_resample)
+    if(myExportOptions->getResampleAllAnimation() || force_resample)
     {
 	// Do the entire time range
 	tmp_array.entries(2);
@@ -392,6 +392,17 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     {
 	CHbuildRange( start_frame, end_frame, range );
 	ch->getKeyTimes(range, tmp_array, false);
+
+	if(!ch->isAtHardKeyframe(start_frame))
+	{
+	    // We're not starting at a key frame. Add start time to the array.
+	    tmp_array.insert(ch_manager->getTime(start_frame), 0);
+	}
+	if(!ch->isAtHardKeyframe(end_frame))
+	{
+	    // We're not ending at a key frame. Add end time to the array.
+	    tmp_array.append(ch_manager->getTime(end_frame));
+	}
     }
 
     fbx_curve->KeyModifyBegin();
