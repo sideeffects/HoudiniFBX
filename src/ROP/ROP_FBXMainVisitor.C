@@ -1888,6 +1888,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 		// Create an appropriate layer element and fill it with values
 		attr_offset = gdp->findPointAttrib(attr);
 		res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_CONTROL_POINT, mesh_attr);
+		setProperName(res_elem, gdp, attr);
 	    }
 	    else
 		user_attribs.push_back(attr);
@@ -1915,7 +1916,8 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findVertexAttrib(attr);
 	    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
-	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX, mesh_attr);
+	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX, mesh_attr);
+	    setProperName(res_elem, gdp, attr);
 	}
 	else
 	    user_attribs.push_back(attr);
@@ -1942,7 +1944,8 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findPrimAttrib(attr);
-	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON, mesh_attr);
+	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON, mesh_attr);
+	    setProperName(res_elem, gdp, attr);
 	}
 	else
 	    user_attribs.push_back(attr);
@@ -1969,7 +1972,8 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findAttrib(attr);
-	    getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eALL_SAME, mesh_attr);
+	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eALL_SAME, mesh_attr);
+	    setProperName(res_elem, gdp, attr);
 	}
 	else
 	    user_attribs.push_back(attr);
@@ -2801,6 +2805,38 @@ ROP_FBXCreateInstancesAction*
 ROP_FBXMainVisitor::getCreateInstancesAction(void)
 {
     return myInstancesActionPtr;
+}
+/********************************************************************************************************/
+static int
+ROP_FBXgFindMappedName(const char *attr, const char *varname, void *data)
+{
+    string* str_orig_name = (string*)data;
+    
+    if(*str_orig_name == attr)
+    {
+	*str_orig_name = varname;
+	return 0;
+    }
+    else
+	return 1;
+}
+
+void 
+ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GB_Attribute* attr)
+{
+    if(!fbx_layer_elem || !attr || !attr->getName())
+	return;
+
+    // Try to get a mapped name
+    string str_mapped_name(attr->getName());
+    gdp->traverseVariableNames(ROP_FBXgFindMappedName, &str_mapped_name);
+
+    if(str_mapped_name.length() <= 0)
+	str_mapped_name = attr->getName();
+    
+    // Set it
+    if(str_mapped_name.length() > 0)
+	fbx_layer_elem->SetName(str_mapped_name.c_str());
 }
 /********************************************************************************************************/
 // ROP_FBXMainNodeVisitInfo
