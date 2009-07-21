@@ -418,8 +418,6 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
     else
     {
 	bool found_untied_keys = false;
-	bool failed_getting_key = false;
-	int first_failed_frame = -1;
 
 	int fbx_key_idx;
 	float key_time;
@@ -446,12 +444,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	{
 	    // Convert frame to time
 	    key_time = tmp_array[curr_frame];
-	    if(ch->getFullKey(key_time, full_key) == false)
-	    {
-		failed_getting_key = true;
-		if(first_failed_frame == -1)
-		    first_failed_frame = curr_frame;
-	    }
+	    ch->getFullKey(key_time, full_key);
 
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
 	    fbx_key_idx = fbx_curve->KeyFind(fbx_time, &c_index);
@@ -567,13 +560,6 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 
 	if(found_untied_keys)
 	    myErrorManager->addError("Untied key values encountered. This is not supported. Node: ", source_node->getName(), NULL, false );
-
-	if(failed_getting_key)
-	{
-	    UT_String temp_error(UT_String::ALWAYS_DEEP);
-	    temp_error.sprintf(" frame: %d", first_failed_frame);
-	    myErrorManager->addError("Failed getting at least one key. Node, first failed frame: ", source_node->getName(), (const char*)temp_error, false );
-	}
     }
     fbx_curve->KeyModifyEnd();
 }
