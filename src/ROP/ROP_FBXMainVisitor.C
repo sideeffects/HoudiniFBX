@@ -1419,7 +1419,7 @@ inline void ROP_FBXassignValues(const UT_Vector3& hd_col, KFbxColor& fbx_col)
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportPointAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1442,7 +1442,7 @@ void exportPointAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElemen
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportVertexAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1477,7 +1477,7 @@ void exportVertexAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportPrimitiveAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1499,7 +1499,7 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEl
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportDetailAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1518,7 +1518,7 @@ void exportDetailAttribute(const GU_Detail *gdp, int attr_offset, KFbxLayerEleme
 /********************************************************************************************************/
 KFbxLayerElement* 
 ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, 
-					     int attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container)
+					     const GB_AttributeRef &attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container)
 {
     KFbxLayerElement::EReferenceMode ref_mode;
 
@@ -1603,9 +1603,9 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
 
-    int attr_offset = gdp->findPointAttrib(attr);
-    UT_ASSERT(attr_offset >= 0);
-    if(attr_offset < 0)
+    const GB_AttributeRef &attr_offset = gdp->findPointAttrib(attr);
+    UT_ASSERT(attr_offset.isValid());
+    if(attr_offset.isInvalid())
 	return;
 
     layer_elem->ResizeAllDirectArrays(gdp->points().entries());
@@ -1635,9 +1635,9 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     int total_verts = 0;
     int curr_vert, num_verts;
 
-    int attr_offset = gdp->findVertexAttrib(attr);
-    UT_ASSERT(attr_offset >= 0);
-    if(attr_offset < 0)
+    const GB_AttributeRef &attr_offset = gdp->findVertexAttrib(attr);
+    UT_ASSERT(attr_offset.isValid());
+    if(attr_offset.isInvalid())
 	return;
 
     FOR_ALL_PRIMITIVES(gdp, prim)
@@ -1675,9 +1675,9 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
     SIMPLE_TYPE const * hd_type;
     int array_pos = 0;
 
-    int attr_offset = gdp->findPrimAttrib(attr);
-    UT_ASSERT(attr_offset >= 0);
-    if(attr_offset < 0)
+    const GB_AttributeRef &attr_offset = gdp->findPrimAttrib(attr);
+    UT_ASSERT(attr_offset.isValid());
+    if(attr_offset.isInvalid())
 	return;
 
     layer_elem->ResizeAllDirectArrays(gdp->primitives().entries());
@@ -1700,9 +1700,9 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     if(!gdp || !layer_elem)
 	return;
 
-    int attr_offset = gdp->findAttrib(attr);
-    UT_ASSERT(attr_offset >= 0);
-    if(attr_offset < 0)
+    const GB_AttributeRef &attr_offset = gdp->findAttrib(attr);
+    UT_ASSERT(attr_offset.isValid());
+    if(attr_offset.isInvalid())
 	return;
 
     // Go over all vertices
@@ -1864,7 +1864,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     GB_Attribute* attr;
     ROP_FBXAttributeType curr_attr_type;
     KFbxLayer* attr_layer;
-    int attr_offset;
+    GB_AttributeRef attr_offset;
     KFbxLayerElement* res_elem;
     THDAttributeVector user_attribs;
 
@@ -2226,12 +2226,12 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 		// See if we have any per-prim materials
 		const GEO_PrimAttribDict &prim_attribs = gdp->primitiveAttribs();
 		GB_Attribute *matPathAttr = prim_attribs.find(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
-		int attrOffset = -1;
+		GB_AttributeRef attrOffset;
 		if (matPathAttr)
 		    attrOffset = prim_attribs.getOffset(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
     	    
 		const char *loc_mat_path = NULL;
-		if(attrOffset >= 0)
+		if(attrOffset.isValid())
 		{
 		    num_prims = gdp->primitives().entries();
 		    per_face_mats = new OP_Node* [num_prims];
@@ -2240,8 +2240,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 		    int curr_prim_idx = 0;
 		    FOR_ALL_PRIMITIVES(gdp, prim)
 		    {
-			const GB_AttributeData &attr_data = prim->getAttrib();
-			int index = *reinterpret_cast<int*>(attr_data[attrOffset]);
+			int index = *prim->castAttribData<int>(attrOffset);
 			loc_mat_path = matPathAttr->getIndex(index);
 			// Find corresponding mat
 			if(loc_mat_path)

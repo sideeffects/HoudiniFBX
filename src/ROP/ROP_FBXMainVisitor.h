@@ -30,6 +30,7 @@
 class ROP_FBXExporter;
 class GU_Detail;
 class GB_Attribute;
+class GB_AttributeRef;
 class GD_TrimRegion;
 class ROP_FBXErrorManager;
 class ROP_FBXGDPCache;
@@ -188,7 +189,7 @@ protected:
 
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
     KFbxLayerElement* getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
-	const GU_Detail* gdp, int attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container);
+	const GU_Detail* gdp, const GB_AttributeRef &attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container);
 
     void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
 	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
