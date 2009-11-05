@@ -2246,8 +2246,8 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 			if(loc_mat_path)
 			{
 			    per_face_mats[curr_prim_idx] = source_node->findNode(loc_mat_path);
-			    curr_prim_idx++;
 			}
+			curr_prim_idx++;
 		    }
 		}
 	    }
