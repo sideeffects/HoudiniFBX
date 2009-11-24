@@ -65,7 +65,7 @@ private:
 /********************************************************************************************************/
 #else // FBX_SUPPORTED
 
-#define NULL 0
+#include <stddef.h>
 
 class ROP_API ROP_FBXExporterWrapper
 {
