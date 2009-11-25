@@ -742,7 +742,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBX
     {
 	UT_DMatrix4 world_matrix;
 	OP_Context op_context(ftime);
-	world_matrix = hd_node->getWorldTransform(op_context);
+	(void) hd_node->getWorldTransform(world_matrix, op_context);
 
 	UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
 	world_matrix.explode(xform_order, r,s,t);

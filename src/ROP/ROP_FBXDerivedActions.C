@@ -245,7 +245,7 @@ ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fb
     if(node_info)
     {
 	hd_node = node_info->getHdNode();
-	world_matrix = hd_node->getWorldTransform(capt_context);
+	(void) hd_node->getWorldTransform(world_matrix, capt_context);
 	ROP_FBXUtil::convertHdMatrixToFbxMatrix<KFbxXMatrix>(world_matrix, xform_matrix);
     }
     else
@@ -256,7 +256,7 @@ ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fb
     if(node_info)
     {
 	hd_node = node_info->getHdNode();
-	world_matrix = hd_node->getWorldTransform(capt_context);
+	(void) hd_node->getWorldTransform(world_matrix, capt_context);
 	ROP_FBXUtil::convertHdMatrixToFbxMatrix<KFbxXMatrix>(world_matrix, xform_matrix);
     }
     else
@@ -344,7 +344,7 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, float capture_frame)
 	    if(node_info)
 	    {
 		hd_node = node_info->getHdNode();
-		world_matrix = hd_node->getWorldTransform(capt_context);
+		(void) hd_node->getWorldTransform(world_matrix, capt_context);
 		ROP_FBXUtil::convertHdMatrixToFbxMatrix<KFbxMatrix>(world_matrix, bind_matrix);
 	    }
 	    else
