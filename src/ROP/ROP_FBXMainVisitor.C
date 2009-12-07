@@ -445,7 +445,6 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 {
     did_cancel_out = false;
 
-    KFbxNode* res_node = NULL;
     OP_Network* op_net = dynamic_cast<OP_Network*>(node);
     if(!op_net)
 	return false;
@@ -1426,18 +1425,15 @@ void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offs
 
     // Go over all points
     const GEO_Point* ppt;
-    const HD_TYPE* hd_type;
+    HD_TYPE hd_type;
     FBX_TYPE fbx_type;
 
     FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
     {
-	hd_type = ppt->template castAttribData<HD_TYPE>(attr_offset);
+	hd_type = ppt->getValue<HD_TYPE>(attr_offset);
 
-	if(hd_type)
-	{
-	    ROP_FBXassignValues(*hd_type, fbx_type);
-	    layer_elem->GetDirectArray().Add(fbx_type);
-	}
+	ROP_FBXassignValues(hd_type, fbx_type);
+	layer_elem->GetDirectArray().Add(fbx_type);
     }
 }
 /********************************************************************************************************/
@@ -1450,7 +1446,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
     // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
 
     // Go over all vertices
-    const HD_TYPE* hd_type;
+    HD_TYPE hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
 
@@ -1463,15 +1459,13 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 	num_verts = prim->getVertexCount();
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = prim->getVertex(curr_vert).template castAttribData<HD_TYPE>(attr_offset);
-	    if(hd_type)
-	    {
-		ROP_FBXassignValues(*hd_type, fbx_type);
-		layer_elem->GetDirectArray().Add(fbx_type);
-		if(is_indexed)
-		    layer_elem->GetIndexArray().Add(curr_arr_cntr);
-		curr_arr_cntr++;
-	    }
+	    hd_type = prim->getVertex(curr_vert).getValue<HD_TYPE>(attr_offset);
+
+	    ROP_FBXassignValues(hd_type, fbx_type);
+	    layer_elem->GetDirectArray().Add(fbx_type);
+	    if(is_indexed)
+		layer_elem->GetIndexArray().Add(curr_arr_cntr);
+	    curr_arr_cntr++;
 	}
     }
 }
@@ -1483,18 +1477,15 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_
 	return;
 
     // Go over all vertices
-    const HD_TYPE* hd_type;
+    HD_TYPE hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
 
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
-	hd_type = prim->template castAttribData<HD_TYPE>(attr_offset);
-	if(hd_type)
-	{
-	    ROP_FBXassignValues(*hd_type, fbx_type);
-	    layer_elem->GetDirectArray().Add(fbx_type);
-	}
+	hd_type = prim->getValue<HD_TYPE>(attr_offset);
+	ROP_FBXassignValues(hd_type, fbx_type);
+	layer_elem->GetDirectArray().Add(fbx_type);
     }
 }
 /********************************************************************************************************/
@@ -1505,15 +1496,12 @@ void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 	return;
 
     // Go over all vertices
-    const HD_TYPE* hd_type;
+    HD_TYPE hd_type;
     FBX_TYPE fbx_type;
 
-    hd_type = gdp->attribs().template castAttribData<HD_TYPE>(attr_offset);
-    if(hd_type)
-    {
-	ROP_FBXassignValues(*hd_type, fbx_type);
-	layer_elem->GetDirectArray().Add(fbx_type);
-    }
+    hd_type = gdp->attribs().getElement().getValue<HD_TYPE>(attr_offset);
+    ROP_FBXassignValues(hd_type, fbx_type);
+    layer_elem->GetDirectArray().Add(fbx_type);
 }
 /********************************************************************************************************/
 KFbxLayerElement* 
@@ -1600,7 +1588,7 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
 
     // Go over all points
     const GEO_Point* ppt;
-    SIMPLE_TYPE const * hd_type;
+    SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
     const GB_AttributeRef &attr_offset = gdp->findPointAttrib(attr);
@@ -1612,12 +1600,8 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
     SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
     FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
     {
-	hd_type = ppt->template castAttribData<SIMPLE_TYPE>(attr_offset);
-
-	if(hd_type)
-	    fbx_direct_array[array_pos] = hd_type[attr_subindex];
-	else
-	    fbx_direct_array[array_pos] = 0;
+	hd_type = ppt->getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+	fbx_direct_array[array_pos] = hd_type;
 	array_pos++;
     }
 }
@@ -1630,7 +1614,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 
     // Go over all vertices
     const GEO_Primitive* prim;
-    SIMPLE_TYPE const * hd_type;
+    SIMPLE_TYPE hd_type;
     int array_pos = 0;
     int total_verts = 0;
     int curr_vert, num_verts;
@@ -1654,11 +1638,8 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 	num_verts = prim->getVertexCount();
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = prim->getVertex(curr_vert).template castAttribData<SIMPLE_TYPE>(attr_offset);
-	    if(hd_type)
-		fbx_direct_array[array_pos] = hd_type[attr_subindex];
-	    else
-		fbx_direct_array[array_pos] = 0;
+	    hd_type = prim->getVertex(curr_vert).getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+	    fbx_direct_array[array_pos] = hd_type;
 	    array_pos++;
 	}
     }
@@ -1672,7 +1653,7 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 
     // Go over all vertices
     const GEO_Primitive* prim;
-    SIMPLE_TYPE const * hd_type;
+    SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
     const GB_AttributeRef &attr_offset = gdp->findPrimAttrib(attr);
@@ -1685,11 +1666,8 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
-	hd_type = prim->template castAttribData<SIMPLE_TYPE>(attr_offset);
-	if(hd_type)
-	    fbx_direct_array[array_pos] = hd_type[attr_subindex];
-	else
-	    fbx_direct_array[array_pos] = 0;
+	hd_type = prim->getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+	fbx_direct_array[array_pos] = hd_type;
 	array_pos++;
     }
 }
@@ -1706,17 +1684,14 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 	return;
 
     // Go over all vertices
-    SIMPLE_TYPE const * hd_type;
+    SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
     layer_elem->ResizeAllDirectArrays(1);
     SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
 
-    hd_type = gdp->attribs().template castAttribData<SIMPLE_TYPE>(attr_offset);
-    if(hd_type)
-	fbx_direct_array[array_pos] = hd_type[attr_subindex];
-    else
-	fbx_direct_array[array_pos] = 0;
+    hd_type = gdp->attribs().getElement().getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+    fbx_direct_array[array_pos] = hd_type;
     array_pos++;
 }
 /********************************************************************************************************/
@@ -2240,7 +2215,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 		    int curr_prim_idx = 0;
 		    FOR_ALL_PRIMITIVES(gdp, prim)
 		    {
-			int index = *prim->castAttribData<int>(attrOffset);
+			int index = prim->getValue<int>(attrOffset);
 			loc_mat_path = matPathAttr->getIndex(index);
 			// Find corresponding mat
 			if(loc_mat_path)
@@ -2647,7 +2622,6 @@ ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, int texture_idx, UT_Stri
     if(!surface_node)
 	return false;
 
-    const UT_String& mat_name = mat_node->getName();
     UT_String text_parm_name(UT_String::ALWAYS_DEEP);
     UT_String texture_path, texture_name(UT_String::ALWAYS_DEEP);
     text_parm_name.sprintf("ogl_tex%d", texture_idx+1);
