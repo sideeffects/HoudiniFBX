@@ -1459,7 +1459,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 	num_verts = prim->getVertexCount();
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = prim->getVertex(curr_vert).getValue<HD_TYPE>(attr_offset);
+	    hd_type = prim->getVertex(curr_vert).template getValue<HD_TYPE>(attr_offset);
 
 	    ROP_FBXassignValues(hd_type, fbx_type);
 	    layer_elem->GetDirectArray().Add(fbx_type);
@@ -1499,7 +1499,7 @@ void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
     HD_TYPE hd_type;
     FBX_TYPE fbx_type;
 
-    hd_type = gdp->attribs().getElement().getValue<HD_TYPE>(attr_offset);
+    hd_type = gdp->attribs().getElement().template getValue<HD_TYPE>(attr_offset);
     ROP_FBXassignValues(hd_type, fbx_type);
     layer_elem->GetDirectArray().Add(fbx_type);
 }
@@ -1638,7 +1638,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 	num_verts = prim->getVertexCount();
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = prim->getVertex(curr_vert).getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+	    hd_type = prim->getVertex(curr_vert).template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
 	    fbx_direct_array[array_pos] = hd_type;
 	    array_pos++;
 	}
@@ -1690,7 +1690,7 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     layer_elem->ResizeAllDirectArrays(1);
     SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
 
-    hd_type = gdp->attribs().getElement().getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+    hd_type = gdp->attribs().getElement().template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
     fbx_direct_array[array_pos] = hd_type;
     array_pos++;
 }
