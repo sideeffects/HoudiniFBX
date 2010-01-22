@@ -21,6 +21,7 @@
 #define __ROP_FBXAnimVisitor_h__
 
 #include <fbx/fbxsdk.h>
+#include <UT/UT_VectorTypes.h>
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 
@@ -31,8 +32,6 @@ class ROP_FBXErrorManager;
 class ROP_FBXNodeInfo;
 class SOP_Node;
 class CH_Channel;
-class UT_IntArray;
-class UT_FloatArray;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
 class PRM_Parm;
