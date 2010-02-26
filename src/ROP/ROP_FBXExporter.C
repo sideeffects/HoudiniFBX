@@ -263,7 +263,7 @@ ROP_FBXExporter::doExport(void)
 	else
 	    myErrorManager->addError("Unsupported scene frame rate found. Defaulting to 24 frames per second.",NULL,NULL,false);
 	scene_time_setting.SetTimeMode(time_mode);
-	KTime::SetGlobalTimeMode(time_mode);
+	KTime::SetGlobalTimeMode(time_mode, curr_fps);
     }
 
     // Note: what about geom networks in other parts of the scene?

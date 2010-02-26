@@ -430,12 +430,15 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	double key_val, db_val;
 	int thread = UTgetSTID();
 
+	// Apparently, Maya's importer assumes that the time is always set at 24 fps.
+	double time_mult = (double)ch_manager->getSamplesPerSec()/24.0;
+
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
 	    key_time = tmp_array[curr_frame];
 	    ch->getFullKey(key_time, full_key);
 
-	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
+	    fbx_time.SetSecondDouble((key_time+secs_per_sample)*time_mult);
 	    fbx_key_idx = fbx_curve->KeyAdd(fbx_time);
 	}
 
@@ -446,7 +449,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	    key_time = tmp_array[curr_frame];
 	    ch->getFullKey(key_time, full_key);
 
-	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
+	    fbx_time.SetSecondDouble((key_time+secs_per_sample)*time_mult);
 	    fbx_key_idx = fbx_curve->KeyFind(fbx_time, &c_index);
 
 	    if( (full_key.k[0].myVValid[CH_VALUE] && full_key.k[1].myVValid[CH_VALUE]) )
@@ -576,7 +579,10 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
     int curr_idx;
     float key_time;
 
-    float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
+    // Apparently, Maya's importer assumes that the time is always set at 24 fps.
+    double time_mult = (double)ch_manager->getSamplesPerSec()/24.0;
+
+    float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();    
     float time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
     float curr_time, end_time = 0.0;
     int end_idx;
@@ -614,7 +620,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 		else if(ch && next_seg)
 		    ch->sampleValueSlope(next_seg, curr_time, thread, key_val, s);		    
 
-		fbx_time.SetSecondDouble(curr_time+secs_per_sample);
+		fbx_time.SetSecondDouble((curr_time+secs_per_sample)*time_mult);
 		if(do_insert)
 		    fbx_key_idx = fbx_curve->KeyInsert(fbx_time, &opt_idx);
 		else
@@ -642,7 +648,7 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
 	else if(ch)
 	    ch->getFullKey(end_time, full_key);
 
-	fbx_time.SetSecondDouble(end_time+secs_per_sample);
+	fbx_time.SetSecondDouble((end_time+secs_per_sample)*time_mult);
 	if(do_insert)
 	    fbx_key_idx = fbx_curve->KeyInsert(fbx_time);
 	else
@@ -1147,8 +1153,12 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     float bone_length;
     UT_Vector3 t_out, r_out, s_out;
 
+    // Apparently, Maya's importer assumes that the time is always set at 24 fps.
+    double time_mult = (double)ch_manager->getSamplesPerSec()/24.0;
+
     OP_Node* parent_node;
     int prev_fbx_frame_idx;
+    UT_Vector3 prev_frame_rot, *prev_frame_rot_ptr = NULL;
 
     // Walk the time, compute the final transform matrix at each time, and break it.
     for(curr_time = start_time; curr_time < end_time; curr_time += time_step)
@@ -1158,9 +1168,11 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
+	prev_frame_rot_ptr = &prev_frame_rot;
+	prev_frame_rot = r_out;
 
-	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
+	fbx_time.SetSecondDouble((curr_time+secs_per_sample)*time_mult);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
 	    // Note that we can't use KeyInsert() here because sometimes (but not always) it returns
@@ -1196,9 +1208,9 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL); // , true, parent_node);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
 
-	fbx_time.SetSecondDouble(end_time+secs_per_sample);
+	fbx_time.SetSecondDouble((end_time+secs_per_sample)*time_mult);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
 	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyAdd(fbx_time, &t_opt_idx[curr_channel_idx]);

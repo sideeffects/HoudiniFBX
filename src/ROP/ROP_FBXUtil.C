@@ -21,6 +21,7 @@
 #include "ROP_FBXCommon.h"
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Thread.h>
+#include <UT/UT_CrackMatrix.h>
 #include <GU/GU_DetailHandle.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Node.h>
@@ -427,7 +428,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
-			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation)
+			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations)
 {
     bool set_post_rotation = false;
 
@@ -522,6 +523,13 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
     UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
     full_xform.explode(xform_order, r_out,s_out,t_out);
+    if(prev_frame_rotations)
+    {
+	UT_Vector3 prev_rot(*prev_frame_rotations);
+	prev_rot.degToRad();
+	UTcrackMatrixSmooth(UT_XformOrder::SRT, r_out.x(), r_out.y(), r_out.z(), prev_rot.x(),
+	    prev_rot.y(), prev_rot.z());
+    }
     r_out.radToDeg();
 
     return set_post_rotation;
@@ -748,7 +756,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBX
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate))
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate, NULL))
     {
 	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
 	fbx_node->SetRotationActive(true);
