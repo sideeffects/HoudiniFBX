@@ -523,12 +523,23 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
     UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
     full_xform.explode(xform_order, r_out,s_out,t_out);
+    fpreal rots_out[3];
     if(prev_frame_rotations)
     {
 	UT_Vector3 prev_rot(*prev_frame_rotations);
 	prev_rot.degToRad();
-	UTcrackMatrixSmooth(UT_XformOrder::SRT, r_out.x(), r_out.y(), r_out.z(), prev_rot.x(),
+
+	// Because UTcrackMatrixSmooth takes a reference to fpreal while
+	// our UT_Vector3 is templated and depends on the build, we need
+	// this silliness here to let it actually compile.
+	rots_out[0] = r_out.x();
+	rots_out[1] = r_out.y();
+	rots_out[2] = r_out.z();
+
+	UTcrackMatrixSmooth(UT_XformOrder::SRT, rots_out[0], rots_out[1], rots_out[2], prev_rot.x(),
 	    prev_rot.y(), prev_rot.z());
+
+	r_out.assign(rots_out[0], rots_out[1], rots_out[2]);
     }
     r_out.radToDeg();
 
