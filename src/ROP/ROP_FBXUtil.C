@@ -102,7 +102,7 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
     if(!node)
 	return;
 
-    if (node->getParameterOrProperty(parmName, 0, node, parm))
+    if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
 	parm->getValue(ftime, strref, 0, do_expand, UTgetSTID());
 }
 /********************************************************************************************************/
@@ -115,7 +115,7 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, float 
     PRM_Parm	 *parm;
     int res = 0;
 
-    if (node->getParameterOrProperty(parmName, 0, node, parm))
+    if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
 	parm->getValue(ftime, res, index, UTgetSTID());
 
     return res;
@@ -132,7 +132,7 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
     if(!node)
 	return 0.0;
 
-    if (node->getParameterOrProperty(parmName, 0, node, parm))
+    if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
     {
 	parm->getValue(ftime, res, index, UTgetSTID());
 	if(did_find)
