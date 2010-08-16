@@ -1606,6 +1606,36 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
     }
 }
 /********************************************************************************************************/
+void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_size, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+{
+    if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
+	return;
+
+    // Go over all points
+    const GEO_Point* ppt;
+    float hd_type;
+    int array_pos = 0;
+
+    const GB_AttributeRef &attr_offset = gdp->findPointAttrib(attr);
+    UT_ASSERT(attr_offset.isValid());
+    if(attr_offset.isInvalid())
+	return;
+
+    int curr_size;
+    layer_elem->ResizeAllDirectArrays(gdp->points().entries());
+
+    float *fbx_direct_array =(float *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
+    {
+	for(curr_size = 0; curr_size < attr_size; curr_size++)
+	{
+	    hd_type = ppt->getValue<float>(attr_offset, curr_size);
+	    fbx_direct_array[array_pos] = hd_type;
+	    array_pos++;
+	}
+    }
+}
+/********************************************************************************************************/
 template < class SIMPLE_TYPE >
 void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
@@ -1695,6 +1725,22 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     array_pos++;
 }
 /********************************************************************************************************/
+int getNumAttrElems(GB_Attribute* attr)
+{
+    int elem_size = 0;
+    GB_AttribType attr_type = attr->getType();
+    if(attr_type == GB_ATTRIB_FLOAT || 
+	attr_type == GB_ATTRIB_VECTOR)
+	elem_size = sizeof(fpreal32);
+    else if(attr_type == GB_ATTRIB_INT)
+	elem_size = sizeof(int);
+    
+    if(elem_size <= 0)
+	return 0;
+    else
+	return attr->getSize()/elem_size;
+}
+/********************************************************************************************************/
 void 
 ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager,
 				KFbxMesh* mesh_attr, KFbxLayerElement::EMappingMode mapping_mode )
@@ -1726,7 +1772,9 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 
 	// Get the attribute type
 	attr_type = attr->getType();
-	attr_size = attr->getSize();
+	attr_size = getNumAttrElems(attr);
+	if(attr_size <= 0)
+	    continue;
 	orig_name = attr->getName();
 
 	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
@@ -1774,7 +1822,8 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	    }
 	    attr_names.push_back((const char*)full_name);
 
-	}
+	} // over attr size
+
     } // over all attributes
 
     if(num_supported_attribs <= 0)
@@ -1788,6 +1837,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     layer_name.sprintf("UserDataLayer%d", layer_idx);
     //KFbxLayerElementUserData *layer_elem = mySDKManager->CreateKFbxLayerElementUserData( (const char*)layer_name, layer_idx, custom_types_array, custom_names_array);
     KFbxLayerElementUserData *layer_elem = KFbxLayerElementUserData::Create(mesh_attr, (const char*)layer_name, layer_idx, custom_types_array, custom_names_array);
+
     layer_elem->SetMappingMode(mapping_mode);
     attr_layer->SetUserData(layer_elem);
     int attr_name_pos = 0;
@@ -1799,7 +1849,9 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 
 	// Get the attribute type
 	attr_type = attr->getType();
-	attr_size = attr->getSize();
+	attr_size = getNumAttrElems(attr);
+	if(attr_size <= 0)
+	    continue;
 	orig_name = attr->getName();
 
 	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
