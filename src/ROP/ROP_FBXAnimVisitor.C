@@ -369,15 +369,15 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	    return;
     }
 
-    float	     temp_float;
-    float	     start_frame;
-    float	     end_frame;
-    UT_SuperInterval range;
-    UT_FloatArray	tmp_array;
+    fpreal temp_float;
+    fpreal start_frame;
+    fpreal end_frame;
+    UT_SuperIntervalR range;
+    UT_FprealArray tmp_array;
     CH_Manager *ch_manager = CHgetManager();
 
-    float start_time = myParentExporter->getStartTime();
-    float end_time = myParentExporter->getEndTime();
+    fpreal start_time = myParentExporter->getStartTime();
+    fpreal end_time = myParentExporter->getEndTime();
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
 
@@ -407,7 +407,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 
     fbx_curve->KeyModifyBegin();
 
-    float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
+    fpreal secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
     if(myExportOptions->getResampleAllAnimation() || force_resample)
     {
 	PRM_Parm* temp_parm_ptr = NULL;
@@ -420,7 +420,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 	bool found_untied_keys = false;
 
 	int fbx_key_idx;
-	float key_time;
+	fpreal key_time;
 	KTime fbx_time;
 	CH_FullKey full_key;
 	CH_Segment* next_seg;
@@ -565,7 +565,7 @@ ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, cons
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FloatArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx)
+ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx)
 {
     UT_ASSERT(start_array_idx <= end_array_idx);
     if(end_array_idx < start_array_idx)
@@ -574,19 +574,19 @@ ROP_FBXAnimVisitor::outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int star
     CH_Manager *ch_manager = CHgetManager();
     int thread = UTgetSTID();
     int curr_idx;
-    float key_time;
+    fpreal key_time;
 
-    float secs_per_sample = 1.0/ch_manager->getSamplesPerSec();    
-    float time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
-    float curr_time, end_time = 0.0;
+    fpreal secs_per_sample = 1.0/ch_manager->getSamplesPerSec();    
+    fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+    fpreal curr_time, end_time = 0.0;
     int end_idx;
     bool is_last;
     int fbx_key_idx;
     KTime fbx_time;
     CH_Segment *next_seg;
     kFCurveIndex opt_idx;
-    float key_val = 0;
-    float s;
+    fpreal key_val = 0;
+    fpreal s;
     curr_time = 0;
     for(curr_idx = start_array_idx; curr_idx < end_array_idx; curr_idx++)
     {
@@ -735,19 +735,19 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
     }
 
     CH_Manager *ch_manager = CHgetManager();
-    float start_frame, end_frame;
-    float start_time = myParentExporter->getStartTime();
-    float end_time = myParentExporter->getEndTime();
+    fpreal start_frame, end_frame;
+    fpreal start_time = myParentExporter->getStartTime();
+    fpreal end_time = myParentExporter->getEndTime();
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
-    float curr_fps = ch_manager->getSamplesPerSec();
+    fpreal curr_fps = ch_manager->getSamplesPerSec();
 
     // Now add data to the deformer
     KFbxCache*               v_cache = vc_deformer->GetCache();
     bool res;
 
     KTime fbx_curr_time;
-    float hd_time;
+    fpreal hd_time;
     int curr_frame;
 
     unsigned int frame_count = end_frame - start_frame + 1;
@@ -1051,15 +1051,15 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     int curr_channel_idx;
     const char* const channel_names[] = { "t", "r", "scale", "length", "pathobjpath", "roll", "pathorient", "up", "bank", "pos"};
     CH_Manager *ch_manager = CHgetManager();
-    float start_frame, end_frame;
-    float gb_start_time = myParentExporter->getStartTime();
-    float gb_end_time = myParentExporter->getEndTime();
+    fpreal start_frame, end_frame;
+    fpreal gb_start_time = myParentExporter->getStartTime();
+    fpreal gb_end_time = myParentExporter->getEndTime();
     start_frame = ch_manager->getSample(gb_start_time);
     end_frame = ch_manager->getSample(gb_end_time);
 
     bool uses_overrides = false;
     bool force_resample = false;
-    float start_time = FLT_MAX, end_time = -FLT_MAX;
+    fpreal start_time = FLT_MAX, end_time = -FLT_MAX;
 
     CH_Channel  *ch;
     PRM_Parm    *parm;
@@ -1144,7 +1144,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     double curr_time;
     KTime fbx_time;
     int fbx_key_idx;
-    float bone_length;
+    fpreal bone_length;
     UT_Vector3 t_out, r_out, s_out;
 
     OP_Node* parent_node;
@@ -1318,9 +1318,9 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, float time, int selecte
 bool 
 ROP_FBXAnimVisitor::hasPivotInfo(OP_Node* node)
 {
-    float px = ROP_FBXUtil::getFloatOPParm(node, "p", 0, myParentExporter->getStartTime());
-    float py = ROP_FBXUtil::getFloatOPParm(node, "p", 1, myParentExporter->getStartTime());
-    float pz = ROP_FBXUtil::getFloatOPParm(node, "p", 2, myParentExporter->getStartTime());
+    fpreal px = ROP_FBXUtil::getFloatOPParm(node, "p", 0, myParentExporter->getStartTime());
+    fpreal py = ROP_FBXUtil::getFloatOPParm(node, "p", 1, myParentExporter->getStartTime());
+    fpreal pz = ROP_FBXUtil::getFloatOPParm(node, "p", 2, myParentExporter->getStartTime());
 
     if(!SYSequalZero(px) || !SYSequalZero(py) || !SYSequalZero(pz))
 	return true;

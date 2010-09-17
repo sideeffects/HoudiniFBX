@@ -147,7 +147,7 @@ ROP_FBXSkinningAction::performAction(void)
     OP_Node* cregion_node, *cregion_parent;
     //KFbxNode* fbx_cregion_parent;
 
-    float capture_time = CHgetManager()->getTime(myCaptureFrame);
+    fpreal capture_time = CHgetManager()->getTime(myCaptureFrame);
     OP_Context capt_context(capture_time);
 
     // Go through every capture region, find a corresponding FBX node.
@@ -273,7 +273,7 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, float capture_frame)
     KFbxScene *fbx_scene = getParentManager().getExporter().getFBXScene();
     KFbxSdkManager *fbx_sdk_manager = getParentManager().getExporter().getSDKManager();
 
-    float capture_time = CHgetManager()->getTime(capture_frame);
+    fpreal capture_time = CHgetManager()->getTime(capture_frame);
     OP_Context capt_context(capture_time);
     
     // Now list the all the link involve in the patch deformation	

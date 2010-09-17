@@ -127,7 +127,7 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
     if(did_find)
 	*did_find = false;
     PRM_Parm	 *parm;
-    float res = 0.0;
+    fpreal res = 0.0;
 
     if(!node)
 	return 0.0;
