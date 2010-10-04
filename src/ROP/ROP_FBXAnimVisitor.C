@@ -1059,7 +1059,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
 
     bool uses_overrides = false;
     bool force_resample = false;
-    fpreal start_time = FLT_MAX, end_time = -FLT_MAX;
+    fpreal start_time = SYS_FPREAL_MAX, end_time = -SYS_FPREAL_MAX;
 
     CH_Channel  *ch;
     PRM_Parm    *parm;
@@ -1094,7 +1094,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     }
 
     // No animation.
-    if((start_time == FLT_MAX || start_time >= end_time) && !force_resample)
+    if((start_time == SYS_FPREAL_MAX || start_time >= end_time) && !force_resample)
 	return;
 
     if(force_resample)
