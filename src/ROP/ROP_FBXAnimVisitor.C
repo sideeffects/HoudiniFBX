@@ -59,6 +59,7 @@ extern double ROP_FBXdb_vcacheExportTime;
 ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter) 
 : ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod(), parent_exporter->getStartTime())
 {
+    myAnimLayer = NULL;
     myParentExporter = parent_exporter;
 
     mySDKManager = myParentExporter->getSDKManager();
@@ -92,9 +93,9 @@ ROP_FBXAnimVisitor::~ROP_FBXAnimVisitor()
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::reset(void)
+ROP_FBXAnimVisitor::reset(KFbxAnimLayer* curr_layer)
 {
-
+    myAnimLayer = curr_layer;
 }
 /********************************************************************************************************/
 ROP_FBXBaseNodeVisitInfo* 
@@ -142,6 +143,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	node_info_in->setIsSurfacesOnly(stored_node_info_ptr->getIsSurfacesOnly());
 	node_info_in->setSourcePrimitive(stored_node_info_ptr->getSourcePrimitive());
 
+/*
+	// Don't need this anymore.
 	// Create take nodes
 	KFbxTakeNode* curr_fbx_take;
 	KFbxTakeNode* fbx_attr_take_node = NULL;
@@ -150,7 +153,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 	if(!curr_fbx_take)
 	    return res_type;
-
+*/
+	KFbxAnimCurve* curr_anim_curve;
 	UT_String node_type = node->getOperator()->getName();
 
 	bool account_for_pivot = hasPivotInfo(node);
@@ -175,12 +179,12 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // since this FBX node corresponds to the end tip of the bone.
 	    //KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
 	    //exportResampledAnimation(curr_fbx_bone_take, node);
-	    exportResampledAnimation(curr_fbx_take, node, fbx_node, node_info_in);
+	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in);
 	}
 	else
 	{
 
-	    exportTRSAnimation(node, curr_fbx_take, fbx_node);
+	    exportTRSAnimation(node, myAnimLayer, fbx_node);
 	}
 
 	if(node_type == "geo" || node_type == "instance")
@@ -212,70 +216,49 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // Create curve nodes
 	    if(light_attrib)
 	    {
-		fbx_attr_take_node = addFBXTakeNode(light_attrib);
-
-		light_attrib->Color.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-		light_attrib->ConeAngle.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-		light_attrib->Intensity.GetKFCurveNode(true, fbx_attr_take_node->GetName());
-
 		// Output its colour, intensity, and cone angle channels
-		curr_fbx_curve = light_attrib->Intensity.GetKFCurve(NULL, fbx_attr_take_node->GetName());
-		exportChannel(curr_fbx_curve, node, "light_intensity", 0, 100.0);
+		curr_anim_curve = light_attrib->Intensity.GetCurve<KFbxAnimCurve>(myAnimLayer, NULL, true);
+		exportChannel(curr_anim_curve, node, "light_intensity", 0, 100.0);
 
-		curr_fbx_curve = light_attrib->ConeAngle.GetKFCurve(NULL, fbx_attr_take_node->GetName());
-		exportChannel(curr_fbx_curve, node, "coneangle", 0);
+		curr_anim_curve = light_attrib->ConeAngle.GetCurve<KFbxAnimCurve>(myAnimLayer, NULL, true);
+		exportChannel(curr_anim_curve, node, "coneangle", 0);
 
-		curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_RED, fbx_attr_take_node->GetName());
-		exportChannel(curr_fbx_curve, node, "light_color", 0);
+		curr_anim_curve = light_attrib->Color.GetCurve<KFbxAnimCurve>(myAnimLayer, KFCURVENODE_COLOR_RED, true);
+		exportChannel(curr_anim_curve, node, "light_color", 0);
 
-		curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_GREEN, fbx_attr_take_node->GetName());
-		exportChannel(curr_fbx_curve, node, "light_color", 1);
+		curr_anim_curve = light_attrib->Color.GetCurve<KFbxAnimCurve>(myAnimLayer, KFCURVENODE_COLOR_GREEN, true);
+		exportChannel(curr_anim_curve, node, "light_color", 1);
 
-		curr_fbx_curve = light_attrib->Color.GetKFCurve(KFCURVENODE_COLOR_BLUE, fbx_attr_take_node->GetName());
-		exportChannel(curr_fbx_curve, node, "light_color", 2);
+		curr_anim_curve = light_attrib->Color.GetCurve<KFbxAnimCurve>(myAnimLayer, KFCURVENODE_COLOR_BLUE, true);
+		exportChannel(curr_anim_curve, node, "light_color", 2);
 	    }
 	}
 	else if(node_type == "cam")
 	{
 	    KFbxCamera *cam_attrib = dynamic_cast<KFbxCamera *>(fbx_node->GetNodeAttribute());
-	    fbx_attr_take_node = addFBXTakeNode(cam_attrib);
-	    cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
+///	    fbx_attr_take_node = addFBXTakeNode(cam_attrib);
+//	    cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
 
-	    curr_fbx_curve = cam_attrib->FocalLength.GetKFCurve(NULL, fbx_attr_take_node->GetName());
-	    exportChannel(curr_fbx_curve, node, "focal", 0);
+	    curr_anim_curve = cam_attrib->FocalLength.GetCurve<KFbxAnimCurve>(myAnimLayer, NULL, true);
+	    exportChannel(curr_anim_curve, node, "focal", 0);
 	}
 
 
 	// Export visibility channel
-	fbx_node->Visibility.GetKFCurveNode(true, curr_fbx_take->GetName());
-	curr_fbx_curve = fbx_node->Visibility.GetKFCurve(NULL, curr_fbx_take->GetName());
-	exportChannel(curr_fbx_curve, node, "vm_renderable", 0);
+	curr_anim_curve = fbx_node->Visibility.GetCurve<KFbxAnimCurve>(myAnimLayer, NULL, true);
+	exportChannel(curr_anim_curve, node, "vm_renderable", 0);
 
     } // end for over all fbx nodes
+
     return res_type;
 }
 /********************************************************************************************************/
-KFbxTakeNode* 
-ROP_FBXAnimVisitor::addFBXTakeNode(KFbxTakeNodeContainer *fbx_node)
-{
-    string hd_take_name;
-    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
-    hd_take_name = curr_hd_take->getName();
-    KFbxTakeNode* curr_fbx_take;
-
-    fbx_node->CreateTakeNode(const_cast<char*>(hd_take_name.c_str()));
-    fbx_node->SetCurrentTakeNode(const_cast<char*>(hd_take_name.c_str()));
-    curr_fbx_take = fbx_node->GetCurrentTakeNode();    
-
-    return curr_fbx_take;
-}
-/********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_take, KFbxNode* fbx_node)
+ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxAnimLayer* curr_fbx_anim_layer, KFbxNode* fbx_node)
 {
-    KFCurve* curr_fbx_curve;
+    KFbxAnimCurve* curr_anim_curve;
 
-    if(!node || !curr_fbx_take)
+    if(!node || !curr_fbx_anim_layer)
 	return;
 
     UT_String node_type = node->getOperator()->getName();
@@ -286,44 +269,44 @@ ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, KFbxTakeNode* curr_fbx_tak
 	channel_prefix = "l_";
 
     // Create the curves
-    fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
-    fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
-    fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
+//     fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
+//     fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
+//     fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
 
     string channel_name;
 
     // Translations
     channel_name = channel_prefix + "t";
-    curr_fbx_curve = curr_fbx_take->GetTranslationX();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 0);
+    curr_anim_curve = fbx_node->LclTranslation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_T_X, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
 
-    curr_fbx_curve = curr_fbx_take->GetTranslationY();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 1);
+    curr_anim_curve = fbx_node->LclTranslation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_T_Y, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
 
-    curr_fbx_curve = curr_fbx_take->GetTranslationZ();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 2);
+    curr_anim_curve = fbx_node->LclTranslation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_T_Z, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 2);
 
     // Rotations
     channel_name = channel_prefix + "r";
-    curr_fbx_curve = curr_fbx_take->GetEulerRotationX();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 0);
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_R_X, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
 
-    curr_fbx_curve = curr_fbx_take->GetEulerRotationY();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 1);
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_R_Y, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
 
-    curr_fbx_curve = curr_fbx_take->GetEulerRotationZ();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 2);
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_R_Z, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 2);
 
     // Scaling
     channel_name = channel_prefix + "s";
-    curr_fbx_curve = curr_fbx_take->GetScaleX();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 0);
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_S_X, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
 
-    curr_fbx_curve = curr_fbx_take->GetScaleY();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 1);
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_S_Y, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
 
-    curr_fbx_curve = curr_fbx_take->GetScaleZ();
-    exportChannel(curr_fbx_curve, node, channel_name.c_str(), 2); 
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_S_Z, true);
+    exportChannel(curr_anim_curve, node, channel_name.c_str(), 2); 
 
 }
 /********************************************************************************************************/
@@ -334,9 +317,13 @@ ROP_FBXAnimVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportChannel(KFCurve* fbx_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor)
+ROP_FBXAnimVisitor::exportChannel(KFbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor)
 {
-    if(!fbx_curve || !source_node || !parm_name)
+    if(!fbx_anim_curve || !source_node || !parm_name)
+	return;
+
+    KFCurve* fbx_curve = fbx_anim_curve->GetKFCurve();
+    if(!fbx_curve)
 	return;
 
     CH_Channel  *ch;
@@ -1042,7 +1029,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVi
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
+ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
 {
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
@@ -1105,25 +1092,36 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxTakeNode* curr_fbx_take, OP_Nod
     }
 
     // Create the curves
-    fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
-    fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
-    fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
+//     fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
+//     fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
+//     fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
+
+    KFbxAnimCurve* curr_anim_curve;
 
     // Get fbx curves
     KFCurve* fbx_t[num_trs_channels];
     KFCurve* fbx_r[num_trs_channels];
     KFCurve* fbx_s[num_trs_channels];
-    fbx_t[0] = curr_fbx_take->GetTranslationX();
-    fbx_t[1] = curr_fbx_take->GetTranslationY();
-    fbx_t[2] = curr_fbx_take->GetTranslationZ();
+    curr_anim_curve = fbx_node->LclTranslation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_T_X, true);
+    fbx_t[0] = curr_anim_curve->GetKFCurve();
+    curr_anim_curve = fbx_node->LclTranslation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_T_Y, true);
+    fbx_t[1] = curr_anim_curve->GetKFCurve();
+    curr_anim_curve = fbx_node->LclTranslation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_T_Z, true);
+    fbx_t[2] = curr_anim_curve->GetKFCurve();
 
-    fbx_r[0] = curr_fbx_take->GetEulerRotationX();
-    fbx_r[1] = curr_fbx_take->GetEulerRotationY();
-    fbx_r[2] = curr_fbx_take->GetEulerRotationZ();
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_R_X, true);
+    fbx_r[0] = curr_anim_curve->GetKFCurve();
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_R_Y, true);
+    fbx_r[1] = curr_anim_curve->GetKFCurve();
+    curr_anim_curve = fbx_node->LclRotation.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_R_Z, true);
+    fbx_r[2] = curr_anim_curve->GetKFCurve();
     
-    fbx_s[0] = curr_fbx_take->GetScaleX();
-    fbx_s[1] = curr_fbx_take->GetScaleY();
-    fbx_s[2] = curr_fbx_take->GetScaleZ();
+    curr_anim_curve = fbx_node->LclScaling.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_S_X, true);
+    fbx_s[0] = curr_anim_curve->GetKFCurve();
+    curr_anim_curve = fbx_node->LclScaling.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_S_Y, true);
+    fbx_s[1] = curr_anim_curve->GetKFCurve();
+    curr_anim_curve = fbx_node->LclScaling.GetCurve<KFbxAnimCurve>(curr_fbx_anim_layer, KFCURVENODE_S_Z, true);
+    fbx_s[2] = curr_anim_curve->GetKFCurve();
 
     kFCurveIndex t_opt_idx[3];
     kFCurveIndex r_opt_idx[3];

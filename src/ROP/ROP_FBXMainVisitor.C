@@ -1597,15 +1597,19 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
 	return;
 
     layer_elem->ResizeAllDirectArrays(gdp->points().entries());
-    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    KFbxLayerElementArrayTemplate<void*> * fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    SIMPLE_TYPE* fbx_direct_array = NULL;
+    fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
     FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
     {
 	hd_type = ppt->getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
 	fbx_direct_array[array_pos] = hd_type;
 	array_pos++;
     }
+    fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
 /********************************************************************************************************/
+#if 0
 void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_size, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
@@ -1635,6 +1639,7 @@ void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int at
 	}
     }
 }
+#endif
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
 void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
@@ -1661,8 +1666,9 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     }
 
     layer_elem->ResizeAllDirectArrays(total_verts);
-    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
-
+    KFbxLayerElementArrayTemplate <void*>* fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    SIMPLE_TYPE* fbx_direct_array = NULL;
+    fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	num_verts = prim->getVertexCount();
@@ -1673,6 +1679,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 	    array_pos++;
 	}
     }
+    fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
@@ -1692,7 +1699,9 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 	return;
 
     layer_elem->ResizeAllDirectArrays(gdp->primitives().entries());
-    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    KFbxLayerElementArrayTemplate<void*> *fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    SIMPLE_TYPE* fbx_direct_array = NULL;
+    fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
@@ -1700,6 +1709,8 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 	fbx_direct_array[array_pos] = hd_type;
 	array_pos++;
     }
+
+    fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
@@ -1718,11 +1729,16 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     int array_pos = 0;
 
     layer_elem->ResizeAllDirectArrays(1);
-    SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    //SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    KFbxLayerElementArrayTemplate<void*>* fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    SIMPLE_TYPE* fbx_direct_array = NULL;
+    fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
     hd_type = gdp->attribs().getElement().template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
     fbx_direct_array[array_pos] = hd_type;
     array_pos++;
+
+    fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
 /********************************************************************************************************/
 int getNumAttrElems(GB_Attribute* attr)
@@ -1787,23 +1803,28 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	    if(attr_type == GB_ATTRIB_INT)
 	    {
 		custom_types_array.Add(DTInteger);
-		suffix.sprintf("_%d", curr_pos);
+		if(attr_size > 1)
+		    suffix.sprintf("_%d", curr_pos);
 	    }
 	    else if(attr_type == GB_ATTRIB_FLOAT) 
 	    {
 		custom_types_array.Add(DTFloat);
-		suffix.sprintf("_%d", curr_pos);
+		if(attr_size > 1)
+		    suffix.sprintf("_%d", curr_pos);
 	    }
 	    else if(attr_type == GB_ATTRIB_VECTOR)
 	    {
 		custom_types_array.Add(DTFloat);
 		if(attr_size <= 3)
-		    suffix.sprintf("_%s", vec_comps[curr_pos]);
+		{
+		    if(attr_size > 1)
+			suffix.sprintf("_%s", vec_comps[curr_pos]);
+		}
 		else
 		    suffix.sprintf("_%d", curr_pos);
 	    }
 
-	    if(suffix.length() > 0)
+	    if(suffix.length() > 0) 
 	    {
 		// Construct a full name and add it
 		full_name = orig_name + suffix;
@@ -2033,7 +2054,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     float float_parm[3];
     int int_param;
     UT_String string_param;
-    KFbxColor fbx_col;
+    fbxDouble3 fbx_col;
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
     myNodeManager->makeNameUnique(node_name);
 
@@ -2062,33 +2083,33 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
 	light_type = KFbxLight::ePOINT;
 	myErrorManager->addError("Unsupported light type. Exporting as point light. Node: ", node_name, NULL);
     }
-    res_attr->SetLightType(light_type);
+    res_attr->LightType.Set(light_type);
 
     // Enable/disable flag
     int_param = ROP_FBXUtil::getIntOPParm(node, "light_enable");
-    res_attr->SetCastLight((bool)int_param);
+    res_attr->CastLight.Set((bool)int_param);
 
     // Cast shadows flag
     ROP_FBXUtil::getStringOPParm(node, "shadow_type", string_param, true);
-    if(string_param == "off")
-	res_attr->SetCastShadows(false);
-    else
-	res_attr->SetCastShadows(true);
+    res_attr->CastShadows.Set(string_param != "off");
 
     // Color
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0);
-    float_parm[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1);
-    float_parm[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2);
-    fbx_col.Set(float_parm[0], float_parm[1], float_parm[2]);
-    res_attr->SetDefaultColor(fbx_col);
+    fbx_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0);
+    fbx_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1);
+    fbx_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2);
+//    fbx_col.Set(float_parm[0], float_parm[1], float_parm[2]);
+//    res_attr->SetDefaultColor(fbx_col);
+    res_attr->Color.Set(fbx_col);
 
     // Intensity
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "light_intensity");
-    res_attr->SetDefaultIntensity(float_parm[0]*100.0);
+    //res_attr->SetDefaultIntensity(float_parm[0]*100.0);
+    res_attr->Intensity.Set(float_parm[0]*100.0);
 
     // Cone angle
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "coneangle");
-    res_attr->SetDefaultConeAngle(float_parm[0]);
+    //res_attr->SetDefaultConeAngle(float_parm[0]);
+    res_attr->ConeAngle.Set(float_parm[0]);
 
     // Attenuation
     ROP_FBXUtil::getStringOPParm(node, "atten_type", string_param, true);
@@ -2102,10 +2123,10 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
 	// Unsupported attentuation type.
 	myErrorManager->addError("Unsupported attenuation type. Node: ", node_name, NULL);
     }
-    res_attr->SetDecayType(decay_type);
+    res_attr->DecayType.Set(decay_type);
 
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "atten_dist");
-    res_attr->SetDecayStart(float_parm[0]*0.5);
+    res_attr->DecayStart.Set(float_parm[0]*0.5);
 
     res_nodes.push_back(res_node);
     return true;
@@ -2138,7 +2159,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
 	myErrorManager->addError("Unsupported camera projection type. Exporting as perspective camera. Node: ", node_name, NULL);
 	project_type = KFbxCamera::ePERSPECTIVE;
     }
-    res_attr->SetProjectionType(project_type);
+    res_attr->ProjectionType.Set(project_type);
 
     // Focal length
     // Get the units, as well
@@ -2156,7 +2177,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focal");
     foc_len = float_parm[0];
     res_attr->SetApertureMode(KFbxCamera::eFOCAL_LENGTH);
-    res_attr->SetFocalLength(float_parm[0]*length_mult);
+    res_attr->FocalLength.Set(float_parm[0]*length_mult);
 
     // Pixel ratio
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aspect");
@@ -2167,7 +2188,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     float_parm[1] = ROP_FBXUtil::getFloatOPParm(node, "up",1);
     float_parm[2] = ROP_FBXUtil::getFloatOPParm(node, "up",2);
     fbx_vec4.Set(float_parm[0], float_parm[1], float_parm[2]);
-    res_attr->SetUpVector(fbx_vec4);
+    res_attr->UpVector.Set(fbx_vec4);
 
     // Convert aperture. Because FBX SDK only recognizes animation if the 
     // aperture mode is set to KFbxCamera::eFOCAL_LENGTH, we have to
@@ -2199,12 +2220,12 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
 
     // Ortho zoom
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "orthowidth");
-    res_attr->SetOrthoZoom(float_parm[0]);
+    res_attr->OrthoZoom.Set(float_parm[0]);
 
     // Focus distance
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focus");
-    res_attr->SetFocusDistanceSource(KFbxCamera::eSPECIFIC_DISTANCE);
-    res_attr->SetSpecificDistance(float_parm[0]);
+    res_attr->FocusSource.Set(KFbxCamera::eSPECIFIC_DISTANCE);
+    res_attr->FocusDistance.Set(float_parm[0]);
 
     res_nodes.push_back(res_node);
     return true;

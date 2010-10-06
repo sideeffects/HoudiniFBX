@@ -306,14 +306,20 @@ ROP_FBXExporter::doExport(void)
 	    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
 	    myScene->SetCurrentTake(const_cast<char*>(curr_hd_take->getName()));
 
+	    KFbxAnimStack* anim_stack = KFbxAnimStack::Create(myScene, curr_hd_take->getName());
+	    KFbxAnimLayer* anim_layer = KFbxAnimLayer::Create(myScene, "Base Layer");
+	    anim_stack->AddMember(anim_layer);
+	    anim_visitor.reset(anim_layer);
+
+	    // Create a single default animation stack.
+
 	    // Export the main world_root animation if applicable
 	    if(myDummyRootNullNode)
 	    {			
-		KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
-		anim_visitor.exportTRSAnimation(geom_node, curr_world_take_node, myDummyRootNullNode);
+		//KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
+		anim_visitor.exportTRSAnimation(geom_node, anim_layer, myDummyRootNullNode);
 	    }	    
 
-	    anim_visitor.reset();
 	    anim_visitor.visitScene(geom_node);
 	    myDidCancel = anim_visitor.getDidCancel();
 
@@ -345,14 +351,6 @@ ROP_FBXExporter::finishExport(void)
 	// Save the built-up scene
 	KFbxExporter* fbx_exporter = KFbxExporter::Create(mySDKManager, "");
 
-	// Initialize the exporter by providing a filename.
-	if(fbx_exporter->Initialize(myOutputFile.c_str()) == false)
-	{
-    //	addError(ROP_COOK_ERROR, (const char *)"Invalid output path");
-    //	return ROP_ABORT_RENDER;
-	    return false;
-	}
-
 	//Try to export in ASCII if possible
 	int format_index, format_count = mySDKManager->GetIOPluginRegistry()->GetWriterFormatCount();
 	int out_file_format = -1;
@@ -375,12 +373,14 @@ ROP_FBXExporter::finishExport(void)
 	    }
 	}
 
-	fbx_exporter->SetFileFormat(out_file_format);
+	// Deprecated.
+	///fbx_exporter->SetFileFormat(out_file_format);
 
 	string sdk_version = myExportOptions.getVersion();
 	if(sdk_version.length() > 0)
 	    fbx_exporter->SetFileExportVersion(sdk_version.c_str(), KFbxSceneRenamer::eFBX_TO_FBX);
-	
+#if 0	
+	// Options are now done differentyl. Luckily, we don't use them.
 	KFbxStreamOptionsFbxWriter* export_options = KFbxStreamOptionsFbxWriter::Create(mySDKManager, "");
 	if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(out_file_format))
 	{
@@ -397,14 +397,22 @@ ROP_FBXExporter::finishExport(void)
 	    export_options->SetOption(KFBXSTREAMOPT_FBX_ANIMATION, true);
 	    export_options->SetOption(KFBXSTREAMOPT_FBX_GLOBAL_SETTINGS, true); */
 	}
+#endif
+	// Initialize the exporter by providing a filename.
+	if(fbx_exporter->Initialize(myOutputFile.c_str(), out_file_format, mySDKManager->GetIOSettings()) == false)
+	{
+	    //	addError(ROP_COOK_ERROR, (const char *)"Invalid output path");
+	    //	return ROP_ABORT_RENDER;
+	    return false;
+	}
 
 	// Export the scene.
-	bool exp_status = fbx_exporter->Export(myScene, export_options); 
-
+	bool exp_status = fbx_exporter->Export(myScene); 
+/*
 	if(export_options)
 	    export_options->Destroy();
 	export_options=NULL;
-
+*/
 	// Destroy the exporter.
 	fbx_exporter->Destroy();
     }
