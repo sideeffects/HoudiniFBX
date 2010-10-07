@@ -19,7 +19,7 @@
 
 #ifdef FBX_SUPPORTED
 
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 #include <UT/UT_Taint.h>
 #include "ROP_FBXActionManager.h"
 #include "ROP_FBXExporter.h"

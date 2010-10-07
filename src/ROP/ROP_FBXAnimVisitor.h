@@ -20,7 +20,7 @@
 #ifndef __ROP_FBXAnimVisitor_h__
 #define __ROP_FBXAnimVisitor_h__
 
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 #include <UT/UT_VectorTypes.h>
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"

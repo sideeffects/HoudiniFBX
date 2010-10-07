@@ -22,7 +22,7 @@
 
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 
 class OP_Network;
 class OP_Node;

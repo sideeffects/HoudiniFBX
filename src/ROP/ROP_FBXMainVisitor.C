@@ -17,7 +17,7 @@
  *
  */
 
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 

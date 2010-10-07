@@ -19,7 +19,7 @@
 #ifndef __ROP_FBXBaseAction_h__
 #define __ROP_FBXBaseAction_h__
 
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXCommon.h"
 
 class OP_Node;

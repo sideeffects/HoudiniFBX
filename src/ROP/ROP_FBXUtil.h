@@ -20,7 +20,7 @@
 #ifndef __ROP_FBXUtil_h__
 #define __ROP_FBXUtil_h__
 
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 #include <GU/GU_Detail.h>
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"

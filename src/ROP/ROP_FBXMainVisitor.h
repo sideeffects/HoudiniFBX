@@ -23,7 +23,7 @@
 #include <UT/UT_Color.h>
 #include <UT/UT_Assert.h>
 #include <UT/UT_String.h>
-#include <fbx/fbxsdk.h>
+#include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 
