@@ -94,7 +94,7 @@ ROP_FBXUtil::getGeometryHandle(SOP_Node* sop_node, OP_Context &context, GU_Detai
 }
 /********************************************************************************************************/
 void				
-ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand, float ftime)
+ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand, fpreal ftime)
 {
     PRM_Parm	 *parm;
     strref = "";
@@ -107,7 +107,7 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, float ftime)
+ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, fpreal ftime)
 {
     if(!node)
 	return 0;
@@ -121,8 +121,8 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, float 
     return res;
 }
 /********************************************************************************************************/
-float 
-ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, float ftime, bool *did_find)
+fpreal 
+ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, fpreal ftime, bool *did_find)
 {
     if(did_find)
 	*did_find = false;
@@ -143,11 +143,11 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, floa
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, 
+ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpreal end_time, float lod, bool allow_constant_point_detection, 
 				       bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces)
 {
     CH_Manager *ch_manager = CHgetManager();
-    float start_frame, end_frame;
+    fpreal start_frame, end_frame;
     start_frame = ch_manager->getSample(start_time);
     end_frame = ch_manager->getSample(end_time);
 
@@ -156,7 +156,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 
     is_pure_surfaces = false;
 
-    float hd_time;
+    fpreal hd_time;
     int curr_frame;
     int curr_num_points;
 
@@ -248,7 +248,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, float ftime, bool& found_particles)
+ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fpreal ftime, bool& found_particles)
 {
     OP_Node* dyn_node, *part_node;
 
@@ -427,7 +427,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
+ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
 			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations)
 {
     bool set_post_rotation = false;
@@ -547,7 +547,7 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_types[], const char * const opt_more_types[], float ftime, bool include_me)
+ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me)
 {
     bool is_time_dependent = false;
     OP_Node *	found = NULL;
@@ -750,8 +750,8 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, 
-				   float ftime, UT_String* override_node_type, bool use_world_transform)
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, 
+				   fpreal ftime, UT_String* override_node_type, bool use_world_transform)
 {
 
     UT_Vector3 t,r,s;
@@ -1206,7 +1206,7 @@ ROP_FBXNodeInfo::getSourcePrimitive(void)
 ROP_FBXGDPCache::ROP_FBXGDPCache()
 {
     mySaveMemory = false;
-    myMinFrame = FLT_MAX;
+    myMinFrame = SYS_FPREAL_MAX;
     myNumConstantPoints = -1;
 }
 /********************************************************************************************************/
@@ -1235,11 +1235,11 @@ ROP_FBXGDPCache::clearFrames(void)
 	delete myFrameItems[curr_item];
     myFrameItems.clear();
 
-    myMinFrame = FLT_MAX;
+    myMinFrame = SYS_FPREAL_MAX;
 }
 /********************************************************************************************************/
 GU_Detail* 
-ROP_FBXGDPCache::addFrame(float frame_num)
+ROP_FBXGDPCache::addFrame(fpreal frame_num)
 {
     ROP_FBXGDPCacheItem* new_item = new ROP_FBXGDPCacheItem(frame_num);
 
@@ -1256,7 +1256,7 @@ ROP_FBXGDPCache::addFrame(float frame_num)
 }
 /********************************************************************************************************/
 GU_Detail* 
-ROP_FBXGDPCache::getFrameGeometry(float frame_num)
+ROP_FBXGDPCache::getFrameGeometry(fpreal frame_num)
 {
     int vec_pos = (int)(frame_num - myMinFrame);
     if(vec_pos < 0 || vec_pos >= myFrameItems.size())
@@ -1267,7 +1267,7 @@ ROP_FBXGDPCache::getFrameGeometry(float frame_num)
     return myFrameItems[vec_pos]->getDetail();
 }
 /********************************************************************************************************/
-float 
+fpreal 
 ROP_FBXGDPCache::getFirstFrame(void)
 {
     return myMinFrame;

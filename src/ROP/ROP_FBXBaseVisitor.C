@@ -29,7 +29,7 @@
 #define NEEDED_INDEX_IS_INTERNAL_NODE	    -2
 #define NEEDED_INDEX_UNDEFINED		    -1
 /********************************************************************************************************/
-ROP_FBXBaseVisitor::ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, float start_time)
+ROP_FBXBaseVisitor::ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, fpreal start_time)
 {
     myHiddenNodeExportMode = hidden_node_export_mode;
     myDidCancel = false;

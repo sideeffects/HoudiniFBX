@@ -38,7 +38,7 @@ ROP_FBXExporterWrapper::~ROP_FBXExporterWrapper()
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExporterWrapper::initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options)
+ROP_FBXExporterWrapper::initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options)
 {
     if(ROP_FBXExporterWrapper::isSupported())
 	return myFBXExporter->initializeExport(output_name, tstart, tend, options);

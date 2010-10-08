@@ -42,7 +42,7 @@ public:
     /// @param	tend		Export end time, in seconds.
     /// @param	options		An optional set of export options. If not provided (NULL), defaults are used.
     /// @return	True if successful, false on failure.
-    bool initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options);
+    bool initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options);
 
     /// Performs the actual export process. ROP_FBXExporterWrapper::initializeExport() must be called first.
     void doExport(void);
@@ -81,7 +81,7 @@ public:
     /// @param	tend		Export end time, in seconds.
     /// @param	options		An optional set of export options. If not provided (NULL), defaults are used.
     /// @return	True if successful, false on failure.
-    bool initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options) { return false; }
+    bool initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options) { return false; }
 
     /// Performs the actual export process. ROP_FBXExporterWrapper::initializeExport() must be called first.
     void doExport(void) {  }

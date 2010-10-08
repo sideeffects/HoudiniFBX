@@ -74,7 +74,7 @@ ROP_FBXLookAtAction::performAction(void)
 /********************************************************************************************************/
 // ROP_FBXSkinningAction
 /********************************************************************************************************/
-ROP_FBXSkinningAction::ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, float capture_frame, ROP_FBXActionManager& parent_manager)
+ROP_FBXSkinningAction::ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager)
     : ROP_FBXBaseFbxNodeAction(acted_on_node, parent_manager)
 {
     UT_ASSERT(deform_node);
@@ -120,7 +120,7 @@ ROP_FBXSkinningAction::performAction(void)
     if(!sop_node)
 	return;
 
-    float start_time = getParentManager().getExporter().getStartTime();
+    fpreal start_time = getParentManager().getExporter().getStartTime();
 
     // Read weights and capture regions from the GDP
     GU_DetailHandle gdh;
@@ -268,7 +268,7 @@ ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fb
 }
 /********************************************************************************************************/
 void 
-ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, float capture_frame)
+ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
 {  
     KFbxScene *fbx_scene = getParentManager().getExporter().getFBXScene();
     KFbxSdkManager *fbx_sdk_manager = getParentManager().getExporter().getSDKManager();

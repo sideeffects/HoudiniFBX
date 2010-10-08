@@ -73,7 +73,7 @@ ROP_FBXExporter::~ROP_FBXExporter()
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExporter::initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options)
+ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options)
 {
     if(!output_name)
 	return false;
@@ -242,7 +242,7 @@ ROP_FBXExporter::doExport(void)
 
 	// FBX doesn't support arbitrary frame rates.
 	// Try to match one if it's exact, otherwise default to 24fps and warn the user.
-	float curr_fps = ch_manager->getSamplesPerSec();
+	fpreal curr_fps = ch_manager->getSamplesPerSec();
 	KTime::ETimeMode time_mode = KTime::eCINEMA;
 	if(SYSisEqual(curr_fps, 24.0))
 	    time_mode = KTime::eCINEMA;
@@ -506,13 +506,13 @@ ROP_FBXExporter::getOutputFileName(void)
     return myOutputFile.c_str();
 }
 /********************************************************************************************************/
-float 
+fpreal 
 ROP_FBXExporter::getStartTime(void)
 {
     return myStartTime;
 }
 /********************************************************************************************************/
-float 
+fpreal 
 ROP_FBXExporter::getEndTime(void)
 {
     return myEndTime;

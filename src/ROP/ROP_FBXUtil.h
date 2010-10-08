@@ -44,23 +44,23 @@ class ROP_API ROP_FBXUtil
 public:
 
     static bool getGeometryHandle(SOP_Node* sop_node, OP_Context &context, GU_DetailHandle &gdh);
-    static void getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand = false, float ftime = 0.0);
-    static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0);
-    static float getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, float ftime = 0.0, bool *did_find = NULL);
+    static void getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand = false, fpreal ftime = 0.0);
+    static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0, fpreal ftime = 0.0);
+    static fpreal getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, fpreal ftime = 0.0, bool *did_find = NULL);
 
-    static int getMaxPointsOverAnimation(OP_Node* op_node, float start_time, float end_time, float lod, bool allow_constant_point_detection, 
+    static int getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpreal end_time, float lod, bool allow_constant_point_detection, 
 	bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces);
-    static bool isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, float ftime, bool& found_particles);
+    static bool isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fpreal ftime, bool& found_particles);
 
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
     static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
-    static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float time_in, UT_String* override_node_type,
+    static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
 	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0);
-    static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], float ftime, bool include_me);
-    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, float bone_length, float ftime, UT_String* override_node_type, bool use_world_transform = false);
+    static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me);
+    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal ftime, UT_String* override_node_type, bool use_world_transform = false);
     static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
 
     static unsigned getGdpPrimId(const GU_Detail* gdp);
@@ -187,14 +187,14 @@ private:
 class ROP_FBXGDPCacheItem
 {
 public:
-    ROP_FBXGDPCacheItem(float frame_num) { myFrame = frame_num; }
+    ROP_FBXGDPCacheItem(fpreal frame_num) { myFrame = frame_num; }
     ~ROP_FBXGDPCacheItem() { }
 
     GU_Detail* getDetail(void) { return &myDetail; }
-    float getFrame(void) { return myFrame; }
+    fpreal getFrame(void) { return myFrame; }
 
 private:
-    float myFrame;
+    fpreal myFrame;
     GU_Detail myDetail;
 };
 typedef vector < ROP_FBXGDPCacheItem* > TGeomCacheItems;
@@ -206,10 +206,10 @@ public:
     ROP_FBXGDPCache();
     ~ROP_FBXGDPCache();
 
-    GU_Detail* addFrame(float frame_num);
-    GU_Detail* getFrameGeometry(float frame_num);
+    GU_Detail* addFrame(fpreal frame_num);
+    GU_Detail* getFrameGeometry(fpreal frame_num);
 
-    float getFirstFrame(void);
+    fpreal getFirstFrame(void);
 
     void setNumConstantPoints(int num_points);
     int getNumConstantPoints(void);
@@ -222,7 +222,7 @@ public:
 
 private:
     TGeomCacheItems myFrameItems;
-    float myMinFrame;
+    fpreal myMinFrame;
     int myNumConstantPoints;
 
     // Use less memory by not actually caching anything

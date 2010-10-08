@@ -52,7 +52,7 @@ class ROP_FBXSkinningAction : public ROP_FBXBaseFbxNodeAction
 {
 public:
 
-    ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, float capture_frame, ROP_FBXActionManager& parent_manager);
+    ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager);
     virtual ~ROP_FBXSkinningAction();
 
     ROP_FBXActionType getType(void);
@@ -61,11 +61,11 @@ public:
 private:
     void createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fbx_deformed_node, KFbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context);
     void addNodeRecursive(KArrayTemplate<KFbxNode*>& node_array, KFbxNode* curr_node);
-    void storeBindPose(KFbxNode* fbx_node, float capture_frame);
+    void storeBindPose(KFbxNode* fbx_node, fpreal capture_frame);
 
 private:
     OP_Node* myDeformNode;    
-    float myCaptureFrame;
+    fpreal myCaptureFrame;
 };
 /********************************************************************************************************/
 class ROP_FBXInstanceActionBundle

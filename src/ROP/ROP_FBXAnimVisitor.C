@@ -799,8 +799,8 @@ ROP_FBXAnimVisitor::outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, con
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, 
-				    int num_array_points, ROP_FBXNodeInfo* node_pair_info, float frame_num)
+ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, 
+				    int num_array_points, ROP_FBXNodeInfo* node_pair_info, fpreal frame_num)
 {
     ROP_FBXVertexCacheMethodType vc_method = node_pair_info->getVertexCacheMethod();
     const GU_Detail *final_gdp = NULL;
@@ -1225,7 +1225,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer,
 }
 /********************************************************************************************************/
 int 
-ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, float time, int selected_prim_idx)
+ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int selected_prim_idx)
 {
     // Get at the gdp
     GU_DetailHandle gdh;

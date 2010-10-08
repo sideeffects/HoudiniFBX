@@ -105,7 +105,7 @@ typedef vector < OP_Node* > THDNodeVector;
 class ROP_API ROP_FBXBaseVisitor
 {
 public:
-    ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, float start_time);
+    ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, fpreal start_time);
     virtual ~ROP_FBXBaseVisitor();
 
     /// Called before visiting a node. Must return a new instance of
@@ -149,7 +149,7 @@ private:
     bool myDidCancel;
 
     TBaseNodeVisitInfos myAllVisitInfos;
-    float myStartTime;
+    fpreal myStartTime;
 };
 /********************************************************************************************************/
 #endif

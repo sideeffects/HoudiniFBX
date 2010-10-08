@@ -68,8 +68,8 @@ protected:
 
     bool outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, const char* file_name, ROP_FBXBaseNodeVisitInfo* node_info_in, ROP_FBXNodeInfo* node_pair_info);
     KFbxVertexCacheDeformer* addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const char* file_name);
-    bool fillVertexArray(OP_Node* node, float time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, int num_array_points, ROP_FBXNodeInfo* node_pair_info, float frame_num);
-    int lookupExactPointCount(OP_Node *node, float time, int selected_prim_idx);
+    bool fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, int num_array_points, ROP_FBXNodeInfo* node_pair_info, fpreal frame_num);
+    int lookupExactPointCount(OP_Node *node, fpreal time, int selected_prim_idx);
     bool hasPivotInfo(OP_Node* node);
 private:
 

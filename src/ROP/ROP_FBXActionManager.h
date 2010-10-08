@@ -46,7 +46,7 @@ public:
     virtual ~ROP_FBXActionManager();
 
     ROP_FBXLookAtAction* addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_node);
-    ROP_FBXSkinningAction* addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, float capture_frame);
+    ROP_FBXSkinningAction* addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, fpreal capture_frame);
     ROP_FBXCreateInstancesAction* addCreateInstancesAction(void);
 
     void performPostActions(void);

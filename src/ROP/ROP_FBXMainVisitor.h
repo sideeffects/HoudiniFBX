@@ -202,7 +202,7 @@ protected:
 
 private:
 
-    float myStartTime;
+    fpreal myStartTime;
     ROP_FBXExporter* myParentExporter;
     KFbxSdkManager* mySDKManager;
     KFbxScene* myScene;

@@ -26,6 +26,7 @@
 #include <set>
 
 #include "ROP_API.h"
+#include <SYS/SYS_Types.h>
 
 #ifdef FBXFILESDK_NAMESPACE_USE
     #define FBX_FILMBOX_NAMESPACE FBXFILESDK_NAMESPACE
@@ -82,10 +83,10 @@ public:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
     /// every N frames.
-    float getResampleIntervalInFrames(void);
+    fpreal getResampleIntervalInFrames(void);
     /// Resampling frequency, in frames. A linear key frame will be exported
     /// every N frames.
-    void setResampleIntervalInFrames(float frames);
+    void setResampleIntervalInFrames(fpreal frames);
 
     /// Specified the format to use for exporting vertex caches, whether compatbile 
     /// with Maya's or 3DS MAX.
@@ -174,7 +175,7 @@ private:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
     /// every N frames.
-    float myResampleIntervalInFrames;
+    fpreal myResampleIntervalInFrames;
 
     /// If true, all animation curves will be resampled on export. If false,
     /// only the unsupported types will be.

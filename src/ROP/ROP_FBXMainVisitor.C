@@ -131,7 +131,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     UT_String node_type = node->getOperator()->getName();
     bool is_visible = node->getDisplay();
 
-    float start_time = myParentExporter->getStartTime();
+    fpreal start_time = myParentExporter->getStartTime();
     int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", start_time);
     if(use_display_parm)
     {
@@ -245,8 +245,8 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    int is_enabled = ROP_FBXUtil::getIntOPParm(node, "light_enable",0, myStartTime);
 	    if(is_enabled)
 	    {
-		float amb_intensity;
-		float amb_light_col[3];
+		fpreal amb_intensity;
+		fpreal amb_light_col[3];
 		amb_intensity = ROP_FBXUtil::getFloatOPParm(node, "light_intensity", 0, myStartTime);
 		amb_light_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0, myStartTime);
 		amb_light_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1, myStartTime);
@@ -316,7 +316,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	new_node->SetVisibility(is_visible);
 
 	// Set the standard transformations (unless we're in the instance)
-	float bone_length = 0.0;
+	fpreal bone_length = 0.0;
 	if(node_info && node_info->getParentInfo())
 	{
 	    bone_length = dynamic_cast<ROP_FBXMainNodeVisitInfo *>(node_info->getParentInfo())->getBoneLength();
@@ -415,7 +415,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 	res_attr->SetSkeletonType(KFbxSkeleton::eLIMB_NODE);
    
     // Get the bone's length
-    float bone_length = 0.0;
+    fpreal bone_length = 0.0;
     if(is_a_null)
     {
 	bone_length = 1.0; // Some dummy value so the next joint knows it's not a root.
@@ -464,12 +464,12 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	is_vertex_cacheable = temp_bool;
 
     int max_vc_verts = 0;
-    float start_time = myParentExporter->getStartTime();
-    float end_time = myParentExporter->getEndTime();
+    fpreal start_time = myParentExporter->getStartTime();
+    fpreal end_time = myParentExporter->getEndTime();
 
     // For now, only export skinning if we're not vertex cacheable.
-    float geom_export_time = start_time;
-    float capture_frame = CHgetFrameFromTime(start_time);  
+    fpreal geom_export_time = start_time;
+    fpreal capture_frame = CHgetFrameFromTime(start_time);  
 
     if(myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable)
     {
@@ -2051,7 +2051,7 @@ ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 bool
 ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
-    float float_parm[3];
+    fpreal float_parm[3];
     int int_param;
     UT_String string_param;
     fbxDouble3 fbx_col;
@@ -2137,7 +2137,7 @@ bool
 ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
     UT_String string_param;
-    float float_parm[3];
+    fpreal float_parm[3];
     double fov_angle, foc_len;
     KFbxVector4 fbx_vec4;
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
@@ -2198,10 +2198,10 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len*length_mult) ) * 2.0;
 
     // Get the x/y resolution of the camera to get aperture ratios.
-    float xres = ROP_FBXUtil::getFloatOPParm(node, "res",0);
-    float yres = ROP_FBXUtil::getFloatOPParm(node, "res",1);
+    fpreal xres = ROP_FBXUtil::getFloatOPParm(node, "res",0);
+    fpreal yres = ROP_FBXUtil::getFloatOPParm(node, "res",1);
 
-    float ap_height = float_parm[0];
+    fpreal ap_height = float_parm[0];
     if(SYSequalZero(xres) == false)
 	ap_height = float_parm[0]*yres/xres;
 
@@ -2249,7 +2249,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 	main_mat_node = source_node->findNode(main_mat_path);
 
     // See if there are any per-face indices
-    float start_time = myStartTime;
+    fpreal start_time = myStartTime;
     int curr_prim, num_prims = 0;
     OP_Node **per_face_mats = NULL;
 
@@ -2756,7 +2756,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     bool did_find;
     UT_String mat_name(UT_String::ALWAYS_DEEP, mat_node->getName());
     myNodeManager->makeNameUnique(mat_name);
-    float temp_col[3];
+    fpreal temp_col[3];
     bool is_specular = false;
     fbxDouble3 temp_fbx_col;
 

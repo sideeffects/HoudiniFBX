@@ -46,7 +46,7 @@ public:
     ~ROP_FBXExporter();
 
     // These are responsible for the actual conversion process.
-    bool initializeExport(const char* output_name, float tstart, float tend, ROP_FBXExportOptions* options);
+    bool initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options);
     void doExport(void);
     bool finishExport(void);
 
@@ -59,8 +59,8 @@ public:
     ROP_FBXExportOptions* getExportOptions(void);
     const char* getOutputFileName(void);
 
-    float getStartTime(void);
-    float getEndTime(void);
+    fpreal getStartTime(void);
+    fpreal getEndTime(void);
     bool getExportingAnimation(void);
 
     void queueStringToDeallocate(char* string_ptr);
@@ -84,7 +84,7 @@ private:
 
     string myOutputFile;
 
-    float myStartTime, myEndTime;
+    fpreal myStartTime, myEndTime;
 
     TCharPtrVector myStringsToDeallocate;
     KFbxNode* myDummyRootNullNode;

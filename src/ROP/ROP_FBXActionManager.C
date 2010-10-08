@@ -42,7 +42,7 @@ ROP_FBXActionManager::addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_
 }
 /********************************************************************************************************/
 ROP_FBXSkinningAction* 
-ROP_FBXActionManager::addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, float capture_frame)
+ROP_FBXActionManager::addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, fpreal capture_frame)
 {
     ROP_FBXSkinningAction* new_action = new ROP_FBXSkinningAction(acted_on_node, deform_node, capture_frame, *this);
     myPostActions.push_back(new_action);

@@ -74,14 +74,14 @@ ROP_FBXExportOptions::setResampleAllAnimation(bool value)
     myResampleAllAnimation = value;
 }
 /********************************************************************************************************/
-float 
+fpreal 
 ROP_FBXExportOptions::getResampleIntervalInFrames(void)
 {
     return myResampleIntervalInFrames;
 }
 /********************************************************************************************************/
 void 
-ROP_FBXExportOptions::setResampleIntervalInFrames(float frames)
+ROP_FBXExportOptions::setResampleIntervalInFrames(fpreal frames)
 {
     myResampleIntervalInFrames = frames;
 }
