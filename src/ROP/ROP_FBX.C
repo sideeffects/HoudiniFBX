@@ -230,7 +230,7 @@ private:
 };
 
 int
-ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
+ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 {
     int			 rcode = 1;
 
@@ -282,7 +282,7 @@ ROP_FBX::startRender(int /*nframes*/, float tstart, float tend)
 }
 
 ROP_RENDER_CODE
-ROP_FBX::renderFrame(float time, UT_Interrupt *)
+ROP_FBX::renderFrame(fpreal time, UT_Interrupt *)
 {
     if( !executePreFrameScript(time) )
 	return ROP_ABORT_RENDER;
