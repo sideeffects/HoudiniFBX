@@ -1404,21 +1404,24 @@ ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_nam
 }
 /********************************************************************************************************/
 // Template support functions
-inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, KFbxVector4& fbx_vec4)
+inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, KFbxVector4& fbx_vec4, float* extra_val)
 {
     fbx_vec4.Set(hd_vec3[0],hd_vec3[1],hd_vec3[2]);
 }
-inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, KFbxVector2& fbx_vec2)
+inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, KFbxVector2& fbx_vec2, float* extra_val)
 {
     fbx_vec2.Set(hd_vec3[0],hd_vec3[1]);
 }
-inline void ROP_FBXassignValues(const UT_Vector3& hd_col, KFbxColor& fbx_col)
+inline void ROP_FBXassignValues(const UT_Vector3& hd_col, KFbxColor& fbx_col, float* extra_val)
 {
-    fbx_col.Set(hd_col[0],hd_col[1],hd_col[2]);
+    if(extra_val)
+	fbx_col.Set(hd_col[0],hd_col[1],hd_col[2],*extra_val);
+    else
+	fbx_col.Set(hd_col[0],hd_col[1],hd_col[2]);
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset,  KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1428,17 +1431,24 @@ void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offs
     HD_TYPE hd_type;
     FBX_TYPE fbx_type;
 
+    float extra_attr_type;
+
     FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
     {
 	hd_type = ppt->getValue<HD_TYPE>(attr_offset);
-
-	ROP_FBXassignValues(hd_type, fbx_type);
-	layer_elem->GetDirectArray().Add(fbx_type);
+	if(extra_attr_offset.isValid())
+	{
+	    extra_attr_type = ppt->getValue<float>(extra_attr_offset);
+	    ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
+	}
+	else
+	    ROP_FBXassignValues(hd_type, fbx_type, NULL);
+	layer_elem->GetDirectArray().Add(fbx_type);  
     }
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset,  KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1449,6 +1459,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
     HD_TYPE hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
+    float extra_attr_type;
 
     bool is_indexed = (layer_elem->GetReferenceMode() != KFbxLayerElement::eDIRECT);
     
@@ -1460,8 +1471,13 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
 	    hd_type = prim->getVertex(curr_vert).template getValue<HD_TYPE>(attr_offset);
-
-	    ROP_FBXassignValues(hd_type, fbx_type);
+	    if(extra_attr_offset.isValid())
+	    {
+		extra_attr_type = prim->getVertex(curr_vert).template getValue<float>(extra_attr_offset);
+		ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
+	    }
+	    else
+		ROP_FBXassignValues(hd_type, fbx_type, NULL);
 	    layer_elem->GetDirectArray().Add(fbx_type);
 	    if(is_indexed)
 		layer_elem->GetIndexArray().Add(curr_arr_cntr);
@@ -1471,7 +1487,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1480,17 +1496,24 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_
     HD_TYPE hd_type;
     FBX_TYPE fbx_type;
     const GEO_Primitive* prim;
+    float extra_attr_type;
 
     FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	hd_type = prim->getValue<HD_TYPE>(attr_offset);
-	ROP_FBXassignValues(hd_type, fbx_type);
+	if(extra_attr_offset.isValid())
+	{
+	    extra_attr_type = prim->getValue<float>(extra_attr_offset);
+	    ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
+	}
+	else
+	    ROP_FBXassignValues(hd_type, fbx_type, NULL);
 	layer_elem->GetDirectArray().Add(fbx_type);
     }
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1498,15 +1521,23 @@ void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
     // Go over all vertices
     HD_TYPE hd_type;
     FBX_TYPE fbx_type;
+    float extra_attr_type;
 
     hd_type = gdp->attribs().getElement().template getValue<HD_TYPE>(attr_offset);
-    ROP_FBXassignValues(hd_type, fbx_type);
+    if(extra_attr_offset.isValid())
+    {
+	extra_attr_type = gdp->attribs().getElement().template getValue<float>(extra_attr_offset);
+	ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
+    }
+    else
+	ROP_FBXassignValues(hd_type, fbx_type, NULL);
     layer_elem->GetDirectArray().Add(fbx_type);
 }
 /********************************************************************************************************/
 KFbxLayerElement* 
 ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, 
-					     const GB_AttributeRef &attr_offset, KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container)
+					     const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset, 
+					     KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container)
 {
     KFbxLayerElement::EReferenceMode ref_mode;
 
@@ -1530,13 +1561,13 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttri
 	new_elem = temp_layer;
 
 	if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
-	    exportPointAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	    exportPointAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
-	    exportVertexAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	    exportVertexAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
-	    exportPrimitiveAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	    exportPrimitiveAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eALL_SAME)
-	    exportDetailAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, temp_layer);
+	    exportDetailAttribute<UT_Vector3, KFbxVector4>(gdp, attr_offset, extra_attr_offset, temp_layer);
     }
     else if(attr_type == ROP_FBXAttributeUV)
     {
@@ -1548,13 +1579,13 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttri
 	new_elem = temp_layer;
 
 	if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
-	    exportPointAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	    exportPointAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
-	    exportVertexAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	    exportVertexAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
-	    exportPrimitiveAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	    exportPrimitiveAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eALL_SAME)
-	    exportDetailAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, temp_layer);
+	    exportDetailAttribute<UT_Vector3, KFbxVector2>(gdp, attr_offset, extra_attr_offset, temp_layer);
 
     }
     else if(attr_type == ROP_FBXAttributeVertexColor)
@@ -1567,13 +1598,13 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttri
 	new_elem = temp_layer;
 
 	if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
-	    exportPointAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	    exportPointAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, extra_attr_offset,  temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON_VERTEX)
-	    exportVertexAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	    exportVertexAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eBY_POLYGON)
-	    exportPrimitiveAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	    exportPrimitiveAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, extra_attr_offset, temp_layer);
 	else if(mapping_mode == KFbxLayerElement::eALL_SAME)
-	    exportDetailAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, temp_layer);
+	    exportDetailAttribute<UT_Vector3, KFbxColor>(gdp, attr_offset, extra_attr_offset, temp_layer);
 
     }
 
@@ -1912,7 +1943,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     GB_Attribute* attr;
     ROP_FBXAttributeType curr_attr_type;
     KFbxLayer* attr_layer;
-    GB_AttributeRef attr_offset;
+    GB_AttributeRef attr_offset, extra_attr_offset;
     KFbxLayerElement* res_elem;
     THDAttributeVector user_attribs;
 
@@ -1935,7 +1966,12 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 		// Create an appropriate layer element and fill it with values
 		attr_offset = gdp->findPointAttrib(attr);
-		res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_CONTROL_POINT, mesh_attr);
+		if(curr_attr_type == ROP_FBXAttributeVertexColor)
+		    extra_attr_offset = gdp->findPointAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), GB_ATTRIB_FLOAT);
+		else
+		    extra_attr_offset.clear();
+
+		res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eBY_CONTROL_POINT, mesh_attr);
 		setProperName(res_elem, gdp, attr);
 	    }
 	    else
@@ -1963,8 +1999,12 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findVertexAttrib(attr);
+	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
+		extra_attr_offset = gdp->findVertexAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), sizeof(float), GB_ATTRIB_FLOAT);
+	    else
+		extra_attr_offset.clear();
 	    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
-	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX, mesh_attr);
+	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset,extra_attr_offset, KFbxLayerElement::eBY_POLYGON_VERTEX, mesh_attr);
 	    setProperName(res_elem, gdp, attr);
 	}
 	else
@@ -1992,7 +2032,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findPrimAttrib(attr);
-	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eBY_POLYGON, mesh_attr);
+	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
+		extra_attr_offset = gdp->findPrimAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), sizeof(float), GB_ATTRIB_FLOAT);
+	    else
+		extra_attr_offset.clear();
+	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eBY_POLYGON, mesh_attr);
 	    setProperName(res_elem, gdp, attr);
 	}
 	else
@@ -2020,7 +2064,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findAttrib(attr);
-	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, KFbxLayerElement::eALL_SAME, mesh_attr);
+	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
+		extra_attr_offset = gdp->findAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), GB_ATTRIB_FLOAT);
+	    else
+		extra_attr_offset.clear();
+	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eALL_SAME, mesh_attr);
 	    setProperName(res_elem, gdp, attr);
 	}
 	else
