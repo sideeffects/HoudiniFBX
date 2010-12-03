@@ -1967,7 +1967,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 		// Create an appropriate layer element and fill it with values
 		attr_offset = gdp->findPointAttrib(attr);
 		if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		    extra_attr_offset = gdp->findPointAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), GB_ATTRIB_FLOAT);
+		    extra_attr_offset = gdp->findPointAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), GB_ATTRIB_FLOAT);
 		else
 		    extra_attr_offset.clear();
 
@@ -2000,7 +2000,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findVertexAttrib(attr);
 	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		extra_attr_offset = gdp->findVertexAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), sizeof(float), GB_ATTRIB_FLOAT);
+		extra_attr_offset = gdp->findVertexAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), sizeof(float), GB_ATTRIB_FLOAT);
 	    else
 		extra_attr_offset.clear();
 	    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
@@ -2033,7 +2033,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findPrimAttrib(attr);
 	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		extra_attr_offset = gdp->findPrimAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), sizeof(float), GB_ATTRIB_FLOAT);
+		extra_attr_offset = gdp->findPrimAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), sizeof(float), GB_ATTRIB_FLOAT);
 	    else
 		extra_attr_offset.clear();
 	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eBY_POLYGON, mesh_attr);
@@ -2065,7 +2065,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findAttrib(attr);
 	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		extra_attr_offset = gdp->findAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, 1), GB_ATTRIB_FLOAT);
+		extra_attr_offset = gdp->findAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), GB_ATTRIB_FLOAT);
 	    else
 		extra_attr_offset.clear();
 	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eALL_SAME, mesh_attr);
