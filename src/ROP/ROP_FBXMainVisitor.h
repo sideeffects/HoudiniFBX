@@ -27,6 +27,10 @@
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 
+#include <map>
+#include <string>
+#include <vector>
+
 class ROP_FBXExporter;
 class GU_Detail;
 class GB_Attribute;
@@ -53,13 +57,13 @@ enum ROP_FBXAttributeType
     ROP_FBXAttributeLastPlaceholder
 };
 /********************************************************************************************************/
-typedef vector < GB_Attribute* > THDAttributeVector;
+typedef std::vector < GB_Attribute* > THDAttributeVector;
 typedef map < OP_Node* , KFbxSurfaceMaterial* > THdFbxMaterialMap;
 typedef map < OP_Node* , int > THdNodeIntMap;
 //typedef set < OP_Node* > THdNodeSet;
-typedef map < string , KFbxTexture* > THdFbxTextureMap;
-typedef vector < KFbxLayerElementTexture* > TFbxLayerElemsVector;
-//typedef vector < KFbxNode* > TFbxNodesVector;
+typedef std::map < std::string , KFbxTexture* > THdFbxTextureMap;
+typedef std::vector < KFbxLayerElementTexture* > TFbxLayerElemsVector;
+//typedef std::vector < KFbxNode* > TFbxNodesVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXAttributeLayerManager
 {
@@ -140,7 +144,7 @@ private:
     KFbxNode* myNode;
     int myHdPrimCnt;
 };
-typedef vector < ROP_FBXConstructionInfo > TFbxNodesVector;
+typedef std::vector < ROP_FBXConstructionInfo > TFbxNodesVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXMainVisitor : public ROP_FBXBaseVisitor
 {

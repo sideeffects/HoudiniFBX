@@ -23,6 +23,8 @@
 #include "ROP_FBXCommon.h"
 #include <UT/UT_String.h>
 
+#include <vector>
+
 /********************************************************************************************************/
 enum ROP_FBXErrorType
 {
@@ -42,11 +44,11 @@ public:
     ROP_FBXErrorType getType(void) const;
 
 private:
-    string myMessage;
+    std::string myMessage;
     bool myIsCritical;
     ROP_FBXErrorType myType;
 };
-typedef vector<ROP_FBXError*> TROPErrorVector;
+typedef std::vector<ROP_FBXError*> TROPErrorVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXErrorManager
 {

@@ -21,12 +21,18 @@
 #define __ROP_FBXUtil_h__
 
 #include "ROP_FBXHeaderWrapper.h"
-#include <GU/GU_Detail.h>
 #include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 #include "ROP_FBXMainVisitor.h"
+
+#include <GU/GU_Detail.h>
 #include <UT/UT_DMatrix4.h>
+
+#include <set>
+#include <map>
+#include <vector>
+#include <string>
 
 class GU_DetailHandle;
 class GU_Detail;
@@ -152,11 +158,11 @@ private:
 
     int mySourcePrim;
 };
-typedef multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
-typedef map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
-typedef vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
-typedef set < string > TStringSet;
-typedef set < OP_Node* > THDNodeSet;
+typedef std::multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
+typedef std::map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
+typedef std::vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
+typedef std::set < std::string > TStringSet;
+typedef std::set < OP_Node* > THDNodeSet;
 /********************************************************************************************************/
 class ROP_FBXNodeManager
 {
@@ -197,7 +203,7 @@ private:
     fpreal myFrame;
     GU_Detail myDetail;
 };
-typedef vector < ROP_FBXGDPCacheItem* > TGeomCacheItems;
+typedef std::vector < ROP_FBXGDPCacheItem* > TGeomCacheItems;
 /********************************************************************************************************/
 // NOTE: This class assumes frames are added in increasing order, and no frames are skipped.
 class ROP_FBXGDPCache

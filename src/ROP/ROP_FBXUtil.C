@@ -47,6 +47,10 @@ extern double ROP_FBXdb_reorderTime;
 extern double ROP_FBXdb_convertTime;
 extern double ROP_FBXdb_duplicateTime;
 #endif
+
+using namespace std;
+
+
 /********************************************************************************************************/
 class ropFBX_AutoCookRender {
 public:

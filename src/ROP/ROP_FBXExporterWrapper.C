@@ -25,6 +25,8 @@
 #include "ROP_FBXExporter.h"
 #include "ROP_FBXExporterWrapper.h"
 
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXExporterWrapper::ROP_FBXExporterWrapper()
 {

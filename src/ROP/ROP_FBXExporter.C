@@ -52,6 +52,9 @@ double ROP_FBXdb_reorderTime;
 double ROP_FBXdb_convertTime;
 double ROP_FBXdb_duplicateTime;
 #endif
+
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXExporter::ROP_FBXExporter()
 {

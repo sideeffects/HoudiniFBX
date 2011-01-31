@@ -28,6 +28,9 @@
 
 #define NEEDED_INDEX_IS_INTERNAL_NODE	    -2
 #define NEEDED_INDEX_UNDEFINED		    -1
+
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXBaseVisitor::ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, fpreal start_time)
 {

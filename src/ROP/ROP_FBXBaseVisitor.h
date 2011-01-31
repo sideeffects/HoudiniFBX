@@ -24,6 +24,10 @@
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXHeaderWrapper.h"
 
+#include <map>
+#include <string>
+#include <vector>
+
 class OP_Network;
 class OP_Node;
 class GEO_Primitive;
@@ -97,10 +101,10 @@ private:
     int myTraveledInputIndex;
 };
 
-typedef vector  < string > TStringVector;
-typedef multimap < OP_Node*, ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfos;
-typedef vector < ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfoVector;
-typedef vector < OP_Node* > THDNodeVector;
+typedef std::vector  < std::string > TStringVector;
+typedef std::multimap < OP_Node*, ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfos;
+typedef std::vector < ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfoVector;
+typedef std::vector < OP_Node* > THDNodeVector;
 /********************************************************************************************************/
 class ROP_API ROP_FBXBaseVisitor
 {

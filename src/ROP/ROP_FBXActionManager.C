@@ -21,6 +21,9 @@
 #include "ROP_FBXBaseAction.h"
 
 #include "ROP_FBXDerivedActions.h"
+
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXActionManager::ROP_FBXActionManager(ROP_FBXNodeManager& node_manager, ROP_FBXErrorManager& error_manager, ROP_FBXExporter& parent_exporter) 
     : myNodeManager(node_manager), myErrorManager(error_manager), myExporter(parent_exporter)

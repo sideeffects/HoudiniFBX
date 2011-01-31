@@ -29,13 +29,16 @@
 #include <UT/UT_Debug.h>
 #endif
 
+#include <vector>
+#include <string>
+
 class FBX_FILMBOX_NAMESPACE::KFbxSdkManager;
 class FBX_FILMBOX_NAMESPACE::KFbxScene;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
 class UT_Interrupt;
 
-typedef vector < char* > TCharPtrVector;
+typedef std::vector < char* > TCharPtrVector;
 /********************************************************************************************************/
 // Note: When adding public members, make sure to add an equivalent to dummy exporter for cases when FBX is
 // disabled.
@@ -82,7 +85,7 @@ private:
     ROP_FBXNodeManager* myNodeManager;
     ROP_FBXActionManager* myActionManager;
 
-    string myOutputFile;
+    std::string myOutputFile;
 
     fpreal myStartTime, myEndTime;
 

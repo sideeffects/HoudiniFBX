@@ -38,6 +38,8 @@
 #include "ROP_Error.h"
 #include "ROP_Templates.h"
 
+using namespace std;
+
 static void
 buildBundleMenu(void *, PRM_Name *menu, int max,
 		const PRM_SpareData *spare, PRM_Parm *)

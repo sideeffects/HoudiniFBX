@@ -55,6 +55,9 @@
 #ifdef UT_DEBUG
 extern double ROP_FBXdb_vcacheExportTime;
 #endif
+
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXAnimVisitor::ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter) 
 : ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod(), parent_exporter->getStartTime())

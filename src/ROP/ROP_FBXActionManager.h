@@ -22,6 +22,8 @@
 #include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXCommon.h"
 
+#include <vector>
+
 class ROP_FBXBaseAction;
 class ROP_FBXErrorManager;
 class ROP_FBXNodeManager;
@@ -37,7 +39,7 @@ class ROP_FBXExporter;
 class OP_Node;
 class ROP_FBXIntTranslator;
 /********************************************************************************************************/
-typedef vector <ROP_FBXBaseAction *> TActionsVector;
+typedef std::vector <ROP_FBXBaseAction *> TActionsVector;
 /********************************************************************************************************/
 class ROP_FBXActionManager
 {

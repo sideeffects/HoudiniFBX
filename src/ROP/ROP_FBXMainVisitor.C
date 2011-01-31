@@ -63,6 +63,8 @@
 extern double ROP_FBXdb_maxVertsCountingTime;
 #endif
 
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter) 
 : ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod(), parent_exporter->getStartTime())

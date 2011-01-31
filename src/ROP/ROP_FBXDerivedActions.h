@@ -23,6 +23,8 @@
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseAction.h"
 
+#include <vector>
+
 class FBX_FILMBOX_NAMESPACE::KFbxNode;
 class FBX_FILMBOX_NAMESPACE::KFbxCluster;
 class FBX_FILMBOX_NAMESPACE::KFbxSkin;
@@ -78,7 +80,7 @@ public:
     OP_Node* myHdNode;
     KFbxNode* myFbxNode;
 };
-typedef vector< ROP_FBXInstanceActionBundle > TInstanceBundleVector;
+typedef std::vector< ROP_FBXInstanceActionBundle > TInstanceBundleVector;
 
 class ROP_FBXCreateInstancesAction : public ROP_FBXBaseAction
 {

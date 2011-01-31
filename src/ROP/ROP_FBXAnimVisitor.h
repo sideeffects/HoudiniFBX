@@ -21,9 +21,12 @@
 #define __ROP_FBXAnimVisitor_h__
 
 #include "ROP_FBXHeaderWrapper.h"
-#include <UT/UT_VectorTypes.h>
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
+
+#include <UT/UT_VectorTypes.h>
+
+#include <string>
 
 class ROP_FBXExporter;
 class GU_Detail;
@@ -83,7 +86,7 @@ private:
 
     KFbxAnimLayer* myAnimLayer;
 
-    string myOutputFileName, myFBXFileSourceFolder, myFBXShortFileName;
+    std::string myOutputFileName, myFBXFileSourceFolder, myFBXShortFileName;
     UT_Interrupt* myBoss;
 };
 /********************************************************************************************************/

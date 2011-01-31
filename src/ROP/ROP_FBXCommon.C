@@ -19,6 +19,9 @@
 
 #include "ROP_FBXCommon.h"
 #include <UT/UT_String.h>
+
+using namespace std;
+
 /********************************************************************************************************/
 ROP_FBXExportOptions::ROP_FBXExportOptions()
 {

@@ -20,6 +20,8 @@
 #include "ROP_FBXErrorManager.h"
 #include <UT/UT_Assert.h>
 
+using namespace std;
+
 template < class T >
 void deleteVectorContents( std::vector < T >& vector_in )
 {

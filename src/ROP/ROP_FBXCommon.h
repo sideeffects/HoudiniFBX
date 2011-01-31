@@ -21,9 +21,6 @@
 #define __ROP_FBXCommon_h__
 
 #include <string>
-#include <vector>
-#include <map>
-#include <set>
 
 #include "ROP_API.h"
 #include <SYS/SYS_Types.h>
@@ -35,7 +32,6 @@
     #define FBX_FILMBOX_NAMESPACE  
 #endif
 
-using namespace std;
 /********************************************************************************************************/
 const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
 
@@ -198,7 +194,7 @@ private:
 
     /// The first network the to start exporting from. Everything (recursively) in this
     /// network will be exported to the FBX file. Defaults to "/obj".
-    string myStartNodePath;
+    std::string myStartNodePath;
 
     /// Level of detail to use when converting various primitives to polygons.
     float myPolyConvertLOD;
@@ -207,7 +203,7 @@ private:
     bool myExportDeformsAsVC;
 
     /// The name of the take to export. If empty, export the current take (default).
-    string myExportTakeName;
+    std::string myExportTakeName;
 
     /// Determines how invisible objects are to be exported.
     ROP_FBXInvisibleNodeExportType myInvisibleObjectsExportType;
@@ -217,11 +213,11 @@ private:
 
     /// Specifies which version of the SDK to use for export. Defaults to an empty string,
     ///	meaning the most current version.
-    string mySdkVersion;
+    std::string mySdkVersion;
 
     /// Optionally contains the names of the bundles we're exporting. Empty by default.
     /// If not empty, only the bundles specified will be exported.
-    string myBundleNames;
+    std::string myBundleNames;
 
     /// If true, vertex cache frame snapshots will not be stored in memory, resulting in
     /// less memory usage, but slower performance.
