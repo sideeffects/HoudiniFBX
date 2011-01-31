@@ -234,6 +234,6 @@ private:
     // Use less memory by not actually caching anything
     bool mySaveMemory;
 };
-typedef set < ROP_FBXGDPCache* > TGDPCacheSet;
+typedef std::set < ROP_FBXGDPCache* > TGDPCacheSet;
 /********************************************************************************************************/
 #endif

@@ -58,8 +58,8 @@ enum ROP_FBXAttributeType
 };
 /********************************************************************************************************/
 typedef std::vector < GB_Attribute* > THDAttributeVector;
-typedef map < OP_Node* , KFbxSurfaceMaterial* > THdFbxMaterialMap;
-typedef map < OP_Node* , int > THdNodeIntMap;
+typedef std::map < OP_Node* , KFbxSurfaceMaterial* > THdFbxMaterialMap;
+typedef std::map < OP_Node* , int > THdNodeIntMap;
 //typedef set < OP_Node* > THdNodeSet;
 typedef std::map < std::string , KFbxTexture* > THdFbxTextureMap;
 typedef std::vector < KFbxLayerElementTexture* > TFbxLayerElemsVector;
