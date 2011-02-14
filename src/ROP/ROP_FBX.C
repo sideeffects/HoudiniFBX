@@ -41,8 +41,9 @@
 using namespace std;
 
 static void
-buildBundleMenu(void *, PRM_Name *menu, int max,
-		const PRM_SpareData *spare, PRM_Parm *)
+buildBundleMenu(
+	void *, PRM_Name *menu, int max,
+	const PRM_SpareData *spare, const PRM_Parm *)
 {
     OPgetDirector()->getBundles()->buildBundleMenu(menu, max,
 	spare ? spare->getValue("opfilter") : 0);
@@ -353,8 +354,9 @@ setMenu(PRM_Name &menu, const char *token, const char *label)
 }
 
 void
-ROP_FBX::buildGeoSaveMenu(void *, PRM_Name *menu, int,
-			       const PRM_SpareData *, PRM_Parm *)
+ROP_FBX::buildGeoSaveMenu(
+	void *, PRM_Name *menu, int,
+	const PRM_SpareData *, const PRM_Parm *)
 {
     int i = 0;
     setMenu(menu[i++], "$HIP/out.fbx",	"HIP: binary FBX file");
@@ -364,8 +366,9 @@ ROP_FBX::buildGeoSaveMenu(void *, PRM_Name *menu, int,
 }
 
 void			 
-ROP_FBX::buildVersionsMenu(void *, PRM_Name *menu, int,
-		  const PRM_SpareData *, PRM_Parm *)
+ROP_FBX::buildVersionsMenu(
+	void *, PRM_Name *menu, int,
+	const PRM_SpareData *, const PRM_Parm *)
 {
     // Fill in the SDK versions
     int menu_item = 0;

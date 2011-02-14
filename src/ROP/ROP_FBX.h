@@ -83,10 +83,10 @@ public:
 
     static void			 buildGeoSaveMenu(void *data, PRM_Name *,
 						  int, const PRM_SpareData *,
-						  PRM_Parm *);
+						  const PRM_Parm *);
     static void			 buildVersionsMenu(void *data, PRM_Name *,
 						  int, const PRM_SpareData *,
-						  PRM_Parm *);
+						  const PRM_Parm *);
     virtual void		 resolveObsoleteParms(
 						PRM_ParmList *obsolete_parms);
 
