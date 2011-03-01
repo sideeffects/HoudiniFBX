@@ -570,7 +570,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
     myNodeManager->makeNameUnique(node_name);
 
-    if(is_vertex_cacheable)
+    if(is_vertex_cacheable && v_cache_out && v_cache_out->getNumFrames() > 0)
     {
 	// We can only cache these:
 	// 1) Pure polygons;
@@ -622,7 +622,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
 	}
     }
-    else
+    else if(!is_vertex_cacheable)
     {
 	// Convert the types we don't natively export.
 	unsigned supported_types = GEOPRIMPOLY | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE;
@@ -672,7 +672,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    outputBezierSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
     }
 
-    if(is_vertex_cacheable)
+    if(is_vertex_cacheable && v_cache_out && v_cache_out->getNumFrames() > 0)
     {
 	// Cache this number so we don't painfully recompute it again when we get to
 	// vertex caching.

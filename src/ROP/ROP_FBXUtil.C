@@ -175,6 +175,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
     int curr_num_unconverted_points;
     bool is_num_verts_constant = true;
     bool is_surfs_only = true;
+    bool looked_at_prims = false;
     int prim_type_res;
 
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
@@ -199,6 +200,8 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	    gdp = gdl.getGdp();
 	    if(!gdp || gdp->primitives().entries() <= 0)
 		continue;
+
+	    looked_at_prims = true;
 
 	    GU_Detail *conv_gdp;
 	    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
@@ -238,6 +241,12 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 
 	}
     }
+
+    // If we return a value of <0, the code will think we cancelled.
+    // However, this may also happen if our target node contains 
+    // no primitives over any frames, so we prevent it.
+    if(!looked_at_prims && first_frame_num_points < 0)
+	first_frame_num_points = 0;
 
     if(is_num_verts_constant && allow_constant_point_detection)
 	v_cache_out->setNumConstantPoints(first_frame_num_points);

@@ -226,6 +226,8 @@ public:
     bool getSaveMemory(void);
     void setSaveMemory(bool value);
 
+    int getNumFrames(void) { return myFrameItems.size(); }
+
 private:
     TGeomCacheItems myFrameItems;
     fpreal myMinFrame;
