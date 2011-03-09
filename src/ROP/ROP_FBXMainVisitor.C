@@ -1631,6 +1631,8 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
 
     layer_elem->ResizeAllDirectArrays(gdp->points().entries());
     KFbxLayerElementArrayTemplate<void*> * fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    if(!fbx_direct_array_ptr)
+	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
     FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
@@ -1662,6 +1664,8 @@ void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int at
     layer_elem->ResizeAllDirectArrays(gdp->points().entries());
 
     float *fbx_direct_array =(float *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
+    if(!fbx_direct_array_ptr)
+	return;
     FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
     {
 	for(curr_size = 0; curr_size < attr_size; curr_size++)
@@ -1700,6 +1704,8 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 
     layer_elem->ResizeAllDirectArrays(total_verts);
     KFbxLayerElementArrayTemplate <void*>* fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    if(!fbx_direct_array_ptr)
+	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
     FOR_ALL_PRIMITIVES(gdp, prim)
@@ -1733,6 +1739,8 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 
     layer_elem->ResizeAllDirectArrays(gdp->primitives().entries());
     KFbxLayerElementArrayTemplate<void*> *fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    if(!fbx_direct_array_ptr)
+	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
@@ -1764,6 +1772,8 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     layer_elem->ResizeAllDirectArrays(1);
     //SIMPLE_TYPE *fbx_direct_array =(SIMPLE_TYPE *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
     KFbxLayerElementArrayTemplate<void*>* fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
+    if(!fbx_direct_array_ptr)
+	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
