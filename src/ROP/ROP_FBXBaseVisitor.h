@@ -101,7 +101,6 @@ private:
     int myTraveledInputIndex;
 };
 
-typedef std::vector  < std::string > TStringVector;
 typedef std::multimap < OP_Node*, ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfos;
 typedef std::vector < ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfoVector;
 typedef std::vector < OP_Node* > THDNodeVector;

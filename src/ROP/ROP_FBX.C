@@ -372,22 +372,22 @@ ROP_FBX::buildVersionsMenu(
 {
     // Fill in the SDK versions
     int menu_item = 0;
-    UT_String* fbx_formats = ROP_FBXExporterWrapper::getVersions();
-    if(fbx_formats)
+    TStringVector fbx_formats;
+    ROP_FBXExporterWrapper::getVersions(fbx_formats);
+    int curr_format, num_formats = fbx_formats.size();
+    for(curr_format = 0; curr_format < num_formats; curr_format++)
     {
-	while(fbx_formats[menu_item].length() > 0)
-	{
-	    setMenu(menu[menu_item], fbx_formats[menu_item], fbx_formats[menu_item]);
-	    menu_item++;
-	}
-	delete[] fbx_formats;
+	setMenu(menu[menu_item], fbx_formats[curr_format].c_str(), fbx_formats[curr_format].c_str());
+	menu_item++;
     }
-    else
+
+    if(num_formats <= 0)
     {
 	// Shouldn't happen, but make sure we play nice anyway.
 	setMenu(menu[menu_item], "(Current)", "(Current)");
 	menu_item++;
     }
+
     setMenu(menu[menu_item], 0, 0);
 }
 

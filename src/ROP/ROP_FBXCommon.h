@@ -21,6 +21,7 @@
 #define __ROP_FBXCommon_h__
 
 #include <string>
+#include <vector>
 
 #include "ROP_API.h"
 #include <SYS/SYS_Types.h>
@@ -32,6 +33,7 @@
     #define FBX_FILMBOX_NAMESPACE  
 #endif
 
+typedef std::vector  < std::string > TStringVector;
 /********************************************************************************************************/
 const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
 

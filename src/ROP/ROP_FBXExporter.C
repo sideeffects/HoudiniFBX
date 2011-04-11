@@ -354,7 +354,24 @@ ROP_FBXExporter::finishExport(void)
 	// Save the built-up scene
 	KFbxExporter* fbx_exporter = KFbxExporter::Create(mySDKManager, "");
 
-	//Try to export in ASCII if possible
+	string sdk_full_version = myExportOptions.getVersion();
+	string sdk_exporter_name, sdk_version;
+	int sep_pos = sdk_full_version.find("|");
+	if(sep_pos > 0)
+	{
+	    sdk_exporter_name = sdk_full_version.substr(0, sep_pos - 1);
+	    sdk_version = sdk_full_version.substr(sep_pos + 2);
+	}
+
+	if(sdk_exporter_name.length() <= 0)
+	    sdk_exporter_name = "FBX";
+
+	// Append ascii or binary string
+	if(myExportOptions.getExportInAscii())
+	    sdk_exporter_name += " ascii";
+	else
+	    sdk_exporter_name += " binary";
+
 	int format_index, format_count = mySDKManager->GetIOPluginRegistry()->GetWriterFormatCount();
 	int out_file_format = -1;
 
@@ -363,12 +380,8 @@ ROP_FBXExporter::finishExport(void)
 	    if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(format_index))
 	    {
 		KString format_desc = mySDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
-		if (format_desc.Find("ascii")>=0 && myExportOptions.getExportInAscii())
-		{
-		    out_file_format = format_index;
-		    break;
-		}
-		else if (format_desc.Find("ascii")<0 && !myExportOptions.getExportInAscii())
+		if(format_desc.GetLen() >= sdk_exporter_name.length() && 
+		    sdk_exporter_name == format_desc.Left(sdk_exporter_name.length()).Buffer())
 		{
 		    out_file_format = format_index;
 		    break;
@@ -379,11 +392,10 @@ ROP_FBXExporter::finishExport(void)
 	// Deprecated.
 	///fbx_exporter->SetFileFormat(out_file_format);
 
-	string sdk_version = myExportOptions.getVersion();
 	if(sdk_version.length() > 0)
 	    fbx_exporter->SetFileExportVersion(sdk_version.c_str(), KFbxSceneRenamer::eFBX_TO_FBX);
 #if 0	
-	// Options are now done differentyl. Luckily, we don't use them.
+	// Options are now done differenty. Luckily, we don't use them.
 	KFbxStreamOptionsFbxWriter* export_options = KFbxStreamOptionsFbxWriter::Create(mySDKManager, "");
 	if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(out_file_format))
 	{
@@ -403,19 +415,11 @@ ROP_FBXExporter::finishExport(void)
 #endif
 	// Initialize the exporter by providing a filename.
 	if(fbx_exporter->Initialize(myOutputFile.c_str(), out_file_format, mySDKManager->GetIOSettings()) == false)
-	{
-	    //	addError(ROP_COOK_ERROR, (const char *)"Invalid output path");
-	    //	return ROP_ABORT_RENDER;
 	    return false;
-	}
 
 	// Export the scene.
 	bool exp_status = fbx_exporter->Export(myScene); 
-/*
-	if(export_options)
-	    export_options->Destroy();
-	export_options=NULL;
-*/
+
 	// Destroy the exporter.
 	fbx_exporter->Destroy();
     }
@@ -605,16 +609,20 @@ ROP_FBXExporter::GetBoss(void)
     return myBoss;
 }
 /********************************************************************************************************/
-UT_String* 
-ROP_FBXExporter::getVersions(void)
+void 
+ROP_FBXExporter::getVersions(TStringVector& versions_out)
 {
+    versions_out.clear();
+
     KFbxSdkManager* tempSDKManager = KFbxSdkManager::Create();
     if(!tempSDKManager)
-	return NULL;
+	return;
 
     // Get versions for the first available format. This assumes that versions for the
     // ascii and binary exporters are the same. Which they are.
     int format_index, format_count = tempSDKManager->GetIOPluginRegistry()->GetWriterFormatCount();
+    string str_temp;
+    int curr_ver;
     int out_file_format = -1;
 
     for (format_index = 0; format_index < format_count; format_index++)
@@ -622,44 +630,45 @@ ROP_FBXExporter::getVersions(void)
 	if (tempSDKManager->GetIOPluginRegistry()->WriterIsFBX(format_index))
 	{
 	    KString format_desc = tempSDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
-	    if (format_desc.Find("ascii")>=0)
-	    {
+
+	    // Skip any encrypted formats.
+	    if (format_desc.Find("encrypted") >= 0)
+		continue;
+
+	    // Note that we don't want duplicate ascii and binary formats here, since that is filtered
+	    // later when we actually do the export. So we skip the ascii version, and strip the binary
+	    // word out of the description.
+	    if (format_desc.Find("ascii") >= 0)
+		continue;
+
+	    // Note: This assumes the first FBX writer format we have find
+	    // is the one we actually want to use.
+	    if(out_file_format < 0)
 		out_file_format = format_index;
-		break;
-	    }
-	    else if (format_desc.Find("ascii")<0)
+
+	    // Get all versions of the current format.
+	    int binary_pos;
+	    char const* const* curr_format_versions = tempSDKManager->GetIOPluginRegistry()->GetWritableVersions(format_index);
+	    if(curr_format_versions)
 	    {
-		out_file_format = format_index;
-		break;
+		for(curr_ver = 0; curr_format_versions[curr_ver]; curr_ver++)
+		{
+		    // We need to concatenate the format name and version, since now
+		    // it's not just a single format with multiple versions, but multiple
+		    // formats with multiple versions.
+		    str_temp = format_desc.Buffer();
+		    binary_pos = str_temp.find("binary");
+		    UT_ASSERT(binary_pos != string::npos && binary_pos > 0);
+		    // -1 to skip a space before the format.
+		    str_temp = str_temp.substr(0, binary_pos - 1);
+		    str_temp += " | ";
+		    str_temp += curr_format_versions[curr_ver];
+		    versions_out.push_back(str_temp);
+		}
 	    }
 	}
     }
 
-    if(out_file_format < 0)
-	return NULL;
-
-    char const* const* format_versions = tempSDKManager->GetIOPluginRegistry()->GetWritableVersions(out_file_format);
-    if(!format_versions)
-	return NULL;
-
-    // Count the number
-    int curr_ver, num_versions = 0;
-    while(format_versions[num_versions])
-	num_versions++;
-
-    if(num_versions == 0)
-	return NULL;
-
-    UT_String* res_array = new UT_String[num_versions + 1];
-    for(curr_ver = 0; curr_ver < num_versions; curr_ver++)
-    {
-	res_array[curr_ver].setAlwaysDeep(true);
-	res_array[curr_ver] = format_versions[curr_ver];
-    }
-    res_array[curr_ver] = "";
-    
     tempSDKManager->Destroy();
-
-    return res_array;
 }
 /********************************************************************************************************/

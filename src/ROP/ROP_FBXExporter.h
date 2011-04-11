@@ -70,7 +70,7 @@ public:
     KFbxNode* GetFBXRootNode(OP_Node* asking_node);
     UT_Interrupt* GetBoss(void);
 
-    static UT_String* getVersions(void);
+    static void getVersions(TStringVector& versions_out);
 
 private:
     void deallocateQueuedStrings(void);

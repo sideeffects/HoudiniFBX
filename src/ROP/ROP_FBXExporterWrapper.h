@@ -56,7 +56,7 @@ public:
 
     /// Returns true if FBX is supported in the current Houdini build, false otherwise.
     static bool isSupported(void);
-    static UT_String* getVersions(void);
+    static void getVersions(TStringVector& versions_out);
 
 private:
 
@@ -95,7 +95,7 @@ public:
 
     /// Returns true if FBX is supported in the current Houdini build, false otherwise.
     static bool isSupported(void) { return false; }
-    static UT_String* getVersions(void) { return NULL; }
+    static void getVersions(TStringVector& versions_out) { }
 };
 
 #endif // FBX_SUPPORTED

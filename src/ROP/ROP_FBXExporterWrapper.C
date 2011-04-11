@@ -74,10 +74,10 @@ ROP_FBXExporterWrapper::getErrorManager(void)
     return myFBXExporter->getErrorManager();
 }
 /********************************************************************************************************/
-UT_String* 
-ROP_FBXExporterWrapper::getVersions(void)
+void
+ROP_FBXExporterWrapper::getVersions(TStringVector& versions_out)
 {
-    return ROP_FBXExporter::getVersions();
+    return ROP_FBXExporter::getVersions(versions_out);
 }
 /********************************************************************************************************/
 bool 
