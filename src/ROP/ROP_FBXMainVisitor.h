@@ -161,6 +161,14 @@ public:
 
 protected:
 
+    // Given a gdp pointer, this will return a pointer to a gdp which consists of
+    // only supported primitives for export. This may or may not be a converted geo.
+    // The conversion_spare parm is the object which may be used for conversion - 
+    // the idea is to avoid dynamically allocating one and avoiding ambiguity 
+    // regarding whether the returned pointer needs to be deleted or not. 
+    // In this case, it doesn't ever need to be deleted.
+    const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, unsigned prim_types_in_out);
+
     void setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GB_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes);

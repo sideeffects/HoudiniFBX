@@ -624,32 +624,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     }
     else if(!is_vertex_cacheable)
     {
-	// Convert the types we don't natively export.
-	unsigned supported_types = GEOPRIMPOLY | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE;
-
-	if(myParentExporter->getExportOptions()->getConvertSurfaces() == false)
-	    supported_types |= ( GEOPRIMNURBSURF  | GEOPRIMBEZSURF );
-
 	GU_Detail conv_gdp;
-	const GU_Detail* final_detail;
-
-	if( (prim_type & (~supported_types)) != 0)
-	{
-	    // We have some primitives that are not supported
-	    float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
-	    conv_gdp.duplicate(*gdp);
-	    GU_ConvertParms conv_parms;
-	    conv_parms.fromType = GEOPRIMALL & (~supported_types);
-	    conv_parms.toType = GEOPRIMPOLY;
-	    conv_parms.method.setULOD(lod);
-	    conv_parms.method.setVLOD(lod);
-	    conv_gdp.convert(conv_parms);
-	    final_detail = &conv_gdp;
-
-	    prim_type = ROP_FBXUtil::getGdpPrimId(final_detail);
-	}
-	else
-	    final_detail = gdp;
+	const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_type);
 
 	// No vertex caching. Output several separate nodes
 	if( prim_type & GEOPRIMPOLY )
@@ -2329,10 +2305,14 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 	{
 	    GU_DetailHandleAutoReadLock	 gdl(gdh);
 	    const GU_Detail		*gdp = gdl.getGdp();
-	    if(gdp)
+	    GU_Detail conv_gdp;
+	    unsigned prim_types = ROP_FBXUtil::getGdpPrimId(gdp);
+	    const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_types);
+
+	    if(final_detail)
 	    {
 		// See if we have any per-prim materials
-		const GEO_PrimAttribDict &prim_attribs = gdp->primitiveAttribs();
+		const GEO_PrimAttribDict &prim_attribs = final_detail->primitiveAttribs();
 		GB_Attribute *matPathAttr = prim_attribs.find(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
 		GB_AttributeRef attrOffset;
 		if (matPathAttr)
@@ -2341,12 +2321,12 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 		const char *loc_mat_path = NULL;
 		if(attrOffset.isValid())
 		{
-		    num_prims = gdp->primitives().entries();
+		    num_prims = final_detail->primitives().entries();
 		    per_face_mats = new OP_Node* [num_prims];
 		    memset(per_face_mats, 0, sizeof(OP_Node*)*num_prims);
 
 		    int curr_prim_idx = 0;
-		    FOR_ALL_PRIMITIVES(gdp, prim)
+		    FOR_ALL_PRIMITIVES(final_detail, prim)
 		    {
 			int index = prim->getValue<int>(attrOffset);
 			loc_mat_path = matPathAttr->getIndex(index);
@@ -2926,7 +2906,7 @@ ROP_FBXgFindMappedName(const char *attr, const char *varname, void *data)
     else
 	return 1;
 }
-
+/********************************************************************************************************/
 void 
 ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GB_Attribute* attr)
 {
@@ -2943,6 +2923,41 @@ ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Det
     // Set it
     if(str_mapped_name.length() > 0)
 	fbx_layer_elem->SetName(str_mapped_name.c_str());
+}
+/********************************************************************************************************/
+const GU_Detail* 
+ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, unsigned prim_types_in_out)
+{
+    if(!gdp_orig)
+	return NULL;
+
+    const GU_Detail* final_detail;
+
+    // Convert the types we don't natively export.
+    unsigned supported_types = GEOPRIMPOLY | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE;
+
+    if(myParentExporter->getExportOptions()->getConvertSurfaces() == false)
+	supported_types |= ( GEOPRIMNURBSURF  | GEOPRIMBEZSURF ); 
+
+    if( (prim_types_in_out & (~supported_types)) != 0)
+    {
+	// We have some primitives that are not supported
+	float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
+	conversion_spare.duplicate(*gdp_orig);
+	GU_ConvertParms conv_parms;
+	conv_parms.fromType = GEOPRIMALL & (~supported_types);
+	conv_parms.toType = GEOPRIMPOLY;
+	conv_parms.method.setULOD(lod);
+	conv_parms.method.setVLOD(lod);
+	conversion_spare.convert(conv_parms);
+	final_detail = &conversion_spare;
+
+	prim_types_in_out = ROP_FBXUtil::getGdpPrimId(final_detail);
+    }
+    else
+	final_detail = gdp_orig;
+
+    return final_detail;
 }
 /********************************************************************************************************/
 // ROP_FBXMainNodeVisitInfo
