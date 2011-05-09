@@ -2926,7 +2926,7 @@ ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Det
 }
 /********************************************************************************************************/
 const GU_Detail* 
-ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, unsigned prim_types_in_out)
+ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, unsigned& prim_types_in_out)
 {
     if(!gdp_orig)
 	return NULL;
