@@ -564,7 +564,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	return false;
 
     // See what types we have in our GDP
-    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
+    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
     KFbxNodeAttribute *res_attr = NULL;
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
@@ -577,13 +577,13 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	// 2) Pure NURBS;
 	// 3) Pure Beziers;
 	// 4) Anything else, converted to polygons.
-	if((prim_type == GEOPRIMPOLY || prim_type == GEOPRIMMESH || prim_type == (GEOPRIMPOLY | GEOPRIMMESH)) && v_cache_out->getIsNumPointsConstant())
+	if((prim_type == GEO_PrimTypeCompat::GEOPRIMPOLY || prim_type == GEO_PrimTypeCompat::GEOPRIMMESH || prim_type == (GEO_PrimTypeCompat::GEOPRIMPOLY | GEO_PrimTypeCompat::GEOPRIMMESH)) && v_cache_out->getIsNumPointsConstant())
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
 	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
 	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
 	}
-	else if(prim_type == GEOPRIMPART)
+	else if(prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 	{
 	    UT_ASSERT(v_cache_out && is_vertex_cacheable);
 
@@ -603,13 +603,13 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
 	    // Note: unfortunately, the order of these is important, and matters to the ROP_FBXAnimVisitor::fillVertexArray().
 	    int prim_cntr = -1;
-	    if(prim_type & GEOPRIMNURBSURF)
+	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
 		outputNURBSSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
-	    if(prim_type & GEOPRIMBEZSURF)
+	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
 		outputBezierSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
-	    if(prim_type & GEOPRIMBEZCURVE)
+	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
 		outputBezierCurves(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
-	    if(prim_type & GEOPRIMNURBCURVE)
+	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
 		outputNURBSCurves(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
 	}
 	else // Mixed types
@@ -628,7 +628,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_type);
 
 	// No vertex caching. Output several separate nodes
-	if( prim_type & GEOPRIMPOLY )
+	if( prim_type & GEO_PrimTypeCompat::GEOPRIMPOLY )
 	{
 	    // There are polygons in this gdp. Output them.
 	    res_attr = outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
@@ -638,13 +638,13 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    // We ignore them in the about polygon function.
 	    outputPolylines(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
 	}
-	if(prim_type & GEOPRIMNURBSURF)
+	if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
 	    outputNURBSSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	if(prim_type & GEOPRIMNURBCURVE)
+	if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
 	    outputNURBSCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	if(prim_type & GEOPRIMBEZCURVE)
+	if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
 	    outputBezierCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	if(prim_type & GEOPRIMBEZSURF)
+	if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
 	    outputBezierSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
     }
 
@@ -706,7 +706,7 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
     for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
     {
 	prim = copy_gdp.primitives()(curr_prim);
-	if(prim->getPrimitiveId() != GEOPRIMBEZSURF)
+	if(prim->getPrimitiveId() != GEO_PrimTypeCompat::GEOPRIMBEZSURF)
 	    continue;
 
 	if(prim_cntr)
@@ -760,7 +760,7 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
     for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
     {
 	prim = copy_gdp.primitives()(curr_prim);
-	if(prim->getPrimitiveId() != GEOPRIMBEZCURVE)
+	if(prim->getPrimitiveId() != GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
 	    continue;
 
 	prim_cnt++;
@@ -807,7 +807,7 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 
     bool did_find_open = false;
 
-    FOR_MASK_PRIMITIVES(gdp, const_prim, GEOPRIMPOLY)
+    GA_FOR_MASK_PRIMITIVES(gdp, const_prim, GEO_PrimTypeCompat::GEOPRIMPOLY)
     {
 	const_hd_line = dynamic_cast<const GU_PrimPoly*>(const_prim);
 	if(const_hd_line->isClosed() == false)
@@ -829,7 +829,7 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
     {
 	prim_cnt++;
 	prim = copy_gdp.primitives()(curr_prim);
-	if(prim->getPrimitiveId() != GEOPRIMPOLY)
+	if(prim->getPrimitiveId() != GEO_PrimTypeCompat::GEOPRIMPOLY)
 	    continue;
 
 	hd_line = dynamic_cast<GU_PrimPoly*>(prim);
@@ -870,7 +870,7 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
     int prim_cnt = -1;
     if(prim_cntr)
 	prim_cnt = *prim_cntr;
-    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMNURBCURVE)
+    GA_FOR_MASK_PRIMITIVES(gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
     {
 	prim_cnt++;
 	hd_nurb = dynamic_cast<const GU_PrimNURBCurve*>(prim);
@@ -896,24 +896,24 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
 void 
 ROP_FBXMainVisitor::setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU_PrimNURBCurve* hd_nurb)
 {
-    GB_NUBBasis* basis;
+    const GA_NUBBasis* basis;
     int point_count;
     KFbxNurbsCurve::EType curve_type;
     int curr_knot, num_knots;
     double *knot_vector;
-    float* hd_knot_vector;
+    GA_KnotVector hd_knot_vector;
     UT_Vector4 temp_vec;
     KFbxVector4* fbx_points;
     int curr_point, num_points;
 
     nurbs_curve_attr->SetDimension(KFbxNurbsCurve::e3D);
 
-    basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getBasis());
+    basis = dynamic_cast<const GA_NUBBasis*>(hd_nurb->getBasis());
     point_count = hd_nurb->getVertexCount();
 
     if(hd_nurb->isClosed())
     {
-	if(basis->interpolatesEnds())
+	if(basis->getEndInterpolation())
 	    curve_type = KFbxNurbsCurve::eCLOSED;
 	else
 	    curve_type = KFbxNurbsCurve::ePERIODIC;
@@ -927,7 +927,7 @@ ROP_FBXMainVisitor::setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU
     // Set the basis
     num_knots = nurbs_curve_attr->GetKnotCount();
     knot_vector = nurbs_curve_attr->GetKnotVector();
-    hd_knot_vector = basis->getData();
+    hd_knot_vector = basis->getKnotVector();
     for(curr_knot = 0; curr_knot < num_knots; curr_knot++)
 	knot_vector[curr_knot] = hd_knot_vector[curr_knot];
 
@@ -937,7 +937,7 @@ ROP_FBXMainVisitor::setNURBSCurveInfo(KFbxNurbsCurve* nurbs_curve_attr, const GU
 
     for(curr_point = 0; curr_point < num_points; curr_point++)
     {
-	temp_vec = hd_nurb->getVertex(curr_point).getPos();
+	temp_vec = hd_nurb->getVertexElement(curr_point).getPos();
 	fbx_points[curr_point].Set(temp_vec[0],temp_vec[1],temp_vec[2],temp_vec[3]);
     }
 }
@@ -982,12 +982,12 @@ ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurfac
 	{
 	    fbx_curve = KFbxNurbsCurve::Create(mySDKManager, "");
 
-	    unsigned face_id = curr_piece->getPrimitiveId();
+	    unsigned face_id = curr_piece->getPrimitiveTypeId();
 
-	    if(face_id == GDPRIMBEZCURVE)
+	    if(face_id == GD_PRIMBEZCURVE)
 	    {
 		GU_Detail temp_gdp;
-		GU_PrimNURBSurf *temp_prim = dynamic_cast<GU_PrimNURBSurf *>(temp_gdp.appendPrimitive(GEOPRIMNURBSURF));
+		GU_PrimNURBSurf *temp_prim = dynamic_cast<GU_PrimNURBSurf *>(temp_gdp.appendPrimitive(GEO_PRIMNURBSURF));
 		GEO_TPSurf *tp_surf = dynamic_cast<GEO_TPSurf *>(temp_prim);
 		GEO_Profiles* profiles = tp_surf->profiles(1);
 
@@ -1005,9 +1005,9 @@ ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurfac
 		    UT_Vector3 temp_vec;
 		    for(curr_pt = 0; curr_pt < num_pts; curr_pt++)
 		    {
-			temp_vec = temp_face->getVertex(curr_pt).getPos();
+			temp_vec = temp_face->getVertexElement(curr_pt).getPos();
 			temp_vec.z() = 0;
-			bez_curve->getVertex(curr_pt).getPt()->setPos(temp_vec);
+			bez_curve->getVertexElement(curr_pt).getPt()->setPos(temp_vec);
 		    }
 
 		    // Convert it to NURBS
@@ -1015,10 +1015,10 @@ ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurfac
 		    setNURBSCurveInfo(fbx_curve, hd_nurb);
 		}
 	    }
-	    else if(face_id == GDPRIMPOLY)
+	    else if(face_id == GD_PRIMPOLY)
 	    {
 		GU_Detail temp_gdp;
-		GU_PrimNURBSurf *temp_prim = dynamic_cast<GU_PrimNURBSurf *>(temp_gdp.appendPrimitive(GEOPRIMNURBSURF));
+		GU_PrimNURBSurf *temp_prim = dynamic_cast<GU_PrimNURBSurf *>(temp_gdp.appendPrimitive(GEO_PRIMNURBSURF));
 		GEO_TPSurf *tp_surf = dynamic_cast<GEO_TPSurf *>(temp_prim);
 		GEO_Profiles* profiles = tp_surf->profiles(1);
 
@@ -1035,9 +1035,9 @@ ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurfac
 			UT_Vector3 temp_vec;
 			for(curr_pt = 0; curr_pt < num_pts; curr_pt++)
 			{
-			    temp_vec = temp_face->getVertex(curr_pt).getPos();
+			    temp_vec = temp_face->getVertexElement(curr_pt).getPos();
 			    temp_vec.z() = 0;
-			    poly->getVertex(curr_pt).getPt()->setPos(temp_vec);
+			    poly->getVertexElement(curr_pt).getPt()->setPos(temp_vec);
 			}
 			// Convert it to NURBS
 			GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(poly->convertToNURBNew(4));
@@ -1074,7 +1074,7 @@ ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_n
     const GU_PrimNURBSurf* hd_nurb;
 
     bool have_profiles = false;
-    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMNURBSURF)
+    GA_FOR_MASK_PRIMITIVES(gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBSURF)
     {
 	hd_nurb = dynamic_cast<const GU_PrimNURBSurf*>(prim);
 	if(hd_nurb && hd_nurb->hasProfiles())
@@ -1098,7 +1098,7 @@ ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_n
     if(prim_cntr)
 	prim_cnt = *prim_cntr;
 
-    FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMNURBSURF)
+    GA_FOR_MASK_PRIMITIVES(final_gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBSURF)
     {
 	if(prim_cntr)
 	    prim_cnt++;
@@ -1183,26 +1183,26 @@ ROP_FBXMainVisitor::outputSingleNURBSSurface(const GU_PrimNURBSurf* hd_nurb, con
 void
 ROP_FBXMainVisitor::setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const GU_PrimNURBSurf* hd_nurb)
 {
-    GB_NUBBasis* curr_u_basis;
-    GB_NUBBasis* curr_v_basis;
+    GA_NUBBasis* curr_u_basis;
+    GA_NUBBasis* curr_v_basis;
     int v_point_count, u_point_count;
     KFbxNurbsSurface::ENurbType u_type, v_type;
     int curr_knot, num_knots;
     double *knot_vector;
-    float* hd_knot_vector;
+    GA_KnotVector hd_knot_vector;
     int i_row, i_col, i_idx;
     UT_Vector4 temp_vec;
     KFbxVector4* fbx_points;
 
-    curr_u_basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getUBasis());
-    curr_v_basis = dynamic_cast<GB_NUBBasis*>(hd_nurb->getVBasis());
+    curr_u_basis = dynamic_cast<GA_NUBBasis*>(hd_nurb->getUBasis());
+    curr_v_basis = dynamic_cast<GA_NUBBasis*>(hd_nurb->getVBasis());
     v_point_count = hd_nurb->getNumRows();
     u_point_count = hd_nurb->getNumCols();
 
     // Determine types
     if(hd_nurb->isWrappedU())
     {
-	if(curr_u_basis->interpolatesEnds())
+	if(curr_u_basis->getEndInterpolation())
 	    u_type = KFbxNurbsSurface::eCLOSED;
 	else
 	    u_type = KFbxNurbsSurface::ePERIODIC;
@@ -1212,7 +1212,7 @@ ROP_FBXMainVisitor::setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const
 
     if(hd_nurb->isWrappedV())
     {
-	if(curr_v_basis->interpolatesEnds())
+	if(curr_v_basis->getEndInterpolation())
 	    v_type = KFbxNurbsSurface::eCLOSED;
 	else
 	    v_type = KFbxNurbsSurface::ePERIODIC;
@@ -1227,13 +1227,13 @@ ROP_FBXMainVisitor::setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const
     // Set bases (which are all belong to us...)
     num_knots = nurbs_surf_attr->GetUKnotCount();
     knot_vector = nurbs_surf_attr->GetUKnotVector();
-    hd_knot_vector = curr_u_basis->getData();
+    hd_knot_vector = curr_u_basis->getKnotVector();
     for(curr_knot = 0; curr_knot < num_knots; curr_knot++)
 	knot_vector[curr_knot] = hd_knot_vector[curr_knot];
 
     num_knots = nurbs_surf_attr->GetVKnotCount();
     knot_vector = nurbs_surf_attr->GetVKnotVector();
-    hd_knot_vector = curr_v_basis->getData();
+    hd_knot_vector = curr_v_basis->getKnotVector();
     for(curr_knot = 0; curr_knot < num_knots; curr_knot++)
 	knot_vector[curr_knot] = hd_knot_vector[curr_knot];
 
@@ -1244,7 +1244,7 @@ ROP_FBXMainVisitor::setNURBSSurfaceInfo(KFbxNurbsSurface *nurbs_surf_attr, const
 	for(i_col = 0; i_col < v_point_count; i_col++)
 	{
 	    i_idx = i_row*v_point_count + i_col;
-	    temp_vec = hd_nurb->getVertex(i_idx).getPos();
+	    temp_vec = hd_nurb->getVertexElement(i_row, i_col).getPos();
 	    fbx_points[i_idx].Set(temp_vec[0],temp_vec[1],temp_vec[2],temp_vec[3]);
 	}
     }
@@ -1295,11 +1295,11 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     // And the last one:
     //fbx_control_points[curr_point].Set(pos[0],pos[1],pos[2],pos[3]);
 
-    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMMESH)
+    GA_FOR_MASK_PRIMITIVES(gdp, prim, GEO_PrimTypeCompat::GEOPRIMMESH)
     {
 	const GEO_Hull		*hull = dynamic_cast<const GEO_Hull*>(prim);
 
-	const GB_Element		*p0, *p1, *p2, *p3;
+	const GA_GBElement		*p0, *p1, *p2, *p3;
 	int rows = hull->getNumRows();
 	int cols = hull->getNumCols();
 	int wrapr = hull->isWrappedV() ? rows : rows-1;
@@ -1312,10 +1312,10 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 	    for (c = 0; c < wrapc; c++)
 	    {
 		c1 = (c+1) % cols;
-		p0 = hull->getVertex(r,  c ).getBasePt();
-		p1 = hull->getVertex(r1, c ).getBasePt();
-		p2 = hull->getVertex(r1, c1).getBasePt();
-		p3 = hull->getVertex(r,  c1).getBasePt();
+		p0 = hull->getVertexElement(r,  c ).getBasePt();
+		p1 = hull->getVertexElement(r1, c ).getBasePt();
+		p2 = hull->getVertexElement(r1, c1).getBasePt();
+		p3 = hull->getVertexElement(r,  c1).getBasePt();
 
 		mesh_attr->BeginPolygon();
 		mesh_attr->AddPolygon(p0->getNum());
@@ -1329,14 +1329,14 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 
     // Now set vertices
     int curr_vert, num_verts;
-    FOR_MASK_PRIMITIVES(gdp, prim, GEOPRIMPOLY)
+    GA_FOR_MASK_PRIMITIVES(gdp, prim, GEO_PrimTypeCompat::GEOPRIMPOLY)
     {
 	if(dynamic_cast<const GEO_PrimPoly*>(prim)->isClosed())
 	{
 	    mesh_attr->BeginPolygon();
 	    num_verts = prim->getVertexCount();
 	    for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
-		mesh_attr->AddPolygon(prim->getVertex(curr_vert).getBasePt()->getNum());
+		mesh_attr->AddPolygon(prim->getVertexElement(curr_vert).getBasePt()->getNum());
 	    mesh_attr->EndPolygon();
 	}
     }
@@ -1399,7 +1399,7 @@ inline void ROP_FBXassignValues(const UT_Vector3& hd_col, KFbxColor& fbx_col, fl
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset,  KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportPointAttribute(const GU_Detail *gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset,  KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1426,7 +1426,7 @@ void exportPointAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offs
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset,  KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportVertexAttribute(const GU_Detail *gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset,  KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1443,15 +1443,15 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
     
     int curr_arr_cntr = 0;
     int curr_vert, num_verts;
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	num_verts = prim->getVertexCount();
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = prim->getVertex(curr_vert).template getValue<HD_TYPE>(attr_offset);
+	    hd_type = prim->getVertexElement(curr_vert).template getValue<HD_TYPE>(attr_offset);
 	    if(extra_attr_offset.isValid())
 	    {
-		extra_attr_type = prim->getVertex(curr_vert).template getValue<float>(extra_attr_offset);
+		extra_attr_type = prim->getVertexElement(curr_vert).template getValue<float>(extra_attr_offset);
 		ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
 	    }
 	    else
@@ -1465,7 +1465,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportPrimitiveAttribute(const GU_Detail *gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1476,7 +1476,7 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_
     const GEO_Primitive* prim;
     float extra_attr_type;
 
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	hd_type = prim->getValue<HD_TYPE>(attr_offset);
 	if(extra_attr_offset.isValid())
@@ -1491,7 +1491,7 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
-void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
+void exportDetailAttribute(const GU_Detail *gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset, KFbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1501,10 +1501,10 @@ void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
     FBX_TYPE fbx_type;
     float extra_attr_type;
 
-    hd_type = gdp->attribs().getElement().template getValue<HD_TYPE>(attr_offset);
+    hd_type = gdp->element().template getValue<HD_TYPE>(attr_offset);
     if(extra_attr_offset.isValid())
     {
-	extra_attr_type = gdp->attribs().getElement().template getValue<float>(extra_attr_offset);
+	extra_attr_type = gdp->element().template getValue<float>(extra_attr_offset);
 	ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
     }
     else
@@ -1514,7 +1514,7 @@ void exportDetailAttribute(const GU_Detail *gdp, const GB_AttributeRef &attr_off
 /********************************************************************************************************/
 KFbxLayerElement* 
 ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp, 
-					     const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset, 
+					     const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset, 
 					     KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container)
 {
     KFbxLayerElement::EReferenceMode ref_mode;
@@ -1590,7 +1590,7 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttri
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -1600,7 +1600,7 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
     SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
-    const GB_AttributeRef &attr_offset = gdp->findPointAttrib(attr);
+    const GA_ROAttributeRef attr_offset = gdp->findPointAttrib(*attr);
     UT_ASSERT(attr_offset.isValid());
     if(attr_offset.isInvalid())
 	return;
@@ -1621,7 +1621,7 @@ void exportUserPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr
 }
 /********************************************************************************************************/
 #if 0
-void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_size, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportVectorPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_size, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -1631,7 +1631,7 @@ void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int at
     float hd_type;
     int array_pos = 0;
 
-    const GB_AttributeRef &attr_offset = gdp->findPointAttrib(attr);
+    const GA_ROAttributeRef attr_offset = gdp->findPointAttrib(*attr);
     UT_ASSERT(attr_offset.isValid());
     if(attr_offset.isInvalid())
 	return;
@@ -1655,7 +1655,7 @@ void exportVectorPointAttribute(const GU_Detail* gdp, GB_Attribute* attr, int at
 #endif
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -1667,12 +1667,12 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     int total_verts = 0;
     int curr_vert, num_verts;
 
-    const GB_AttributeRef &attr_offset = gdp->findVertexAttrib(attr);
+    const GA_ROAttributeRef attr_offset = gdp->findVertexAttrib(*attr);
     UT_ASSERT(attr_offset.isValid());
     if(attr_offset.isInvalid())
 	return;
 
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	num_verts = prim->getVertexCount();
 	total_verts += num_verts;
@@ -1684,12 +1684,12 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	num_verts = prim->getVertexCount();
 	for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = prim->getVertex(curr_vert).template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+	    hd_type = prim->getVertexElement(curr_vert).template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
 	    fbx_direct_array[array_pos] = hd_type;
 	    array_pos++;
 	}
@@ -1698,7 +1698,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserPrimitiveAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1708,7 +1708,7 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
     SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
-    const GB_AttributeRef &attr_offset = gdp->findPrimAttrib(attr);
+    const GA_ROAttributeRef attr_offset = gdp->findPrimAttrib(*attr);
     UT_ASSERT(attr_offset.isValid());
     if(attr_offset.isInvalid())
 	return;
@@ -1720,7 +1720,7 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	hd_type = prim->getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
 	fbx_direct_array[array_pos] = hd_type;
@@ -1731,12 +1731,12 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GB_Attribute* attr, int 
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
+void exportUserDetailAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, KFbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
 
-    const GB_AttributeRef &attr_offset = gdp->findAttrib(attr);
+    const GA_ROAttributeRef attr_offset = gdp->findGlobalAttrib(*attr);
     UT_ASSERT(attr_offset.isValid());
     if(attr_offset.isInvalid())
 	return;
@@ -1753,27 +1753,19 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GB_Attribute* attr, int att
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
-    hd_type = gdp->attribs().getElement().template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+    hd_type = gdp->element().template getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
     fbx_direct_array[array_pos] = hd_type;
     array_pos++;
 
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
 /********************************************************************************************************/
-int getNumAttrElems(GB_Attribute* attr)
+int getNumAttrElems(GA_Attribute* attr)
 {
-    int elem_size = 0;
-    GB_AttribType attr_type = attr->getType();
-    if(attr_type == GB_ATTRIB_FLOAT || 
-	attr_type == GB_ATTRIB_VECTOR)
-	elem_size = sizeof(fpreal32);
-    else if(attr_type == GB_ATTRIB_INT)
-	elem_size = sizeof(int);
-    
-    if(elem_size <= 0)
-	return 0;
-    else
-	return attr->getSize()/elem_size;
+    GA_StorageClass storage = attr->getStorageClass();
+    if(storage == GA_STORECLASS_REAL || storage == GA_STORECLASS_INT)
+	return attr->getTupleSize();
+    return 0;
 }
 /********************************************************************************************************/
 void 
@@ -1791,10 +1783,11 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     UT_String suffix(UT_String::ALWAYS_DEEP);
     const char* vec_comps[] = { "x", "y", "z"};
     int curr_pos;
-    GB_AttribType attr_type;
+    GA_TypeInfo attr_type;
+    GA_StorageClass attr_store;
     int attr_size;
     const char* orig_name;
-    GB_Attribute* attr;
+    GA_Attribute* attr;
     TStringVector attr_names;
     char* temp_name;
 
@@ -1806,7 +1799,8 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	attr = hd_attribs[curr_hd_attr];
 
 	// Get the attribute type
-	attr_type = attr->getType();
+	attr_type = attr->getTypeInfo();
+	attr_store = attr->getStorageClass();
 	attr_size = getNumAttrElems(attr);
 	if(attr_size <= 0)
 	    continue;
@@ -1819,19 +1813,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	    // We also have to break apart things like vectors.
 	    suffix = "";
 	    full_name = "";
-	    if(attr_type == GB_ATTRIB_INT)
-	    {
-		custom_types_array.Add(DTInteger);
-		if(attr_size > 1)
-		    suffix.sprintf("_%d", curr_pos);
-	    }
-	    else if(attr_type == GB_ATTRIB_FLOAT) 
-	    {
-		custom_types_array.Add(DTFloat);
-		if(attr_size > 1)
-		    suffix.sprintf("_%d", curr_pos);
-	    }
-	    else if(attr_type == GB_ATTRIB_VECTOR)
+	    if(attr_type == GA_TYPE_VECTOR)
 	    {
 		custom_types_array.Add(DTFloat);
 		if(attr_size <= 3)
@@ -1840,6 +1822,18 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 			suffix.sprintf("_%s", vec_comps[curr_pos]);
 		}
 		else
+		    suffix.sprintf("_%d", curr_pos);
+	    }
+	    else if(attr_store == GA_STORECLASS_INT)
+	    {
+		custom_types_array.Add(DTInteger);
+		if(attr_size > 1)
+		    suffix.sprintf("_%d", curr_pos);
+	    }
+	    else if(attr_store == GA_STORECLASS_REAL) 
+	    {
+		custom_types_array.Add(DTFloat);
+		if(attr_size > 1)
 		    suffix.sprintf("_%d", curr_pos);
 	    }
 
@@ -1888,7 +1882,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	attr = hd_attribs[curr_hd_attr];
 
 	// Get the attribute type
-	attr_type = attr->getType();
+	attr_store = attr->getStorageClass();
 	attr_size = getNumAttrElems(attr);
 	if(attr_size <= 0)
 	    continue;
@@ -1896,7 +1890,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 
 	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
 	{
-	    if(attr_type == GB_ATTRIB_INT)
+	    if(attr_store == GA_STORECLASS_INT)
 	    {
 		if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
 		    exportUserPointAttribute<int>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
@@ -1907,7 +1901,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 		else if(mapping_mode == KFbxLayerElement::eALL_SAME)
 		    exportUserDetailAttribute<int>(gdp, attr,curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);		
 	    }
-	    else if(attr_type == GB_ATTRIB_FLOAT || attr_type == GB_ATTRIB_VECTOR)  
+	    else if(attr_store == GA_STORECLASS_REAL)  
 	    {
 		if(mapping_mode == KFbxLayerElement::eBY_CONTROL_POINT)
 		    exportUserPointAttribute<float>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
@@ -1928,10 +1922,10 @@ void
 ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 {
     ROP_FBXAttributeLayerManager attr_manager(mesh_attr);
-    GB_Attribute* attr;
+    GA_Attribute* attr;
     ROP_FBXAttributeType curr_attr_type;
     KFbxLayer* attr_layer;
-    GB_AttributeRef attr_offset, extra_attr_offset;
+    GA_ROAttributeRef attr_offset, extra_attr_offset;
     KFbxLayerElement* res_elem;
     THDAttributeVector user_attribs;
 
@@ -1940,9 +1934,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     // Go through point attributes first.
     if(gdp->points().entries() > 0)
     {
-	attr = gdp->pointAttribs().getHead();
-	while(attr)
+	for (GA_AttributeDict::iterator itor = gdp->pointAttribs().begin();
+	     itor != gdp->pointAttribs().end(); ++itor)
 	{
+	    attr = itor.attrib();
+
 	    // Determine the proper attribute type
 	    curr_attr_type = getAttrTypeByName(gdp, attr->getName());
 
@@ -1953,9 +1949,9 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 		UT_ASSERT(attr_layer);
 
 		// Create an appropriate layer element and fill it with values
-		attr_offset = gdp->findPointAttrib(attr);
+		attr_offset = gdp->findPointAttrib(*attr);
 		if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		    extra_attr_offset = gdp->findPointAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), GB_ATTRIB_FLOAT);
+		    extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_POINT, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
 		else
 		    extra_attr_offset.clear();
 
@@ -1964,7 +1960,6 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    }
 	    else
 		user_attribs.push_back(attr);
-	    attr = (GB_Attribute *) attr->next();
 	}
     }
 
@@ -1973,9 +1968,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Go through vertex attributes
-    attr = gdp->vertexAttribs().getHead();
-    while(attr)
+    for (GA_AttributeDict::iterator itor = gdp->vertexAttribs().begin();
+	 itor != gdp->vertexAttribs().end(); ++itor)
     {
+	attr = itor.attrib();
+
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
 
@@ -1986,9 +1983,9 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    UT_ASSERT(attr_layer);
 
 	    // Create an appropriate layer element
-	    attr_offset = gdp->findVertexAttrib(attr);
+	    attr_offset = gdp->findVertexAttrib(*attr);
 	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		extra_attr_offset = gdp->findVertexAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), sizeof(float), GB_ATTRIB_FLOAT);
+		extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_VERTEX, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
 	    else
 		extra_attr_offset.clear();
 	    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
@@ -1997,8 +1994,6 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	}
 	else
 	    user_attribs.push_back(attr);
-
-	attr = (GB_Attribute *) attr->next();
     }
 
     // Process all custom attributes
@@ -2006,9 +2001,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Primitive attributes
-    attr = gdp->primitiveAttribs().getHead();
-    while(attr)
+    for (GA_AttributeDict::iterator itor = gdp->primitiveAttribs().begin();
+	 itor != gdp->primitiveAttribs().end(); ++itor)
     {
+	attr = itor.attrib();
+
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
 
@@ -2019,9 +2016,9 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    UT_ASSERT(attr_layer);
 
 	    // Create an appropriate layer element
-	    attr_offset = gdp->findPrimAttrib(attr);
+	    attr_offset = gdp->findPrimAttrib(*attr);
 	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		extra_attr_offset = gdp->findPrimAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), sizeof(float), GB_ATTRIB_FLOAT);
+		extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_PRIMITIVE, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
 	    else
 		extra_attr_offset.clear();
 	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eBY_POLYGON, mesh_attr);
@@ -2029,8 +2026,6 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	}
 	else
 	    user_attribs.push_back(attr);
-
-	attr = (GB_Attribute *) attr->next();
     }
 
     // Process all custom attributes
@@ -2038,9 +2033,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Detail attributes
-    attr = gdp->attribs().getHead();
-    while(attr)
+    for (GA_AttributeDict::iterator itor = gdp->attribs().begin();
+	 itor != gdp->attribs().end(); ++itor)
     {
+	attr = itor.attrib();
+
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
 
@@ -2051,9 +2048,9 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	    UT_ASSERT(attr_layer);
 
 	    // Create an appropriate layer element
-	    attr_offset = gdp->findAttrib(attr);
+	    attr_offset = gdp->findGlobalAttrib(*attr);
 	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
-		extra_attr_offset = gdp->findAttrib(gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())), GB_ATTRIB_FLOAT);
+		extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_GLOBAL, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
 	    else
 		extra_attr_offset.clear();
 	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, KFbxLayerElement::eALL_SAME, mesh_attr);
@@ -2061,8 +2058,6 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, KFbxMesh* mesh_attr)
 	}
 	else
 	    user_attribs.push_back(attr);
-
-	attr = (GB_Attribute *) attr->next();
     }
 
     // Process all custom attributes
@@ -2306,30 +2301,27 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 	    GU_DetailHandleAutoReadLock	 gdl(gdh);
 	    const GU_Detail		*gdp = gdl.getGdp();
 	    GU_Detail conv_gdp;
-	    unsigned prim_types = ROP_FBXUtil::getGdpPrimId(gdp);
+	    GA_PrimCompat::TypeMask prim_types = ROP_FBXUtil::getGdpPrimId(gdp);
 	    const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_types);
 
 	    if(final_detail)
 	    {
 		// See if we have any per-prim materials
-		const GEO_PrimAttribDict &prim_attribs = final_detail->primitiveAttribs();
-		GB_Attribute *matPathAttr = prim_attribs.find(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
-		GB_AttributeRef attrOffset;
-		if (matPathAttr)
-		    attrOffset = prim_attribs.getOffset(GEO_STD_ATTRIB_MATERIAL_PATH, GB_ATTRIB_INDEX);
+		GA_ROAttributeRef attrOffset = final_detail->findStringTuple(GA_ATTRIB_PRIMITIVE, GEO_STD_ATTRIB_MATERIAL_PATH);
+		const GA_Attribute *matPathAttr = attrOffset.getAttribute();
     	    
 		const char *loc_mat_path = NULL;
 		if(attrOffset.isValid())
 		{
+		    const GA_AIFStringTuple *stuple = attrOffset.getAIFStringTuple();
 		    num_prims = final_detail->primitives().entries();
 		    per_face_mats = new OP_Node* [num_prims];
 		    memset(per_face_mats, 0, sizeof(OP_Node*)*num_prims);
 
 		    int curr_prim_idx = 0;
-		    FOR_ALL_PRIMITIVES(final_detail, prim)
+		    GA_FOR_ALL_PRIMITIVES(final_detail, prim)
 		    {
-			int index = prim->getValue<int>(attrOffset);
-			loc_mat_path = matPathAttr->getIndex(index);
+			loc_mat_path = stuple->getString(matPathAttr, prim->getDataOffset());
 			// Find corresponding mat
 			if(loc_mat_path)
 			{
@@ -2908,7 +2900,7 @@ ROP_FBXgFindMappedName(const char *attr, const char *varname, void *data)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GB_Attribute* attr)
+ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GA_Attribute* attr)
 {
     if(!fbx_layer_elem || !attr || !attr->getName())
 	return;
@@ -2926,7 +2918,7 @@ ROP_FBXMainVisitor::setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Det
 }
 /********************************************************************************************************/
 const GU_Detail* 
-ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, unsigned& prim_types_in_out)
+ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, GA_PrimCompat::TypeMask &prim_types_in_out)
 {
     if(!gdp_orig)
 	return NULL;
@@ -2934,10 +2926,10 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
     const GU_Detail* final_detail;
 
     // Convert the types we don't natively export.
-    unsigned supported_types = GEOPRIMPOLY | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE;
+    GA_PrimCompat::TypeMask supported_types = GEO_PrimTypeCompat::GEOPRIMPOLY | GEO_PrimTypeCompat::GEOPRIMNURBCURVE | GEO_PrimTypeCompat::GEOPRIMBEZCURVE;
 
     if(myParentExporter->getExportOptions()->getConvertSurfaces() == false)
-	supported_types |= ( GEOPRIMNURBSURF  | GEOPRIMBEZSURF ); 
+	supported_types |= ( GEO_PrimTypeCompat::GEOPRIMNURBSURF  | GEO_PrimTypeCompat::GEOPRIMBEZSURF ); 
 
     if( (prim_types_in_out & (~supported_types)) != 0)
     {
@@ -2945,8 +2937,8 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
 	float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
 	conversion_spare.duplicate(*gdp_orig);
 	GU_ConvertParms conv_parms;
-	conv_parms.fromType = GEOPRIMALL & (~supported_types);
-	conv_parms.toType = GEOPRIMPOLY;
+	conv_parms.fromType = GEO_PrimTypeCompat::GEOPRIMALL & (~supported_types);
+	conv_parms.toType = GEO_PrimTypeCompat::GEOPRIMPOLY;
 	conv_parms.method.setULOD(lod);
 	conv_parms.method.setVLOD(lod);
 	conversion_spare.convert(conv_parms);

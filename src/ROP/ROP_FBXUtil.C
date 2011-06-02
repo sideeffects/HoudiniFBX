@@ -176,7 +176,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
     bool is_num_verts_constant = true;
     bool is_surfs_only = true;
     bool looked_at_prims = false;
-    int prim_type_res;
+    GA_PrimCompat::TypeMask prim_type_res;
 
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
     {
@@ -204,7 +204,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	    looked_at_prims = true;
 
 	    GU_Detail *conv_gdp;
-	    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
+	    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
 	    GU_Detail temp_detail;
 	    // We must save the start frame in any case since it is needed
@@ -214,14 +214,14 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	    else
 		conv_gdp = v_cache_out->addFrame(curr_frame);
 
-	    if(prim_type == GEOPRIMPART)
+	    if(prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 	    {
 		convertParticleGDPtoPolyGDP(gdp, *conv_gdp);
 		is_num_verts_constant = false;
 	    }
 	    else
 	    {
-		prim_type_res = prim_type & (~(GEOPRIMNURBSURF | GEOPRIMBEZSURF | GEOPRIMNURBCURVE | GEOPRIMBEZCURVE));
+		prim_type_res = prim_type & (~(GEO_PrimTypeCompat::GEOPRIMNURBSURF | GEO_PrimTypeCompat::GEOPRIMBEZSURF | GEO_PrimTypeCompat::GEOPRIMNURBCURVE | GEO_PrimTypeCompat::GEOPRIMBEZCURVE));
 		if(prim_type_res != 0)
 		    is_surfs_only = false;
 
@@ -328,17 +328,17 @@ ROP_FBXUtil::convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& ou
 	tri_points[3] = ut_vec + ut_curr_dir*sq_size;
 
 	// Append points
-	geo_points[0] = out_gdp.appendPoint();
+	geo_points[0] = out_gdp.appendPointElement();
 	geo_points[0]->setPos(tri_points[0]);
-	geo_points[1] = out_gdp.appendPoint();
+	geo_points[1] = out_gdp.appendPointElement();
 	geo_points[1]->setPos(tri_points[1]);
-	geo_points[2] = out_gdp.appendPoint();
+	geo_points[2] = out_gdp.appendPointElement();
 	geo_points[2]->setPos(tri_points[2]);
-	geo_points[3] = out_gdp.appendPoint();
+	geo_points[3] = out_gdp.appendPointElement();
 	geo_points[3]->setPos(tri_points[3]);
 
 	// Create a primitive
-	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEOPRIMPOLY);
+	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEO_PRIMPOLY);
 	prim_poly_ptr->setSize(0);
 	prim_poly_ptr->appendVertex(geo_points[0]);
 	prim_poly_ptr->appendVertex(geo_points[1]);
@@ -357,8 +357,8 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 #endif
     GU_Detail conv_gdp;
     GU_ConvertParms conv_parms;
-    conv_parms.fromType = GEOPRIMALL;
-    conv_parms.toType = GEOPRIMPOLY;
+    conv_parms.fromType = GEO_PrimTypeCompat::GEOPRIMALL;
+    conv_parms.toType = GEO_PrimTypeCompat::GEOPRIMPOLY;
     conv_parms.method.setULOD(lod);
     conv_parms.method.setVLOD(lod);
 #ifdef UT_DEBUG
@@ -419,14 +419,14 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 
 	UT_ASSERT(prim->getVertexCount() == 3);
 
-	temp_pts[0] = out_gdp.appendPoint();
-	temp_pts[0]->getPos() = prim->getVertex(0).getPos();
-	temp_pts[1] = out_gdp.appendPoint();
-	temp_pts[1]->getPos() = prim->getVertex(1).getPos();
-	temp_pts[2] = out_gdp.appendPoint();
-	temp_pts[2]->getPos() = prim->getVertex(2).getPos();
+	temp_pts[0] = out_gdp.appendPointElement();
+	temp_pts[0]->setPos(prim->getVertexElement(0).getPos());
+	temp_pts[1] = out_gdp.appendPointElement();
+	temp_pts[1]->setPos(prim->getVertexElement(1).getPos());
+	temp_pts[2] = out_gdp.appendPointElement();
+	temp_pts[2]->setPos(prim->getVertexElement(2).getPos());
 
-	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEOPRIMPOLY);
+	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEO_PRIMPOLY);
 	prim_poly_ptr->setSize(0);
 	prim_poly_ptr->appendVertex(temp_pts[0]);
 	prim_poly_ptr->appendVertex(temp_pts[1]);
@@ -932,13 +932,13 @@ ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
     return curr_node;
 }
 /********************************************************************************************************/
-unsigned 
+GA_PrimCompat::TypeMask
 ROP_FBXUtil::getGdpPrimId(const GU_Detail* gdp)
 {
     // Now return all encountered types
     const GEO_Primitive *prim = NULL;
-    unsigned prim_type = 0;
-    FOR_ALL_PRIMITIVES(gdp, prim)
+    GA_PrimCompat::TypeMask prim_type(0);
+    GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	prim_type |= prim->getPrimitiveId();
     }

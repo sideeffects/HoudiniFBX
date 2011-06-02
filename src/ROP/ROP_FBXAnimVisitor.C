@@ -847,8 +847,8 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	else
 	{
 	    // Re-do the geometry
-	    unsigned prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
-	    if(prim_type == GEOPRIMPART)
+	    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
+	    if(prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 		ROP_FBXUtil::convertParticleGDPtoPolyGDP(gdp, conv_gdp);
 	    else
 		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), true, conv_gdp, dummy_int);
@@ -870,8 +870,6 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
     UT_Vector4 ut_vec;
     int arr_offset;
 
-    double add_offset = 1.0;
-
     if(node_info_in->getIsSurfacesOnly())
     {
 	// The order of points is different for surfaces
@@ -888,7 +886,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	int source_prim_cnt = node_pair_info->getSourcePrimitive();
 	i_curr_vert = 0;
 	curr_prim_cnt = -1;
-	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMNURBSURF)
+	GA_FOR_MASK_PRIMITIVES(final_gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBSURF)
 	{
 	    curr_prim_cnt++;
 	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
@@ -907,7 +905,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 		{
 		    i_idx = i_col*u_point_count + i_row;
 		    if(i_idx < actual_gdp_points)	
-			ut_vec = prim->getVertex(i_idx).getPos();
+			ut_vec = prim->getVertexElement(i_idx).getPos();
 		    else
 			ut_vec = 0;
 
@@ -920,7 +918,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    }
 	} // end over NURBS surfaces
 
-	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMBEZSURF)
+	GA_FOR_MASK_PRIMITIVES(final_gdp, prim, GEO_PrimTypeCompat::GEOPRIMBEZSURF)
 	{
 	    curr_prim_cnt++;
 	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
@@ -943,7 +941,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 		{
 		    i_idx = i_col*u_point_count + i_row;
 		    if(i_idx < actual_gdp_points)	
-			ut_vec = prim->getVertex(i_idx).getPos();
+			ut_vec = prim->getVertexElement(i_idx).getPos();
 		    else
 			ut_vec = 0;
 
@@ -956,7 +954,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    }
 	} // end over Bezier surfaces
 
-	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMBEZCURVE)
+	GA_FOR_MASK_PRIMITIVES(final_gdp, prim, GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
 	{
 	    curr_prim_cnt++;
 	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
@@ -972,7 +970,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
 	    {
 		if(i_idx < actual_gdp_points)	
-		    ut_vec = prim->getVertex(i_idx).getPos();
+		    ut_vec = prim->getVertexElement(i_idx).getPos();
 		else
 		    ut_vec = 0;
 
@@ -984,7 +982,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    }
 	} // end over Bezier curves
 
-	FOR_MASK_PRIMITIVES(final_gdp, prim, GEOPRIMNURBCURVE)
+	GA_FOR_MASK_PRIMITIVES(final_gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
 	{
 	    curr_prim_cnt++;
 	    if(source_prim_cnt >= 0 && source_prim_cnt != curr_prim_cnt)
@@ -998,7 +996,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
 	    {
 		if(i_idx < actual_gdp_points)	
-		    ut_vec = prim->getVertex(i_idx).getPos();
+		    ut_vec = prim->getVertexElement(i_idx).getPos();
 		else
 		    ut_vec = 0;
 
@@ -1256,7 +1254,7 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
     GU_PrimRBezCurve* hd_bez_curve;
     const GEO_Primitive* prim;
     int curr_prim_cnt = -1;
-    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMNURBSURF)
+    GA_FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBSURF)
     {
 	curr_prim_cnt++;
 	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
@@ -1271,7 +1269,7 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
 	return v_point_count * u_point_count;
     }
 
-    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMBEZSURF)
+    GA_FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEO_PrimTypeCompat::GEOPRIMBEZSURF)
     {
 	curr_prim_cnt++;
 	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
@@ -1285,7 +1283,7 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
 	return hd_nurb_curve->getVertexCount();
     }
 
-    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMBEZCURVE)
+    GA_FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
     {
 	curr_prim_cnt++;
 	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)
@@ -1300,7 +1298,7 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
 	return hd_nurb_curve->getVertexCount();
     }
 
-    FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEOPRIMNURBCURVE)
+    GA_FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
     {
 	curr_prim_cnt++;
 	if(selected_prim_idx >= 0 && selected_prim_idx != curr_prim_cnt)

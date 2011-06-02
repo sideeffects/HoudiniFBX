@@ -33,8 +33,9 @@
 
 class ROP_FBXExporter;
 class GU_Detail;
-class GB_Attribute;
-class GB_AttributeRef;
+class GA_Attribute;
+class GA_ROAttributeRef;
+namespace GA_PrimCompat { class TypeMask; }
 class GD_TrimRegion;
 class ROP_FBXErrorManager;
 class ROP_FBXGDPCache;
@@ -57,7 +58,7 @@ enum ROP_FBXAttributeType
     ROP_FBXAttributeLastPlaceholder
 };
 /********************************************************************************************************/
-typedef std::vector < GB_Attribute* > THDAttributeVector;
+typedef std::vector < GA_Attribute* > THDAttributeVector;
 typedef std::map < OP_Node* , KFbxSurfaceMaterial* > THdFbxMaterialMap;
 typedef std::map < OP_Node* , int > THdNodeIntMap;
 //typedef set < OP_Node* > THdNodeSet;
@@ -167,9 +168,9 @@ protected:
     // the idea is to avoid dynamically allocating one and avoiding ambiguity 
     // regarding whether the returned pointer needs to be deleted or not. 
     // In this case, it doesn't ever need to be deleted.
-    const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, unsigned& prim_types_in_out);
+    const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, GA_PrimCompat::TypeMask &prim_types_in_out);
 
-    void setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GB_Attribute* attr);
+    void setProperName(KFbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes);
     bool outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, KFbxNode* parent_node, TFbxNodesVector& res_nodes);
@@ -201,7 +202,7 @@ protected:
 
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
     KFbxLayerElement* getAndSetFBXLayerElement(KFbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
-	const GU_Detail* gdp, const GB_AttributeRef &attr_offset, const GB_AttributeRef &extra_attr_offset,  KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container);
+	const GU_Detail* gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset,  KFbxLayerElement::EMappingMode mapping_mode, KFbxLayerContainer* layer_container);
 
     void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, KFbxNode* fbx_parent_node, 
 	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 

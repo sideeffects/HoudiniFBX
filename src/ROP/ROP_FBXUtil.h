@@ -69,7 +69,7 @@ public:
     static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal ftime, UT_String* override_node_type, bool use_world_transform = false);
     static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
 
-    static unsigned getGdpPrimId(const GU_Detail* gdp);
+    static GA_PrimCompat::TypeMask getGdpPrimId(const GU_Detail* gdp);
 
     static bool isDummyBone(OP_Node* bone_node);
     static bool isJointNullNode(OP_Node* null_node);
