@@ -1336,7 +1336,7 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 	    mesh_attr->BeginPolygon();
 	    num_verts = prim->getVertexCount();
 	    for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
-		mesh_attr->AddPolygon(prim->getVertexElement(curr_vert).getBasePt()->getNum());
+		mesh_attr->AddPolygon(prim->getVertexElement(curr_vert).getPointOrder());
 	    mesh_attr->EndPolygon();
 	}
     }
