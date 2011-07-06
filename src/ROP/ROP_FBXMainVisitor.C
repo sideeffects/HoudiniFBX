@@ -1790,6 +1790,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     GA_Attribute* attr;
     TStringVector attr_names;
     char* temp_name;
+    bool is_supported;
 
     // Iterate once, adding attribute names and types
     int num_supported_attribs = 0;
@@ -1805,6 +1806,8 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	if(attr_size <= 0)
 	    continue;
 	orig_name = attr->getName();
+
+	is_supported = false;
 
 	for(curr_pos = 0; curr_pos < attr_size; curr_pos++)
 	{
@@ -1823,21 +1826,24 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 		}
 		else
 		    suffix.sprintf("_%d", curr_pos);
+		is_supported = true;
 	    }
 	    else if(attr_store == GA_STORECLASS_INT)
 	    {
 		custom_types_array.Add(DTInteger);
 		if(attr_size > 1)
 		    suffix.sprintf("_%d", curr_pos);
+		is_supported = true;
 	    }
 	    else if(attr_store == GA_STORECLASS_REAL) 
 	    {
 		custom_types_array.Add(DTFloat);
 		if(attr_size > 1)
 		    suffix.sprintf("_%d", curr_pos);
+		is_supported = true;
 	    }
 
-	    if(suffix.length() > 0) 
+	    if(is_supported)
 	    {
 		// Construct a full name and add it
 		full_name = orig_name + suffix;
@@ -1853,8 +1859,8 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 		custom_names_array.Add( temp_name);
 
 		num_supported_attribs++;
-	    }
-	    attr_names.push_back((const char*)full_name);
+		attr_names.push_back((const char*)full_name);
+	    }	    
 
 	} // over attr size
 
