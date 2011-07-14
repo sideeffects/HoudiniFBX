@@ -1336,7 +1336,7 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 	    mesh_attr->BeginPolygon();
 	    num_verts = prim->getVertexCount();
 	    for(curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
-		mesh_attr->AddPolygon(prim->getVertexElement(curr_vert).getPointOrder());
+		mesh_attr->AddPolygon(prim->getVertexElement(curr_vert).getPointIndex());
 	    mesh_attr->EndPolygon();
 	}
     }
@@ -2327,7 +2327,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, KFbxNode* fbx_node)
 		    int curr_prim_idx = 0;
 		    GA_FOR_ALL_PRIMITIVES(final_detail, prim)
 		    {
-			loc_mat_path = stuple->getString(matPathAttr, prim->getDataOffset());
+			loc_mat_path = stuple->getString(matPathAttr, prim->getMapOffset());
 			// Find corresponding mat
 			if(loc_mat_path)
 			{
