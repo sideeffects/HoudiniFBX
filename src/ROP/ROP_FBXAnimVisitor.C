@@ -35,6 +35,7 @@
 #include <CH/CH_Segment.h>
 #include <SOP/SOP_Node.h>
 #include <CH/CH_Expression.h>
+#include <GA/GA_ElementWrangler.h>
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_ConvertParms.h>
 #include <GEO/GEO_Primitive.h>
@@ -918,6 +919,9 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    }
 	} // end over NURBS surfaces
 
+	GA_ElementWranglerCache	 wranglers(*const_cast<GU_Detail *>(final_gdp),
+					   GA_PointWrangler::EXCLUDE_P);
+
 	GA_FOR_MASK_PRIMITIVES(final_gdp, prim, GEO_PrimTypeCompat::GEOPRIMBEZSURF)
 	{
 	    curr_prim_cnt++;
@@ -928,7 +932,8 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    if(!hd_bez)
 		continue;
 
-	    hd_nurb = dynamic_cast<GU_PrimNURBSurf*>(hd_bez->convertToNURBNew());
+	    hd_nurb = dynamic_cast<GU_PrimNURBSurf*>(hd_bez->convertToNURBNew(
+								    wranglers));
 	    if(!hd_nurb)
 		continue;
 
@@ -964,7 +969,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    if(!hd_bez_curve)
 		continue;
 
-	    hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew());
+	    hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew(wranglers));
 
 	    int u_point_count = hd_nurb_curve->getVertexCount();
 	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
@@ -1269,6 +1274,9 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
 	return v_point_count * u_point_count;
     }
 
+    GA_ElementWranglerCache	 wranglers(conv_gdp,
+					   GA_PointWrangler::EXCLUDE_P);
+
     GA_FOR_MASK_PRIMITIVES(&conv_gdp, prim, GEO_PrimTypeCompat::GEOPRIMBEZSURF)
     {
 	curr_prim_cnt++;
@@ -1279,7 +1287,7 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
 	if(!hd_bez_curve)
 	    continue;
 
-	hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew());
+	hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew(wranglers));
 	return hd_nurb_curve->getVertexCount();
     }
 
@@ -1293,7 +1301,7 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
 	if(!hd_bez_curve)
 	    continue;
 
-	hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew());
+	hd_nurb_curve = dynamic_cast<GU_PrimNURBCurve*>(hd_bez_curve->convertToNURBNew(wranglers));
 
 	return hd_nurb_curve->getVertexCount();
     }

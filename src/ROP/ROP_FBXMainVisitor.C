@@ -27,6 +27,7 @@
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Director.h>
+#include <GA/GA_ElementWrangler.h>
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_ConvertParms.h>
 #include <GU/GU_PrimNURBSurf.h>
@@ -698,6 +699,9 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
     GU_Detail copy_gdp;
     copy_gdp.duplicate(*gdp);
 
+    GA_ElementWranglerCache	 wranglers(copy_gdp,
+					   GA_PointWrangler::EXCLUDE_P);
+
     int prim_cnt = -1;
     if(prim_cntr)
 	prim_cnt = *prim_cntr;
@@ -719,7 +723,8 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
 	    continue;
 	}
 
-	hd_nurb = dynamic_cast<GU_PrimNURBSurf*>(hd_line->convertToNURBNew());
+	hd_nurb = dynamic_cast<GU_PrimNURBSurf*>(hd_line->convertToNURBNew(
+								    wranglers));
 	if(!hd_nurb)
 	    continue;
 
@@ -752,6 +757,9 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
     GU_Detail copy_gdp;
     copy_gdp.duplicate(*gdp);
 
+    GA_ElementWranglerCache	 wranglers(copy_gdp,
+					   GA_PointWrangler::EXCLUDE_P);
+
     int prim_cnt = -1;
     if(prim_cntr)
 	prim_cnt = *prim_cntr;
@@ -772,7 +780,8 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 	    continue;
 	}
 
-	hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(hd_line->convertToNURBNew());
+	hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(hd_line->convertToNURBNew(
+								    wranglers));
 	if(!hd_nurb)
 	    continue;
 
@@ -823,6 +832,9 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
     GU_Detail copy_gdp;
     copy_gdp.duplicate(*gdp);
 
+    GA_ElementWranglerCache	 wranglers(copy_gdp,
+					   GA_PointWrangler::EXCLUDE_P);
+
     int prim_cnt = -1;
     int curr_prim, num_prims = copy_gdp.primitives().entries();
     for(curr_prim = num_prims - 1; curr_prim >= 0; curr_prim--)
@@ -841,7 +853,8 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 	if(hd_line->isClosed())
 	    continue;
 
-	hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(hd_line->convertToNURBNew(4));
+	hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(hd_line->convertToNURBNew(
+								wranglers, 4));
 	if(!hd_nurb)
 	    continue;
 
@@ -1011,7 +1024,9 @@ ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurfac
 		    }
 
 		    // Convert it to NURBS
-		    GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(bez_curve->convertToNURBNew());
+		    GA_ElementWranglerCache	 wranglers(temp_gdp,
+						   GA_PointWrangler::EXCLUDE_P);
+		    GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(bez_curve->convertToNURBNew(wranglers));
 		    setNURBSCurveInfo(fbx_curve, hd_nurb);
 		}
 	    }
@@ -1040,7 +1055,9 @@ ROP_FBXMainVisitor::setTrimRegionInfo(GD_TrimRegion* region, KFbxTrimNurbsSurfac
 			    poly->getVertexElement(curr_pt).getPt()->setPos(temp_vec);
 			}
 			// Convert it to NURBS
-			GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(poly->convertToNURBNew(4));
+			GA_ElementWranglerCache	 wranglers(
+					temp_gdp, GA_PointWrangler::EXCLUDE_P);
+			GU_PrimNURBCurve* hd_nurb = dynamic_cast<GU_PrimNURBCurve*>(poly->convertToNURBNew(wranglers, 4));
 			setNURBSCurveInfo(fbx_curve, hd_nurb);
 		    }
 		}
