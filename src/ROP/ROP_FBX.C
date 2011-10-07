@@ -35,6 +35,7 @@
 #include <PRM/PRM_SharedFunc.h>
 #include <OP/OP_Bundle.h>
 #include <OP/OP_BundleList.h>
+#include <OP/OP_NodeInfoParms.h>
 #include "ROP_Error.h"
 #include "ROP_Templates.h"
 
@@ -411,14 +412,13 @@ ROP_FBX::getH() const
 
 void
 ROP_FBX::getNodeSpecificInfoText(OP_Context &context,
-				      int verbose,
-				      UT_WorkBuffer &text)
+	OP_NodeInfoParms &iparms)
 {
     SOP_Node		*sop;
     UT_String		 out;
     UT_String		 soppath;
     
-    ROP_Node::getNodeSpecificInfoText(context, verbose, text);
+    ROP_Node::getNodeSpecificInfoText(context, iparms);
 
     sop = CAST_SOPNODE(getInput(0));
     if( sop )
@@ -429,13 +429,13 @@ ROP_FBX::getNodeSpecificInfoText(OP_Context &context,
 
     if(soppath.isstring())
     {
-	text.append("Render SOP        ");
-	text.append(soppath);
-	text.append("\n");
+	iparms.append("Render SOP        ");
+	iparms.append(soppath);
+	iparms.append("\n");
     }
 
     evalStringRaw(out, "sopoutput", 0, 0.0f);
-    text.append("Write to          ");
-    text.append(out);
+    iparms.append("Write to          ");
+    iparms.append(out);
 }
 
