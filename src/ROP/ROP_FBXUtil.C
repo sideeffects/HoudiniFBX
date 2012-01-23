@@ -441,7 +441,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations)
+			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations, bool force_obj_transfrom_from_world)
 {
     bool set_post_rotation = false;
 
@@ -474,7 +474,13 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
 	obj_node->getWorldTransform(world_xform, op_context);
 
-	if(node_type == "blend")
+	// In the case of a rivet or a blend, we have no parameter transforms
+	// that are animated, but instead we have an internal matrix
+	// that stores them. In this case, we force the retrieval of
+	// transformation channels by computing the local matrix 
+	// from the node's world matrix and the parent's inverse world
+	// matrix.
+	if(node_type == "blend" || node_type == "rivet" || force_obj_transfrom_from_world)
 	{
 	    OBJ_Node* parent_obj_node = NULL;
 	    if(node_info && node_info->getParentInfo())
@@ -780,7 +786,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBX
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate, NULL))
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate, NULL, false))
     {
 	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
 	fbx_node->SetRotationActive(true);

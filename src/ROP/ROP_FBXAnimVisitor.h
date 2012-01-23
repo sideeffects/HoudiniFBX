@@ -65,7 +65,7 @@ public:
 
 protected:
 
-    void exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info);
+    void exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool force_obj_transfrom_from_world);
     void exportChannel(KFbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
     void outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx);
 

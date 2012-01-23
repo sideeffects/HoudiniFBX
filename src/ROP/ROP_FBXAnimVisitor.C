@@ -161,6 +161,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	KFbxAnimCurve* curr_anim_curve;
 	UT_String node_type = node->getOperator()->getName();
 
+	bool force_obj_transfrom_from_world = false;
+	bool force_resampled_anim = false;
 	bool account_for_pivot = hasPivotInfo(node);
 	bool has_pretransform = false;
 	OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(node);
@@ -172,9 +174,23 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    obj_node->getPreLocalTransform(op_context, pretransform);
 	    if(pretransform.isIdentity() == false)
 		has_pretransform = true;
+
+	    // In the case of a rivet, we have no parameter transforms
+	    // that are animated, but instead we have an internal matrix
+	    // that stores them. In this case, we force the retrieval of
+	    // transformation channels by computing the local matrix 
+	    // from the node's world matrix and the parent's inverse world
+	    // matrix.
+	    UT_String node_type(UT_String::ALWAYS_DEEP, "");
+	    node_type = obj_node->getOperator()->getName();
+	    if(node_type == "rivet")
+	    {
+		force_resampled_anim = true;
+		force_obj_transfrom_from_world = true;
+	    }
 	}
 
-	if(node_type == "bone" || account_for_pivot || has_pretransform)
+	if(node_type == "bone" || account_for_pivot || has_pretransform || force_resampled_anim)
 	{
 	    // Bones are special, since we have to force-resample them and
 	    // output all channels at the same time.
@@ -183,7 +199,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // since this FBX node corresponds to the end tip of the bone.
 	    //KFbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
 	    //exportResampledAnimation(curr_fbx_bone_take, node);
-	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in);
+	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in, force_obj_transfrom_from_world);
 	}
 	else
 	{
@@ -1035,7 +1051,9 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
+ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, 
+					     KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, 
+					     bool force_obj_transfrom_from_world)
 {
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
@@ -1085,6 +1103,9 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer,
 	    }
 	}
     }
+
+    if(force_obj_transfrom_from_world)
+	force_resample = true;
 
     // No animation.
     if((start_time == SYS_FPREAL_MAX || start_time >= end_time) && !force_resample)
@@ -1163,7 +1184,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer,
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
 	prev_frame_rot_ptr = &prev_frame_rot;
 	prev_frame_rot = r_out;
 
@@ -1203,7 +1224,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer,
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
