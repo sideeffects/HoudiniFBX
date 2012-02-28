@@ -31,7 +31,6 @@
 class OP_Network;
 class OP_Node;
 class GEO_Primitive;
-class FBX_FILMBOX_NAMESPACE::KFbxNode;
 /********************************************************************************************************/
 enum ROP_FBXVisitorResultType
 {
