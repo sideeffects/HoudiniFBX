@@ -28,9 +28,9 @@
 
 #define FBX_FLOAT_PARM(name, vi, t)	\
 		{ return evalFloat(name, vi, t); }
-#define STR_PARM(name, idx, vi, t) \
+#define STR_PARM(name, vi, t) \
 		{ evalString(str, name, vi, t); }
-#define INT_PARM(name, idx, vi, t) \
+#define INT_PARM(name, vi, t) \
                 { return evalInt(name, vi, t); }
 
 class SOP_Node;
@@ -113,55 +113,55 @@ private:
 		      if( getRenderMode() == RENDER_PRM )
 		      { 
 			  if (!getOutputOverride(str, t))
-			  { STR_PARM("sopoutput",  2, 0, t) }
+			  { STR_PARM("sopoutput",  0, t) }
 		      }
 		      else
 			str = getRenderOutput();
 		    }
 
 //    int		INITSIM(void)
-//		    { INT_PARM("initsim", 3, 0, 0) }
+//		    { INT_PARM("initsim", 0, 0) }
 
     int EXPORTASCII(void)
-	{ INT_PARM("exportkind", 0, 0, 0) }
+	{ INT_PARM("exportkind", 0, 0) }
 
     float POLYLOD(void)
 	{ FBX_FLOAT_PARM("polylod", 0, 0) }
 
     int DETECTCONSTOBJS(void)
-	{ INT_PARM("detectconstpointobjs", 0, 0, 0) }
+	{ INT_PARM("detectconstpointobjs", 0, 0) }
 
     int CONVERTSURFACES(void)
-	{ INT_PARM("convertsurfaces", 0, 0, 0) }
+	{ INT_PARM("convertsurfaces", 0, 0) }
 
     int DEFORMSASVCS(void)
-    { INT_PARM("deformsasvcs", 0, 0, 0) }
+    { INT_PARM("deformsasvcs", 0, 0) }
 
     int CONSERVEMEM(void)
-    { INT_PARM("conservemem", 0, 0, 0) }
+    { INT_PARM("conservemem", 0, 0) }
 
     int VCFORMAT(void)
-    { INT_PARM("vcformat", 0, 0, 0) }
+    { INT_PARM("vcformat", 0, 0) }
 
     int INVISOBJ(void)
-    { INT_PARM("invisobj", 0, 0, 0) }
+    { INT_PARM("invisobj", 0, 0) }
 
     void STARTNODE(UT_String& str)
-    { STR_PARM("startnode",  0, 0, 0); }
+    { STR_PARM("startnode",  0, 0); }
 
     void SDKVERSION(UT_String& str)
-    { STR_PARM("sdkversion",  0, 0, 0); }
+    { STR_PARM("sdkversion",  0, 0); }
     
 
     // Script commands
     void	PRERENDER(UT_String &str, fpreal t)
-		    { STR_PARM("prerender", 4, 0, t); }
+		    { STR_PARM("prerender", 0, t); }
     void	POSTRENDER(UT_String &str, fpreal t)
-		    { STR_PARM("postrender", 5, 0, t); }
+		    { STR_PARM("postrender", 0, t); }
     void	PREFRAME(UT_String &str, fpreal t)
-		    { STR_PARM("preframe", 6, 0, t); }
+		    { STR_PARM("preframe", 0, t); }
     void	POSTFRAME(UT_String &str, fpreal t)
-		    { STR_PARM("postframe", 7, 0, t); }
+		    { STR_PARM("postframe", 0, t); }
 
     #define ROP_FBX_NPARMS	8 // update this when parm list changes
 
