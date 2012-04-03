@@ -42,6 +42,7 @@ enum {
     ROP_FBX_FRANGE,
     ROP_FBX_TAKE,
     ROP_FBX_SOPOUTPUT,
+    ROP_FBX_MKPATH,
 //    ROP_FBX_INITSIM,
 
     ROP_FBX_STARTNODE,
@@ -109,15 +110,7 @@ protected:
 
 private:
     void	OUTPUT(UT_String &str, fpreal t)
-		    {
-		      if( getRenderMode() == RENDER_PRM )
-		      { 
-			  if (!getOutputOverride(str, t))
-			  { STR_PARM("sopoutput",  0, t) }
-		      }
-		      else
-			str = getRenderOutput();
-		    }
+		    { getOutputOverrideEx(str, t, "sopoutput", "mkpath"); }
 
 //    int		INITSIM(void)
 //		    { INT_PARM("initsim", 0, 0) }

@@ -109,7 +109,6 @@ static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
 			      0, 0, &PRM_SpareData::fileChooserModeWrite),
-    //PRM_Template(PRM_STRING_OPLIST,  PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, NULL),
     PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, &bundleMenu,
 							    0, 0, &ROPoutFbxBundlesList),
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
@@ -142,6 +141,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_FRANGE] = theRopTemplates[ROP_FRAMERANGE_TPLATE];
     theTemplate[ROP_FBX_TAKE] = theRopTemplates[ROP_TAKENAME_TPLATE];
     theTemplate[ROP_FBX_SOPOUTPUT] = geoTemplates[0];
+    theTemplate[ROP_FBX_MKPATH] = theRopTemplates[ROP_MKPATH_TPLATE];
 //    theTemplate[ROP_FBX_INITSIM] = theRopTemplates[ROP_IFD_INITSIM_TPLATE];
 
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
