@@ -186,14 +186,14 @@ ROP_FBX::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
     return new ROP_FBX(net, name, op);
 }
 
-unsigned
-ROP_FBX::disableParms()
+bool
+ROP_FBX::updateParmsFlags()
 {
-    int			changed = 0;
+    bool	changed = ROP_Node::updateParmsFlags();
 
-    changed += enableParm("deformsasvcs", DORANGE());
+    changed |= enableParm("deformsasvcs", DORANGE());
    
-    return changed + ROP_Node::disableParms();
+    return changed;
 }
 
 ROP_FBX::ROP_FBX(OP_Network *net, const char *name, OP_Operator *entry)

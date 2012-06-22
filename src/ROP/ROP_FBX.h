@@ -74,7 +74,7 @@ enum {
 
 class ROP_API ROP_FBX : public ROP_Node {
 public:
-    virtual unsigned		 disableParms();
+    virtual bool		 updateParmsFlags();
 
     static PRM_Template		*getTemplates();
     static PRM_Template		*getObsolete();
