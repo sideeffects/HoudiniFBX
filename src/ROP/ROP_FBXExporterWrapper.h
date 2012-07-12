@@ -24,7 +24,7 @@
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXErrorManager.h"
 
-#ifdef FBX_SUPPORTED
+#ifdef FBX_ENABLED
 
 class ROP_FBXExporter;
 /********************************************************************************************************/
@@ -63,7 +63,7 @@ private:
     ROP_FBXExporter* myFBXExporter;
 };
 /********************************************************************************************************/
-#else // FBX_SUPPORTED
+#else // FBX_ENABLED
 
 #include <stddef.h>
 
@@ -98,6 +98,6 @@ public:
     static void getVersions(TStringVector& versions_out) { }
 };
 
-#endif // FBX_SUPPORTED
+#endif // FBX_ENABLED
 /********************************************************************************************************/
 #endif

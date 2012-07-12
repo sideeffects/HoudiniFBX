@@ -17,7 +17,7 @@
  *
  */
 
-#ifdef FBX_SUPPORTED
+#ifdef FBX_ENABLED
 
 #include "ROP_FBXHeaderWrapper.h"
 #include <UT/UT_Taint.h>
@@ -91,4 +91,4 @@ ROP_FBXExporterWrapper::isSupported(void)
 	return false;
 }
 /********************************************************************************************************/
-#endif // FBX_SUPPORTED
+#endif // FBX_ENABLED
