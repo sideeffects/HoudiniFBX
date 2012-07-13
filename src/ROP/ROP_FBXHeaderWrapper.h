@@ -20,9 +20,20 @@
 #ifndef __ROP_FBXHeaderWrapper_h__
 #define __ROP_FBXHeaderWrapper_h__
 
+#include <SYS/SYS_Types.h>
+
+SYS_PRAGMA_PUSH_WARN()
+SYS_PRAGMA_DISABLE_DEPRECATED()
+SYS_PRAGMA_DISABLE_IGNORED_QUALIFIERS()
+SYS_PRAGMA_DISABLE_OVERLOADED_VIRTUAL()
+SYS_PRAGMA_DISABLE_UNUSED_FUNCTION()
+
 #include <fbx/fbxsdk.h>
 // Ingeniously, FBX SDK defines strdup as a macro,
 // so we undo the damage here.
 #undef strdup
+#undef getpid
+
+SYS_PRAGMA_POP_WARN()
 
 #endif
