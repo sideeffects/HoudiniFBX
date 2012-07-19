@@ -20,6 +20,8 @@
 #ifndef __ROP_FBXHeaderWrapper_h__
 #define __ROP_FBXHeaderWrapper_h__
 
+#undef VERSION // redefined in FBX headers
+
 #include <SYS/SYS_Types.h>
 
 SYS_PRAGMA_PUSH_WARN()
@@ -33,6 +35,7 @@ SYS_PRAGMA_DISABLE_UNUSED_FUNCTION()
 // so we undo the damage here.
 #undef strdup
 #undef getpid
+#undef VERSION
 
 SYS_PRAGMA_POP_WARN()
 
