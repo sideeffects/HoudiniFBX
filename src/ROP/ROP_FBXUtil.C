@@ -441,7 +441,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations, bool force_obj_transfrom_from_world)
+			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, FbxVector4* post_rotation, UT_Vector3* prev_frame_rotations, bool force_obj_transfrom_from_world)
 {
     bool set_post_rotation = false;
 
@@ -769,12 +769,12 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, 
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, 
 				   fpreal ftime, UT_String* override_node_type, bool use_world_transform)
 {
 
     UT_Vector3 t,r,s;
-    KFbxVector4 post_rotate, fbx_vec4;
+    FbxVector4 post_rotate, fbx_vec4;
 
     if(use_world_transform)
     {
@@ -788,20 +788,20 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBX
     }
     else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate, NULL, false))
     {
-	fbx_node->SetPostRotation(KFbxNode::eSOURCE_SET,post_rotate);
+	fbx_node->SetPostRotation(FbxNode::eSourcePivot, post_rotate);
 	fbx_node->SetRotationActive(true);
     }
 
     fbx_vec4.Set(r[0], r[1], r[2]);
-    fbx_node->SetDefaultR(fbx_vec4);
+    fbx_node->LclRotation.Set(fbx_vec4);
 
     fbx_vec4.Set(t[0],t[1],t[2]);
-    fbx_node->SetDefaultT(fbx_vec4);
+    fbx_node->LclTranslation.Set(fbx_vec4);
 
     fbx_vec4.Set(s[0],s[1],s[2]);
-    fbx_node->SetDefaultS(fbx_vec4);
+    fbx_node->LclScaling.Set(fbx_vec4);
 
-    fbx_node->SetRotationOrder(KFbxNode::eDESTINATION_SET, eEULER_XYZ);
+    fbx_node->SetRotationOrder(FbxNode::eDestinationPivot, eEULER_XYZ);
 }
 /********************************************************************************************************/
 bool 
@@ -999,7 +999,7 @@ ROP_FBXNodeManager::findNodeInfos(OP_Node* hd_node, TFbxNodeInfoVector &res_info
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo* 
-ROP_FBXNodeManager::findNodeInfo(KFbxNode* fbx_node)
+ROP_FBXNodeManager::findNodeInfo(FbxNode* fbx_node)
 {
     if(!fbx_node)
 	return NULL;
@@ -1012,7 +1012,7 @@ ROP_FBXNodeManager::findNodeInfo(KFbxNode* fbx_node)
 }
 /********************************************************************************************************/
 ROP_FBXNodeInfo& 
-ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info)
+ROP_FBXNodeManager::addNodePair(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info)
 {
     ROP_FBXNodeInfo* new_info = new ROP_FBXNodeInfo();
     new_info->setFbxNode(fbx_node);
@@ -1080,7 +1080,7 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)
     myVisitResultType = ROP_FBXVisitorResultOk;
 }
 /********************************************************************************************************/
-ROP_FBXNodeInfo::ROP_FBXNodeInfo(KFbxNode* main_node) : myVisitInfoCopy(NULL)
+ROP_FBXNodeInfo::ROP_FBXNodeInfo(FbxNode* main_node) : myVisitInfoCopy(NULL)
 {
     myHdNode = NULL;
     myFbxNode = main_node;
@@ -1125,12 +1125,12 @@ ROP_FBXNodeInfo::setHdNode(OP_Node* node)
     myHdNode = node;
 }
 /********************************************************************************************************/
-KFbxNode* ROP_FBXNodeInfo::getFbxNode(void) const
+FbxNode* ROP_FBXNodeInfo::getFbxNode(void) const
 {
     return myFbxNode;
 }
 /********************************************************************************************************/
-void ROP_FBXNodeInfo::setFbxNode(KFbxNode* node)
+void ROP_FBXNodeInfo::setFbxNode(FbxNode* node)
 {
     myFbxNode = node;
 }

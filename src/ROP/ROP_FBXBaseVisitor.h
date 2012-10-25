@@ -63,8 +63,8 @@ public:
     void setParentInfo(ROP_FBXBaseNodeVisitInfo* parent_info);
     ROP_FBXBaseNodeVisitInfo* getParentInfo(void);
 
-    void setFbxNode(KFbxNode* node);
-    KFbxNode* getFbxNode(void);
+    void setFbxNode(FbxNode* node);
+    FbxNode* getFbxNode(void);
 
     OP_Node* getHdNode(void);
     void setHdNode(OP_Node* hd_node);
@@ -87,7 +87,7 @@ public:
 private:
 
     OP_Node* myHdNode;
-    KFbxNode* myFbxNode;
+    FbxNode* myFbxNode;
     ROP_FBXBaseNodeVisitInfo* myParentInfo;
 
     // Used for vertex caching

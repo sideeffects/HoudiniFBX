@@ -59,32 +59,32 @@ public:
     ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info);
     void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info);
 
-    void reset(KFbxAnimLayer* curr_layer);
+    void reset(FbxAnimLayer* curr_layer);
 
-    void exportTRSAnimation(OP_Node* node, KFbxAnimLayer* curr_fbx_anim_layer, KFbxNode* fbx_node);
+    void exportTRSAnimation(OP_Node* node, FbxAnimLayer* curr_fbx_anim_layer, FbxNode* fbx_node);
 
 protected:
 
-    void exportResampledAnimation(KFbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool force_obj_transfrom_from_world);
-    void exportChannel(KFbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
-    void outputResampled(KFCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx);
+    void exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool force_obj_transfrom_from_world);
+    void exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
+    void outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx);
 
-    bool outputVertexCache(KFbxNode* fbx_node, OP_Node* geo_node, const char* file_name, ROP_FBXBaseNodeVisitInfo* node_info_in, ROP_FBXNodeInfo* node_pair_info);
-    KFbxVertexCacheDeformer* addedVertexCacheDeformerToNode(KFbxNode* fbx_node, const char* file_name);
+    bool outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, const char* file_name, ROP_FBXBaseNodeVisitInfo* node_info_in, ROP_FBXNodeInfo* node_pair_info);
+    FbxVertexCacheDeformer* addedVertexCacheDeformerToNode(FbxNode* fbx_node, const char* file_name);
     bool fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, int num_array_points, ROP_FBXNodeInfo* node_pair_info, fpreal frame_num);
     int lookupExactPointCount(OP_Node *node, fpreal time, int selected_prim_idx);
     bool hasPivotInfo(OP_Node* node);
 private:
 
     ROP_FBXExporter* myParentExporter;
-    KFbxSdkManager* mySDKManager;
-    KFbxScene* myScene;
+    FbxManager* mySDKManager;
+    FbxScene* myScene;
     ROP_FBXErrorManager* myErrorManager;
     ROP_FBXNodeManager* myNodeManager;
     ROP_FBXActionManager* myActionManager; 
     ROP_FBXExportOptions *myExportOptions;
 
-    KFbxAnimLayer* myAnimLayer;
+    FbxAnimLayer* myAnimLayer;
 
     std::string myOutputFileName, myFBXFileSourceFolder, myFBXShortFileName;
     UT_Interrupt* myBoss;

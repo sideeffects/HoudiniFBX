@@ -37,7 +37,7 @@ ROP_FBXActionManager::~ROP_FBXActionManager()
 }
 /********************************************************************************************************/
 ROP_FBXLookAtAction* 
-ROP_FBXActionManager::addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_node)
+ROP_FBXActionManager::addLookAtAction(FbxNode* acted_on_node, OP_Node* look_at_node)
 {
     ROP_FBXLookAtAction* new_action = new ROP_FBXLookAtAction(acted_on_node, look_at_node, *this);
     myPostActions.push_back(new_action);
@@ -45,7 +45,7 @@ ROP_FBXActionManager::addLookAtAction(KFbxNode* acted_on_node, OP_Node* look_at_
 }
 /********************************************************************************************************/
 ROP_FBXSkinningAction* 
-ROP_FBXActionManager::addSkinningAction(KFbxNode* acted_on_node, OP_Node* deform_node, fpreal capture_frame)
+ROP_FBXActionManager::addSkinningAction(FbxNode* acted_on_node, OP_Node* deform_node, fpreal capture_frame)
 {
     ROP_FBXSkinningAction* new_action = new ROP_FBXSkinningAction(acted_on_node, deform_node, capture_frame, *this);
     myPostActions.push_back(new_action);

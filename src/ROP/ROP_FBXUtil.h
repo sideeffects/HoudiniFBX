@@ -62,11 +62,11 @@ public:
     static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
     static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, KFbxVector4* post_rotation, UT_Vector3* prev_frame_rotations, bool force_obj_transfrom_from_world);
+	UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, FbxVector4* post_rotation, UT_Vector3* prev_frame_rotations, bool force_obj_transfrom_from_world);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0);
     static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me);
-    static void setStandardTransforms(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal ftime, UT_String* override_node_type, bool use_world_transform = false);
+    static void setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal ftime, UT_String* override_node_type, bool use_world_transform = false);
     static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
 
     static GA_PrimCompat::TypeMask getGdpPrimId(const GU_Detail* gdp);
@@ -106,11 +106,11 @@ class ROP_FBXNodeInfo
 {
 public:
     ROP_FBXNodeInfo();
-    ROP_FBXNodeInfo(KFbxNode* main_node);
+    ROP_FBXNodeInfo(FbxNode* main_node);
     ~ROP_FBXNodeInfo();
 
-    KFbxNode* getFbxNode(void) const;
-    void setFbxNode(KFbxNode* node);
+    FbxNode* getFbxNode(void) const;
+    void setFbxNode(FbxNode* node);
 
     OP_Node* getHdNode(void) const;
     void setHdNode(OP_Node* node);
@@ -140,7 +140,7 @@ public:
     int getTraveledInputIndex(void);
 
 private:
-    KFbxNode* myFbxNode;
+    FbxNode* myFbxNode;
 
     // Used for vertex caching
     int myMaxObjectPoints;
@@ -159,7 +159,7 @@ private:
     int mySourcePrim;
 };
 typedef std::multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
-typedef std::map < KFbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
+typedef std::map < FbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
 typedef std::vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
 typedef std::set < std::string > TStringSet;
 typedef std::set < OP_Node* > THDNodeSet;
@@ -171,9 +171,9 @@ public:
     virtual ~ROP_FBXNodeManager();
 
     void findNodeInfos(OP_Node* hd_node, TFbxNodeInfoVector &res_infos);
-    ROP_FBXNodeInfo* findNodeInfo(KFbxNode* fbx_node);
+    ROP_FBXNodeInfo* findNodeInfo(FbxNode* fbx_node);
 
-    ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, KFbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info);
+    ROP_FBXNodeInfo& addNodePair(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXMainNodeVisitInfo& visit_info);
 
     void makeNameUnique(UT_String& strName);
 

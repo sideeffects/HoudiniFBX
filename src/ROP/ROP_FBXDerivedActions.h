@@ -25,9 +25,9 @@
 
 #include <vector>
 
-class FBX_FILMBOX_NAMESPACE::KFbxNode;
-class FBX_FILMBOX_NAMESPACE::KFbxCluster;
-class FBX_FILMBOX_NAMESPACE::KFbxSkin;
+class FBX_FILMBOX_NAMESPACE::FbxNode;
+class FBX_FILMBOX_NAMESPACE::FbxCluster;
+class FBX_FILMBOX_NAMESPACE::FbxSkin;
 class ROP_FBXMainVisitor;
 class OP_Network;
 class GU_Detail;
@@ -40,7 +40,7 @@ class ROP_FBXLookAtAction : public ROP_FBXBaseFbxNodeAction
 {
 public:
 
-    ROP_FBXLookAtAction(KFbxNode *acted_on_node, OP_Node* look_at_node, ROP_FBXActionManager& parent_manager);
+    ROP_FBXLookAtAction(FbxNode *acted_on_node, OP_Node* look_at_node, ROP_FBXActionManager& parent_manager);
     virtual ~ROP_FBXLookAtAction();
 
     ROP_FBXActionType getType(void);
@@ -54,16 +54,16 @@ class ROP_FBXSkinningAction : public ROP_FBXBaseFbxNodeAction
 {
 public:
 
-    ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager);
+    ROP_FBXSkinningAction(FbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager);
     virtual ~ROP_FBXSkinningAction();
 
     ROP_FBXActionType getType(void);
     void performAction(void);
 
 private:
-    void createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fbx_deformed_node, KFbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context);
-    void addNodeRecursive(KArrayTemplate<KFbxNode*>& node_array, KFbxNode* curr_node);
-    void storeBindPose(KFbxNode* fbx_node, fpreal capture_frame);
+    void createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_deformed_node, KFbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context);
+    void addNodeRecursive(FbxArray<FbxNode*>& node_array, FbxNode* curr_node);
+    void storeBindPose(FbxNode* fbx_node, fpreal capture_frame);
 
 private:
     OP_Node* myDeformNode;    
@@ -74,11 +74,11 @@ class ROP_FBXInstanceActionBundle
 {
 public:
     ROP_FBXInstanceActionBundle() { myHdNode = NULL; myFbxNode = NULL; }
-    ROP_FBXInstanceActionBundle(OP_Node* instance_hd_node, KFbxNode* instance_fbx_node) { myHdNode = instance_hd_node; myFbxNode = instance_fbx_node; }
+    ROP_FBXInstanceActionBundle(OP_Node* instance_hd_node, FbxNode* instance_fbx_node) { myHdNode = instance_hd_node; myFbxNode = instance_fbx_node; }
     ~ROP_FBXInstanceActionBundle() { }
 
     OP_Node* myHdNode;
-    KFbxNode* myFbxNode;
+    FbxNode* myFbxNode;
 };
 typedef std::vector< ROP_FBXInstanceActionBundle > TInstanceBundleVector;
 
@@ -88,7 +88,7 @@ public:
     ROP_FBXCreateInstancesAction(ROP_FBXActionManager& parent_manager);
     virtual ~ROP_FBXCreateInstancesAction();
 
-    void addInstance(OP_Node* instance_hd_node, KFbxNode* instance_fbx_node);
+    void addInstance(OP_Node* instance_hd_node, FbxNode* instance_fbx_node);
 
     ROP_FBXActionType getType(void);
     void performAction(void);

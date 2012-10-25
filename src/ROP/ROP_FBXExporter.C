@@ -107,7 +107,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal
     myActionManager = new ROP_FBXActionManager(*myNodeManager, *myErrorManager, *this);
 
     // Initialize the fbx scene manager
-    mySDKManager = KFbxSdkManager::Create();
+    mySDKManager = FbxManager::Create();
 
     if (!mySDKManager)
     {
@@ -116,7 +116,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal
     }
 
     // Create the entity that will hold the scene.
-    myScene = KFbxScene::Create(mySDKManager,"");
+    myScene = FbxScene::Create(mySDKManager,"");
     myOutputFile = output_name;
 
     myDidCancel = false;
@@ -214,11 +214,11 @@ ROP_FBXExporter::doExport(void)
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
 
-    KFbxGlobalTimeSettings& scene_time_setting = myScene->GetGlobalTimeSettings();
+    FbxGlobalTimeSettings& scene_time_setting = myScene->GlobalTimeSettings();
 
     bool exporting_single_frame = !getExportingAnimation();
     CH_Manager *ch_manager = CHgetManager();
-    KTime fbx_start, fbx_stop;
+    FbxTime fbx_start, fbx_stop;
 
 
     // If we're outputting a single frame, we don't allow exporting deforms as vertex caches
@@ -240,33 +240,33 @@ ROP_FBXExporter::doExport(void)
 //	fbx_start.SetSecondDouble(myStartTime);
 //	fbx_stop.SetSecondDouble(myEndTime);
 
-	KTimeSpan time_span(fbx_start, fbx_stop);
+	FbxTimeSpan time_span(fbx_start, fbx_stop);
 	scene_time_setting.SetTimelineDefautTimeSpan(time_span);
 
 	// FBX doesn't support arbitrary frame rates.
 	// Try to match one if it's exact, otherwise default to 24fps and warn the user.
 	fpreal curr_fps = ch_manager->getSamplesPerSec();
-	KTime::ETimeMode time_mode = KTime::eCINEMA;
+	FbxTime::EMode time_mode = FbxTime::eFrames24;
 	if(SYSisEqual(curr_fps, 24.0))
-	    time_mode = KTime::eCINEMA;
+	    time_mode = FbxTime::eFrames24;
 	else if(SYSisEqual(curr_fps, 120.0))
-	    time_mode = KTime::eFRAMES120;
+	    time_mode = FbxTime::eFrames120;
 	else if(SYSisEqual(curr_fps, 100.0))
-	    time_mode = KTime::eFRAMES100;
+	    time_mode = FbxTime::eFrames100;
 	else if(SYSisEqual(curr_fps, 60.0))
-	    time_mode = KTime::eFRAMES60;
+	    time_mode = FbxTime::eFrames60;
 	else if(SYSisEqual(curr_fps, 48.0))
-	    time_mode = KTime::eFRAMES48;
+	    time_mode = FbxTime::eFrames48;
 	else if(SYSisEqual(curr_fps, 50.0))
-	    time_mode = KTime::eFRAMES50;
+	    time_mode = FbxTime::eFrames50;
 	else if(SYSisEqual(curr_fps, 30.0))
-	    time_mode = KTime::eFRAMES30;
+	    time_mode = FbxTime::eFrames30;
 	else if(SYSisEqual(curr_fps, 25.0))
-	    time_mode = KTime::ePAL;
+	    time_mode = FbxTime::ePAL;
 	else
 	    myErrorManager->addError("Unsupported scene frame rate found. Defaulting to 24 frames per second.",NULL,NULL,false);
 	scene_time_setting.SetTimeMode(time_mode);
-	KTime::SetGlobalTimeMode(time_mode, curr_fps);
+	FbxTime::SetGlobalTimeMode(time_mode, curr_fps);
     }
 
     // Note: what about geom networks in other parts of the scene?
@@ -292,12 +292,12 @@ ROP_FBXExporter::doExport(void)
     if(!myDidCancel)
     {
 	// Global light settings - set the global ambient.
-	KFbxColor fbx_col;
+	FbxColor fbx_col;
 	float amb_col[3];
 	UT_Color amb_color = geom_visitor.getAccumAmbientColor();
 	amb_color.getRGB(&amb_col[0], &amb_col[1], &amb_col[2]);
 	fbx_col.Set(amb_col[0],amb_col[1],amb_col[2]);
-	KFbxGlobalLightSettings& global_light_settings = myScene->GetGlobalLightSettings();
+	FbxGlobalLightSettings& global_light_settings = myScene->GlobalLightSettings();
 	global_light_settings.SetAmbientColor(fbx_col);
 
 	// Export animation if applicable
@@ -307,10 +307,10 @@ ROP_FBXExporter::doExport(void)
 	    anim_visitor.addNonVisitableNetworkTypes(ROP_FBXnetworkTypesToIgnore);
 
 	    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
-	    myScene->SetCurrentTake(const_cast<char*>(curr_hd_take->getName()));
 
-	    KFbxAnimStack* anim_stack = KFbxAnimStack::Create(myScene, curr_hd_take->getName());
-	    KFbxAnimLayer* anim_layer = KFbxAnimLayer::Create(myScene, "Base Layer");
+
+	    FbxAnimStack* anim_stack = FbxAnimStack::Create(myScene, curr_hd_take->getName());
+	    FbxAnimLayer* anim_layer = FbxAnimLayer::Create(myScene, "Base Layer");
 	    anim_stack->AddMember(anim_layer);
 	    anim_visitor.reset(anim_layer);
 
@@ -319,7 +319,7 @@ ROP_FBXExporter::doExport(void)
 	    // Export the main world_root animation if applicable
 	    if(myDummyRootNullNode)
 	    {			
-		//KFbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
+		//FbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
 		anim_visitor.exportTRSAnimation(geom_node, anim_layer, myDummyRootNullNode);
 	    }	    
 
@@ -352,7 +352,7 @@ ROP_FBXExporter::finishExport(void)
     if(!myDidCancel)
     {
 	// Save the built-up scene
-	KFbxExporter* fbx_exporter = KFbxExporter::Create(mySDKManager, "");
+	FbxExporter* fbx_exporter = FbxExporter::Create(mySDKManager, "");
 
 	string sdk_full_version = myExportOptions.getVersion();
 	string sdk_exporter_name, sdk_version;
@@ -379,7 +379,7 @@ ROP_FBXExporter::finishExport(void)
 	{
 	    if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(format_index))
 	    {
-		KString format_desc = mySDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
+		FbxString format_desc = mySDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
 		if(format_desc.GetLen() >= sdk_exporter_name.length() && 
 		    sdk_exporter_name == format_desc.Left(sdk_exporter_name.length()).Buffer())
 		{
@@ -393,10 +393,10 @@ ROP_FBXExporter::finishExport(void)
 	///fbx_exporter->SetFileFormat(out_file_format);
 
 	if(sdk_version.length() > 0)
-	    fbx_exporter->SetFileExportVersion(sdk_version.c_str(), KFbxSceneRenamer::eFBX_TO_FBX);
+	    fbx_exporter->SetFileExportVersion(sdk_version.c_str(), FbxSceneRenamer::eFBX_TO_FBX);
 #if 0	
 	// Options are now done differenty. Luckily, we don't use them.
-	KFbxStreamOptionsFbxWriter* export_options = KFbxStreamOptionsFbxWriter::Create(mySDKManager, "");
+	FbxStreamOptionsFbxWriter* export_options = FbxStreamOptionsFbxWriter::Create(mySDKManager, "");
 	if (mySDKManager->GetIOPluginRegistry()->WriterIsFBX(out_file_format))
 	{
 	    // Set the export states. By default, the export states are always set to 
@@ -471,13 +471,13 @@ ROP_FBXExporter::finishExport(void)
     return true;
 }
 /********************************************************************************************************/
-KFbxSdkManager* 
+FbxManager* 
 ROP_FBXExporter::getSDKManager(void)
 {
     return mySDKManager;
 }
 /********************************************************************************************************/
-KFbxScene* 
+FbxScene* 
 ROP_FBXExporter::getFBXScene(void)
 {
     return myScene;
@@ -548,13 +548,13 @@ ROP_FBXExporter::deallocateQueuedStrings(void)
     myStringsToDeallocate.clear();
 }
 /********************************************************************************************************/
-KFbxNode* 
+FbxNode* 
 ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 {
     // If we are exporting one of the standard subnets, such as "/" or "/obj", etc., return the
     // fbx scene root. Otherwise, create a null node (if it's not created yet), and return that.
 
-    KFbxNode* fbx_scene_root = myScene->GetRootNode();
+    FbxNode* fbx_scene_root = myScene->GetRootNode();
 
     UT_String export_path(myExportOptions.getStartNodePath());
 
@@ -585,8 +585,8 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 	UT_String node_name(UT_String::ALWAYS_DEEP, "world_root");
 	myNodeManager->makeNameUnique(node_name);
 
-	myDummyRootNullNode = KFbxNode::Create(mySDKManager, (const char*)node_name);
-	KFbxNull *res_attr = KFbxNull::Create(mySDKManager, (const char*)node_name);
+	myDummyRootNullNode = FbxNode::Create(mySDKManager, (const char*)node_name);
+	FbxNull *res_attr = FbxNull::Create(mySDKManager, (const char*)node_name);
 	myDummyRootNullNode->SetNodeAttribute(res_attr);
 
 	// Set world transform
@@ -614,7 +614,7 @@ ROP_FBXExporter::getVersions(TStringVector& versions_out)
 {
     versions_out.clear();
 
-    KFbxSdkManager* tempSDKManager = KFbxSdkManager::Create();
+    FbxManager* tempSDKManager = FbxManager::Create();
     if(!tempSDKManager)
 	return;
 
@@ -629,7 +629,7 @@ ROP_FBXExporter::getVersions(TStringVector& versions_out)
     {
 	if (tempSDKManager->GetIOPluginRegistry()->WriterIsFBX(format_index))
 	{
-	    KString format_desc = tempSDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
+	    FbxString format_desc = tempSDKManager->GetIOPluginRegistry()->GetWriterFormatDescription(format_index);
 
 	    // Skip any encrypted formats.
 	    if (format_desc.Find("encrypted") >= 0)

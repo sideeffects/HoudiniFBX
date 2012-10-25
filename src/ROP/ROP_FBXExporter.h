@@ -32,8 +32,8 @@
 #include <vector>
 #include <string>
 
-class FBX_FILMBOX_NAMESPACE::KFbxSdkManager;
-class FBX_FILMBOX_NAMESPACE::KFbxScene;
+class FBX_FILMBOX_NAMESPACE::FbxManager;
+class FBX_FILMBOX_NAMESPACE::FbxScene;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
 class UT_Interrupt;
@@ -53,8 +53,8 @@ public:
     void doExport(void);
     bool finishExport(void);
 
-    KFbxSdkManager* getSDKManager(void);
-    KFbxScene* getFBXScene(void);
+    FbxManager* getSDKManager(void);
+    FbxScene* getFBXScene(void);
     ROP_FBXErrorManager* getErrorManager(void);
     ROP_FBXNodeManager* getNodeManager(void);
     ROP_FBXActionManager* getActionManager(void);
@@ -67,7 +67,7 @@ public:
     bool getExportingAnimation(void);
 
     void queueStringToDeallocate(char* string_ptr);
-    KFbxNode* GetFBXRootNode(OP_Node* asking_node);
+    FbxNode* GetFBXRootNode(OP_Node* asking_node);
     UT_Interrupt* GetBoss(void);
 
     static void getVersions(TStringVector& versions_out);
@@ -79,8 +79,8 @@ private:
 
     ROP_FBXExportOptions myExportOptions;
 
-    KFbxSdkManager* mySDKManager;
-    KFbxScene* myScene;
+    FbxManager* mySDKManager;
+    FbxScene* myScene;
     ROP_FBXErrorManager* myErrorManager;
     ROP_FBXNodeManager* myNodeManager;
     ROP_FBXActionManager* myActionManager;
@@ -90,7 +90,7 @@ private:
     fpreal myStartTime, myEndTime;
 
     TCharPtrVector myStringsToDeallocate;
-    KFbxNode* myDummyRootNullNode;
+    FbxNode* myDummyRootNullNode;
 
     UT_Interrupt	*myBoss;
     bool myDidCancel;

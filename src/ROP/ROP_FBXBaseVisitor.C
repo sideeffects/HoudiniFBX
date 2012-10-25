@@ -563,12 +563,12 @@ ROP_FBXBaseNodeVisitInfo::setParentInfo(ROP_FBXBaseNodeVisitInfo* parent_info)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXBaseNodeVisitInfo::setFbxNode(KFbxNode* node)
+ROP_FBXBaseNodeVisitInfo::setFbxNode(FbxNode* node)
 {
     myFbxNode = node;
 }
 /********************************************************************************************************/
-KFbxNode* 
+FbxNode* 
 ROP_FBXBaseNodeVisitInfo::getFbxNode(void)
 {
     return myFbxNode;

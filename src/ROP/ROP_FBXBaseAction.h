@@ -26,7 +26,7 @@ class OP_Node;
 class ROP_FBXErrorManager;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
-class FBX_FILMBOX_NAMESPACE::KFbxNode;
+class FBX_FILMBOX_NAMESPACE::FbxNode;
 /********************************************************************************************************/
 enum ROP_FBXActionType
 {
@@ -57,16 +57,16 @@ private:
 class ROP_FBXBaseFbxNodeAction : public ROP_FBXBaseAction
 {
 public:
-    ROP_FBXBaseFbxNodeAction(KFbxNode* acted_on_node, ROP_FBXActionManager& parent_manager);
+    ROP_FBXBaseFbxNodeAction(FbxNode* acted_on_node, ROP_FBXActionManager& parent_manager);
     virtual ~ROP_FBXBaseFbxNodeAction();
 
-    KFbxNode* getActedOnNode(void);
+    FbxNode* getActedOnNode(void);
     ROP_FBXErrorManager& getErrorManager(void);
     ROP_FBXNodeManager& getNodeManager(void);
 
 private:
 
-    KFbxNode* myActedOnNode;
+    FbxNode* myActedOnNode;
 };
 /********************************************************************************************************/
 

@@ -38,7 +38,7 @@ using namespace std;
 /********************************************************************************************************/
 // ROP_FBXLookAtAction
 /********************************************************************************************************/
-ROP_FBXLookAtAction::ROP_FBXLookAtAction(KFbxNode *acted_on_node, OP_Node* look_at_node, ROP_FBXActionManager& parent_manager) 
+ROP_FBXLookAtAction::ROP_FBXLookAtAction(FbxNode *acted_on_node, OP_Node* look_at_node, ROP_FBXActionManager& parent_manager) 
     : ROP_FBXBaseFbxNodeAction(acted_on_node, parent_manager)
 {
     UT_ASSERT(look_at_node);
@@ -59,7 +59,7 @@ ROP_FBXLookAtAction::getType(void)
 void 
 ROP_FBXLookAtAction::performAction(void)
 {
-    KFbxNode *acted_on_node = this->getActedOnNode();
+    FbxNode *acted_on_node = this->getActedOnNode();
 
     if(!acted_on_node || !myLookAtHdNode)
 	return;
@@ -76,7 +76,7 @@ ROP_FBXLookAtAction::performAction(void)
 /********************************************************************************************************/
 // ROP_FBXSkinningAction
 /********************************************************************************************************/
-ROP_FBXSkinningAction::ROP_FBXSkinningAction(KFbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager)
+ROP_FBXSkinningAction::ROP_FBXSkinningAction(FbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager)
     : ROP_FBXBaseFbxNodeAction(acted_on_node, parent_manager)
 {
     UT_ASSERT(deform_node);
@@ -101,8 +101,8 @@ ROP_FBXSkinningAction::performAction(void)
     if(!myDeformNode)
 	return;
 
-    KFbxSdkManager *sdk_manager = getParentManager().getExporter().getSDKManager();
-    KFbxNode* fbx_deformed_node = NULL; 
+    FbxManager *sdk_manager = getParentManager().getExporter().getSDKManager();
+    FbxNode* fbx_deformed_node = NULL; 
 
     TFbxNodeInfoVector res_nodes;
     getNodeManager().findNodeInfos(myDeformNode->getParentNetwork(), res_nodes);
@@ -145,9 +145,9 @@ ROP_FBXSkinningAction::performAction(void)
     if(!cap_data.transferFromGdp(gdp, NULL))
 	return;
 
-    KFbxSkin* fbx_skin = NULL; 
+    FbxSkin* fbx_skin = NULL; 
     OP_Node* cregion_node, *cregion_parent;
-    //KFbxNode* fbx_cregion_parent;
+    //FbxNode* fbx_cregion_parent;
 
     fpreal capture_time = CHgetManager()->getTime(myCaptureFrame);
     OP_Context capt_context(capture_time);
@@ -185,7 +185,7 @@ ROP_FBXSkinningAction::performAction(void)
 		// the bone. Or do we?
 
 		if(!fbx_skin)
-		    fbx_skin = KFbxSkin::Create(sdk_manager, "");
+		    fbx_skin = FbxSkin::Create(sdk_manager, "");
 		createSkinningInfo(cregion_parent_infos[0]->getFbxNode(), fbx_deformed_node, fbx_skin, cap_data, curr_region, capt_context);
 	    }
 	    else
@@ -202,7 +202,7 @@ ROP_FBXSkinningAction::performAction(void)
 
     if(fbx_skin)
     {
-	KFbxGeometry* node_attr = dynamic_cast<KFbxGeometry*>(fbx_deformed_node->GetNodeAttribute());
+	FbxGeometry* node_attr = dynamic_cast<FbxGeometry*>(fbx_deformed_node->GetNodeAttribute());
 	if(node_attr)
 	    node_attr->AddDeformer(fbx_skin);
 
@@ -212,15 +212,15 @@ ROP_FBXSkinningAction::performAction(void)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fbx_deformed_node,  KFbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context)
+ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_deformed_node,  FbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context)
 {
-    KFbxSdkManager *sdk_manager = getParentManager().getExporter().getSDKManager();
-    KFbxCluster *main_cluster = KFbxCluster::Create(sdk_manager,"");
+    FbxManager *sdk_manager = getParentManager().getExporter().getSDKManager();
+    FbxCluster *main_cluster = FbxCluster::Create(sdk_manager,"");
 
-    KFbxXMatrix xform_matrix;
+    FbxAMatrix xform_matrix;
 
     main_cluster->SetLink(fbx_joint_node);
-    main_cluster->SetLinkMode(KFbxCluster::eTOTAL1);
+    main_cluster->SetLinkMode(FbxCluster::eTotalOne);
 
     // Set the skin deformer params
     int curr_point, num_points = cap_data.getNumStoredPts();
@@ -248,10 +248,10 @@ ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fb
     {
 	hd_node = node_info->getHdNode();
 	(void) hd_node->getWorldTransform(world_matrix, capt_context);
-	ROP_FBXUtil::convertHdMatrixToFbxMatrix<KFbxXMatrix>(world_matrix, xform_matrix);
+	ROP_FBXUtil::convertHdMatrixToFbxMatrix<FbxAMatrix>(world_matrix, xform_matrix);
     }
     else
-	xform_matrix = fbx_deformed_node->GetGlobalFromDefaultTake(KFbxNode::eSOURCE_SET);
+	xform_matrix = fbx_deformed_node->EvaluateGlobalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot);
     main_cluster->SetTransformMatrix(xform_matrix);
 
     node_info = node_manager.findNodeInfo(fbx_joint_node);
@@ -259,10 +259,10 @@ ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fb
     {
 	hd_node = node_info->getHdNode();
 	(void) hd_node->getWorldTransform(world_matrix, capt_context);
-	ROP_FBXUtil::convertHdMatrixToFbxMatrix<KFbxXMatrix>(world_matrix, xform_matrix);
+	ROP_FBXUtil::convertHdMatrixToFbxMatrix<FbxAMatrix>(world_matrix, xform_matrix);
     }
     else
-	xform_matrix = fbx_joint_node->GetGlobalFromDefaultTake(KFbxNode::eSOURCE_SET);
+	xform_matrix = fbx_joint_node->EvaluateGlobalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot);
     main_cluster->SetTransformLinkMatrix(xform_matrix);
 
     // Add it to the cluster
@@ -270,16 +270,16 @@ ROP_FBXSkinningAction::createSkinningInfo(KFbxNode* fbx_joint_node, KFbxNode* fb
 }
 /********************************************************************************************************/
 void 
-ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
+ROP_FBXSkinningAction::storeBindPose(FbxNode* fbx_node, fpreal capture_frame)
 {  
-    KFbxScene *fbx_scene = getParentManager().getExporter().getFBXScene();
-    KFbxSdkManager *fbx_sdk_manager = getParentManager().getExporter().getSDKManager();
+    FbxScene *fbx_scene = getParentManager().getExporter().getFBXScene();
+    FbxManager *fbx_sdk_manager = getParentManager().getExporter().getSDKManager();
 
     fpreal capture_time = CHgetManager()->getTime(capture_frame);
     OP_Context capt_context(capture_time);
     
     // Now list the all the link involve in the patch deformation	
-    KArrayTemplate<KFbxNode*> pose_fbx_nodes;
+    FbxArray<FbxNode*> pose_fbx_nodes;
     int                       i, j;
 
     if (fbx_node && fbx_node->GetNodeAttribute())
@@ -288,16 +288,16 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
 	int num_clusters = 0;
 	switch (fbx_node->GetNodeAttribute()->GetAttributeType())
 	{
-	case KFbxNodeAttribute::eMESH:
-	case KFbxNodeAttribute::eNURB:
-	case KFbxNodeAttribute::ePATCH:
+	case FbxNodeAttribute::eMesh:
+	case FbxNodeAttribute::eNurbs:
+	case FbxNodeAttribute::ePatch:
 
-	    num_skins = ((KFbxGeometry*)fbx_node->GetNodeAttribute())->GetDeformerCount(KFbxDeformer::eSKIN);
+	    num_skins = ((FbxGeometry*)fbx_node->GetNodeAttribute())->GetDeformerCount(FbxDeformer::eSkin);
 	    //Go through all the skins and count them
 	    //then go through each skin and get their cluster count
 	    for(i=0; i<num_skins; ++i)
 	    {
-		KFbxSkin *lSkin=(KFbxSkin*)((KFbxGeometry*)fbx_node->GetNodeAttribute())->GetDeformer(i, KFbxDeformer::eSKIN);
+		FbxSkin *lSkin=(FbxSkin*)((FbxGeometry*)fbx_node->GetNodeAttribute())->GetDeformer(i, FbxDeformer::eSkin);
 		num_clusters += lSkin->GetClusterCount();	
 	    }
 	    break;
@@ -305,13 +305,13 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
 	//if we found some clusters we must add the node
 	if (num_clusters > 0)
 	{
-	    KFbxNode* cluster_node;
-	    KFbxSkin *curr_skin;
+	    FbxNode* cluster_node;
+	    FbxSkin *curr_skin;
 
 	    //Again, go through all the skins get each cluster link and add them
 	    for (i=0; i<num_skins; ++i)
 	    {
-		curr_skin = (KFbxSkin*)((KFbxGeometry*)fbx_node->GetNodeAttribute())->GetDeformer(i, KFbxDeformer::eSKIN);
+		curr_skin = (FbxSkin*)((FbxGeometry*)fbx_node->GetNodeAttribute())->GetDeformer(i, FbxDeformer::eSkin);
 		num_clusters = curr_skin->GetClusterCount();
 		for (j=0; j<num_clusters; ++j)
 		{
@@ -330,9 +330,9 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
     if (pose_fbx_nodes.GetCount())
     {
 	// A pose must be named. Arbitrarily use the name of the patch node.
-	KFbxPose* bind_pose = KFbxPose::Create(fbx_sdk_manager,fbx_node->GetName());
-	KFbxNode*  curr_pose_node;
-	KFbxMatrix bind_matrix;
+	FbxPose* bind_pose = FbxPose::Create(fbx_sdk_manager,fbx_node->GetName());
+	FbxNode*  curr_pose_node;
+	FbxMatrix bind_matrix;
 	bind_pose->SetIsBindPose(true);
 	ROP_FBXNodeInfo* node_info;
 	OP_Node* hd_node;
@@ -347,10 +347,10 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
 	    {
 		hd_node = node_info->getHdNode();
 		(void) hd_node->getWorldTransform(world_matrix, capt_context);
-		ROP_FBXUtil::convertHdMatrixToFbxMatrix<KFbxMatrix>(world_matrix, bind_matrix);
+		ROP_FBXUtil::convertHdMatrixToFbxMatrix<FbxMatrix>(world_matrix, bind_matrix);
 	    }
 	    else
-		bind_matrix = curr_pose_node->GetGlobalFromDefaultTake(KFbxNode::eSOURCE_SET);
+		bind_matrix = curr_pose_node->EvaluateGlobalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot);
 
 	    bind_pose->Add(curr_pose_node , bind_matrix);
 	}
@@ -365,7 +365,7 @@ ROP_FBXSkinningAction::storeBindPose(KFbxNode* fbx_node, fpreal capture_frame)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXSkinningAction::addNodeRecursive(KArrayTemplate<KFbxNode*>& node_array, KFbxNode* curr_node)
+ROP_FBXSkinningAction::addNodeRecursive(FbxArray<FbxNode*>& node_array, FbxNode* curr_node)
 {
     // Add the specified node to the node array. Also, add recursively
     // all the parent node of the specified node to the array.
@@ -395,7 +395,7 @@ ROP_FBXCreateInstancesAction::~ROP_FBXCreateInstancesAction()
 }
 /********************************************************************************************************/
 void 
-ROP_FBXCreateInstancesAction::addInstance(OP_Node* instance_hd_node, KFbxNode* instance_fbx_node)
+ROP_FBXCreateInstancesAction::addInstance(OP_Node* instance_hd_node, FbxNode* instance_fbx_node)
 {
     ROP_FBXInstanceActionBundle temp_bundle(instance_hd_node, instance_fbx_node);
     myItems.push_back(temp_bundle);

@@ -56,7 +56,7 @@ ROP_FBXBaseAction::getIsActive(void)
 /********************************************************************************************************/
 // ROP_FBXBaseHoudiniNodeAction
 /********************************************************************************************************/
-ROP_FBXBaseFbxNodeAction::ROP_FBXBaseFbxNodeAction(KFbxNode* acted_on_node, ROP_FBXActionManager& parent_manager) 
+ROP_FBXBaseFbxNodeAction::ROP_FBXBaseFbxNodeAction(FbxNode* acted_on_node, ROP_FBXActionManager& parent_manager) 
     : ROP_FBXBaseAction(parent_manager)
 {
     UT_ASSERT(acted_on_node);
@@ -68,7 +68,7 @@ ROP_FBXBaseFbxNodeAction::~ROP_FBXBaseFbxNodeAction()
 
 }
 /********************************************************************************************************/
-KFbxNode* 
+FbxNode* 
 ROP_FBXBaseFbxNodeAction::getActedOnNode(void)
 {
     return myActedOnNode;
