@@ -25,9 +25,6 @@
 
 #include <vector>
 
-class FBX_FILMBOX_NAMESPACE::FbxNode;
-class FBX_FILMBOX_NAMESPACE::FbxCluster;
-class FBX_FILMBOX_NAMESPACE::FbxSkin;
 class ROP_FBXMainVisitor;
 class OP_Network;
 class GU_Detail;

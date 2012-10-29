@@ -26,7 +26,6 @@ class OP_Node;
 class ROP_FBXErrorManager;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
-class FBX_FILMBOX_NAMESPACE::FbxNode;
 /********************************************************************************************************/
 enum ROP_FBXActionType
 {

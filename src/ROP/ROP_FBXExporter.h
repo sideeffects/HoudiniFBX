@@ -32,8 +32,6 @@
 #include <vector>
 #include <string>
 
-class FBX_FILMBOX_NAMESPACE::FbxManager;
-class FBX_FILMBOX_NAMESPACE::FbxScene;
 class ROP_FBXNodeManager;
 class ROP_FBXActionManager;
 class UT_Interrupt;
