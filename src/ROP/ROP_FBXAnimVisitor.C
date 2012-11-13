@@ -231,7 +231,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 	else if(node_type == "hlight")
 	{
-	    FbxLight *light_attrib = dynamic_cast<FbxLight *>(fbx_node->GetNodeAttribute());
+	    FbxLight *light_attrib = FbxCast<FbxLight>(fbx_node->GetNodeAttribute());
 
 	    // Create curve nodes
 	    if(light_attrib)
@@ -255,7 +255,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 	else if(node_type == "cam")
 	{
-	    FbxCamera *cam_attrib = dynamic_cast<FbxCamera *>(fbx_node->GetNodeAttribute());
+	    FbxCamera *cam_attrib = FbxCast<FbxCamera>(fbx_node->GetNodeAttribute());
 ///	    fbx_attr_take_node = addFBXTakeNode(cam_attrib);
 //	    cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
 

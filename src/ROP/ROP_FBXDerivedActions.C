@@ -202,7 +202,7 @@ ROP_FBXSkinningAction::performAction(void)
 
     if(fbx_skin)
     {
-	FbxGeometry* node_attr = dynamic_cast<FbxGeometry*>(fbx_deformed_node->GetNodeAttribute());
+	FbxGeometry* node_attr = FbxCast<FbxGeometry>(fbx_deformed_node->GetNodeAttribute());
 	if(node_attr)
 	    node_attr->AddDeformer(fbx_skin);
 

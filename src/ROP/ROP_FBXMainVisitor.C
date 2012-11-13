@@ -2368,7 +2368,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     }
 
     // We're guaranteed not have materials on layers yet.
-    FbxLayerContainer* node_attr = dynamic_cast<FbxLayerContainer*>(fbx_node->GetNodeAttribute());
+    FbxLayerContainer* node_attr = FbxCast<FbxLayerContainer>(fbx_node->GetNodeAttribute());
     if(!node_attr)
     {
 	if(per_face_mats)
