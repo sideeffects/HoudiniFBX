@@ -36,6 +36,7 @@ SYS_PRAGMA_DISABLE_UNUSED_FUNCTION()
 #undef strdup
 #undef getpid
 #undef VERSION
+#undef finite
 
 SYS_PRAGMA_POP_WARN()
 
