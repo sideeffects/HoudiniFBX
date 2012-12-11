@@ -431,7 +431,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	UT_String str_expression(UT_String::ALWAYS_DEEP);
 	int curr_frame, num_frames = tmp_array.entries();
 	double key_val, db_val;
-	int thread = UTgetSTID();
+	int thread = SYSgetSTID();
 
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
@@ -575,7 +575,7 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 	return;
 
     CH_Manager *ch_manager = CHgetManager();
-    int thread = UTgetSTID();
+    int thread = SYSgetSTID();
     int curr_idx;
     fpreal key_time;
 

@@ -107,7 +107,7 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 	return;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
-	parm->getValue(ftime, strref, 0, do_expand, UTgetSTID());
+	parm->getValue(ftime, strref, 0, do_expand, SYSgetSTID());
 }
 /********************************************************************************************************/
 int 
@@ -120,7 +120,7 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, fpreal
     int res = 0;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
-	parm->getValue(ftime, res, index, UTgetSTID());
+	parm->getValue(ftime, res, index, SYSgetSTID());
 
     return res;
 }
@@ -138,7 +138,7 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, fpre
 
     if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
     {
-	parm->getValue(ftime, res, index, UTgetSTID());
+	parm->getValue(ftime, res, index, SYSgetSTID());
 	if(did_find)
 	    *did_find = true;
     }
@@ -673,7 +673,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
     int		i;
     bool did_is_allowed_only_local;
     bool child_did_find_allowed_types_only;
-    int thread = UTgetSTID();
+    int thread = SYSgetSTID();
 
     if(rec_level == 0 && did_find_allowed_only)
 	*did_find_allowed_only = true;
