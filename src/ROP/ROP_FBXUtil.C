@@ -235,8 +235,8 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 		}
 	    }
 
-	    curr_num_points = conv_gdp->points().entries();
-	    if(curr_num_points > max_points)	    
+	    curr_num_points = conv_gdp->getNumPoints();
+	    if(curr_num_points > max_points)
 		max_points = curr_num_points;
 
 	}
@@ -302,20 +302,16 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fp
 void 
 ROP_FBXUtil::convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp)
 {
-    GEO_PrimPoly* prim_poly_ptr;
-
     // TODO: We'll need to export attributes, too.
-    int curr_particle, num_parts = src_gdp->points().entries();
     double sq_size = 0.25;
-    UT_Vector4 ut_vec;
     UT_Vector4 ut_curr_dir;
     UT_Vector4 tri_points[ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT];
-    GEO_Point* geo_points[ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT];
+    GA_Offset geo_points[ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT];
     
-    for(curr_particle = 0; curr_particle < num_parts; curr_particle++)
+    GA_Offset srcptoff;
+    GA_FOR_ALL_PTOFF(src_gdp, srcptoff)
     {
-	if(curr_particle < num_parts)
-	    ut_vec = src_gdp->points()(curr_particle)->getPos();
+	UT_Vector4 ut_vec = src_gdp->getPos4(srcptoff);
 
 	// Generate a triangle
 	ut_curr_dir.assign(0.5,0,0.5);
@@ -328,17 +324,17 @@ ROP_FBXUtil::convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& ou
 	tri_points[3] = ut_vec + ut_curr_dir*sq_size;
 
 	// Append points
-	geo_points[0] = out_gdp.appendPointElement();
-	geo_points[0]->setPos(tri_points[0]);
-	geo_points[1] = out_gdp.appendPointElement();
-	geo_points[1]->setPos(tri_points[1]);
-	geo_points[2] = out_gdp.appendPointElement();
-	geo_points[2]->setPos(tri_points[2]);
-	geo_points[3] = out_gdp.appendPointElement();
-	geo_points[3]->setPos(tri_points[3]);
+	geo_points[0] = out_gdp.appendPointOffset();
+	out_gdp.setPos4(geo_points[0], tri_points[0]);
+	geo_points[1] = out_gdp.appendPointOffset();
+	out_gdp.setPos4(geo_points[1], tri_points[1]);
+	geo_points[2] = out_gdp.appendPointOffset();
+	out_gdp.setPos4(geo_points[2], tri_points[2]);
+	geo_points[3] = out_gdp.appendPointOffset();
+	out_gdp.setPos4(geo_points[3], tri_points[3]);
 
 	// Create a primitive
-	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEO_PRIMPOLY);
+	GEO_PrimPoly *prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEO_PRIMPOLY);
 	prim_poly_ptr->setSize(0);
 	prim_poly_ptr->appendVertex(geo_points[0]);
 	prim_poly_ptr->appendVertex(geo_points[1]);
@@ -371,9 +367,9 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 
     cook_start = clock();
 #endif
-    num_pre_proc_points = conv_gdp.points().entries();
+    num_pre_proc_points = conv_gdp.getNumPoints();
     conv_gdp.convert(conv_parms);
-//    num_pre_proc_points = conv_gdp.points().entries();
+//    num_pre_proc_points = conv_gdp.getNumPoints();
 
     if(!do_triangulate_and_rearrange)
     {

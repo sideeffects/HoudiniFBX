@@ -878,7 +878,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
     }
 
 
-    int actual_gdp_points = final_gdp->points().entries();
+    int actual_gdp_points = final_gdp->getNumPoints();
     int curr_point;
     UT_Vector4 ut_vec;
     int arr_offset;
@@ -1031,8 +1031,8 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
     {
 	for(curr_point = 0; curr_point < num_array_points; curr_point++)
 	{
-	    if(curr_point < actual_gdp_points)	
-		ut_vec = final_gdp->points()(curr_point%actual_gdp_points)->getPos();
+	    if(curr_point < actual_gdp_points)
+		ut_vec = final_gdp->getPos4(final_gdp->pointOffset(curr_point));
 	    else
 		ut_vec = 0;
 

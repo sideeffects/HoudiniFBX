@@ -1272,39 +1272,35 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 {
     FbxMesh* mesh_attr = FbxMesh::Create(mySDKManager, node_name);
 
-    // Get the number of points
-    int curr_point, num_points = gdp->points().entries();
-    const GEO_Point *ppt;
-    const GEO_Primitive* prim;
-
     int points_per_poly = 0;
     if(vc_method == ROP_FBXVertexCacheMethodGeometry)
 	points_per_poly = 3;
     else if(vc_method == ROP_FBXVertexCacheMethodParticles)
 	points_per_poly = ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT;
 
+    // Get the number of points
+    int num_points = gdp->getNumPoints();
     if(max_points < num_points)
 	max_points = num_points;
     mesh_attr->InitControlPoints(max_points); //  + 1);
     FbxVector4* fbx_control_points = mesh_attr->GetControlPoints();
-    UT_Vector4 pos;
 
-    curr_point = 0;
-    if(gdp->points().entries() > 0)
     {
-	FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
-	{
-	    pos = ppt->getPos();
-	    fbx_control_points[curr_point].Set(pos[0],pos[1],pos[2],pos[3]);
-	    curr_point++;
-	}
+        GA_Index curr_point(0);
+        GA_Offset ptoff;
+        GA_FOR_ALL_PTOFF(gdp, ptoff)
+        {
+            UT_Vector4 pos = gdp->getPos4(ptoff);
+            fbx_control_points[curr_point].Set(pos[0],pos[1],pos[2],pos[3]);
+            curr_point++;
+        }
     }
 
-    if(num_points > 2 && max_points > num_points)
+    if (num_points > 2 && max_points > num_points)
     {
-	for(;curr_point < max_points; curr_point++)
+	for (int curr_point = num_points; curr_point < max_points; curr_point++)
 	{
-	    //pos = gdp->points()(( curr_point - num_points) % num_points)->getPos();
+	    //UT_Vector4 pos = gdp->getPos4(gdp->pointOffset((curr_point - num_points) % num_points));
 	    //fbx_control_points[curr_point].Set(pos[0],pos[1],pos[2],pos[3]);
 	    fbx_control_points[curr_point].Set(0,0,0);
 	}
@@ -1312,6 +1308,7 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
     // And the last one:
     //fbx_control_points[curr_point].Set(pos[0],pos[1],pos[2],pos[3]);
 
+    const GEO_Primitive* prim;
     GA_FOR_MASK_PRIMITIVES(gdp, prim, GEO_PrimTypeCompat::GEOPRIMMESH)
     {
 	const GEO_Hull		*hull = dynamic_cast<const GEO_Hull*>(prim);
@@ -1422,23 +1419,22 @@ void exportPointAttribute(const GU_Detail *gdp, const GA_ROAttributeRef &attr_of
 	return;
 
     // Go over all points
-    const GEO_Point* ppt;
     HD_TYPE hd_type;
     FBX_TYPE fbx_type;
 
-    float extra_attr_type;
-
-    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
+    GA_Offset ptoff;
+    GA_FOR_ALL_PTOFF(gdp, ptoff)
     {
-	hd_type = ppt->getValue<HD_TYPE>(attr_offset);
+        GEO_Point pt(gdp->getPointMap(), ptoff);
+	hd_type = pt.getValue<HD_TYPE>(attr_offset);
 	if(extra_attr_offset.isValid())
 	{
-	    extra_attr_type = ppt->getValue<float>(extra_attr_offset);
+	    float extra_attr_type = pt.getValue<float>(extra_attr_offset);
 	    ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
 	}
 	else
 	    ROP_FBXassignValues(hd_type, fbx_type, NULL);
-	layer_elem->GetDirectArray().Add(fbx_type);  
+	layer_elem->GetDirectArray().Add(fbx_type);
     }
 }
 /********************************************************************************************************/
@@ -1609,11 +1605,9 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttrib
 template < class SIMPLE_TYPE >
 void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
-    if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
+    if(!gdp || !layer_elem || gdp->getNumPoints() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
 
-    // Go over all points
-    const GEO_Point* ppt;
     SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
@@ -1622,15 +1616,18 @@ void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr
     if(attr_offset.isInvalid())
 	return;
 
-    layer_elem->ResizeAllDirectArrays(gdp->points().entries());
+    layer_elem->ResizeAllDirectArrays(gdp->getNumPoints());
     FbxLayerElementArrayTemplate<void*> * fbx_direct_array_ptr = layer_elem->GetDirectArrayVoid(fbx_prop_name);
     if(!fbx_direct_array_ptr)
 	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
-    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
+    // Go over all points
+    GA_Offset ptoff;
+    GA_FOR_ALL_PTOFF(gdp, ptoff)
     {
-	hd_type = ppt->getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
+        GEO_Point pt(gdp->getPointMap(), ptoff);
+	hd_type = pt.getValue<SIMPLE_TYPE>(attr_offset, attr_subindex);
 	fbx_direct_array[array_pos] = hd_type;
 	array_pos++;
     }
@@ -1640,11 +1637,9 @@ void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr
 #if 0
 void exportVectorPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_size, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
-    if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
+    if(!gdp || !layer_elem || gdp->getNumPoints() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
 
-    // Go over all points
-    const GEO_Point* ppt;
     float hd_type;
     int array_pos = 0;
 
@@ -1654,16 +1649,19 @@ void exportVectorPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int at
 	return;
 
     int curr_size;
-    layer_elem->ResizeAllDirectArrays(gdp->points().entries());
+    layer_elem->ResizeAllDirectArrays(gdp->getNumPoints());
 
     float *fbx_direct_array =(float *)(layer_elem->GetDirectArrayVoid(fbx_prop_name))->GetArray();
     if(!fbx_direct_array_ptr)
 	return;
-    FOR_ALL_ADDED_POINTS(gdp, gdp->points()(0), ppt)
+    // Go over all points
+    GA_Offset ptoff;
+    GA_FOR_ALL_PTOFF(gdp, ptoff)
     {
+        GEO_Point pt(gdp->getPointMap(), ptoff);
 	for(curr_size = 0; curr_size < attr_size; curr_size++)
 	{
-	    hd_type = ppt->getValue<float>(attr_offset, curr_size);
+	    hd_type = pt.getValue<float>(attr_offset, curr_size);
 	    fbx_direct_array[array_pos] = hd_type;
 	    array_pos++;
 	}
@@ -1674,7 +1672,7 @@ void exportVectorPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int at
 template < class SIMPLE_TYPE >
 void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
-    if(!gdp || !layer_elem || gdp->points().entries() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
+    if(!gdp || !layer_elem || gdp->getNumPoints() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
 
     // Go over all vertices
@@ -1924,7 +1922,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 		else if(mapping_mode == FbxLayerElement::eAllSame)
 		    exportUserDetailAttribute<int>(gdp, attr,curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);		
 	    }
-	    else if(attr_store == GA_STORECLASS_REAL)  
+	    else if(attr_store == GA_STORECLASS_REAL)
 	    {
 		if(mapping_mode == FbxLayerElement::eByControlPoint)
 		    exportUserPointAttribute<float>(gdp, attr, curr_pos, attr_names[attr_name_pos].c_str(), layer_elem);
@@ -1955,7 +1953,7 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
 
     // Go through point attributes first.
-    if(gdp->points().entries() > 0)
+    if(gdp->getNumPoints() > 0)
     {
 	for (GA_AttributeDict::iterator itor = gdp->pointAttribs().begin();
 	     itor != gdp->pointAttribs().end(); ++itor)
