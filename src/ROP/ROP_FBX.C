@@ -50,11 +50,11 @@ buildBundleMenu(
 	spare ? spare->getValue("opfilter") : 0);
 }
 
-PRM_SpareData		ROPoutFbxBundlesList(
-			"opfilter",	"!!OBJ!!",
-			"oprelative",	"/",
-			"allownullbundles", "on",
-			(void *)0);
+PRM_SpareData		ROPoutFbxBundlesList(PRM_SpareArgs()
+			    << PRM_SpareToken("opfilter",	"!!OBJ!!")
+			    << PRM_SpareToken("oprelative",	"/")
+			    << PRM_SpareToken("allownullbundles", "on")
+			);
 
 static PRM_ChoiceList	bundleMenu(PRM_CHOICELIST_REPLACE, ::buildBundleMenu);
 
