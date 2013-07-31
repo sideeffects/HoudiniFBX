@@ -43,7 +43,8 @@
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXDerivedActions.h"
 
-#ifdef UT_DEBUG
+// Always declare these variables although they are only modified when
+// compiling debug.
 double ROP_FBXdb_maxVertsCountingTime;
 double ROP_FBXdb_vcacheExportTime;
 double ROP_FBXdb_cookingTime;
@@ -51,7 +52,6 @@ double ROP_FBXdb_convexTime;
 double ROP_FBXdb_reorderTime;
 double ROP_FBXdb_convertTime;
 double ROP_FBXdb_duplicateTime;
-#endif
 
 using namespace std;
 
@@ -596,7 +596,7 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 	// Add nodes to the map
 	ROP_FBXMainNodeVisitInfo dummy_info(export_node);
 	dummy_info.setFbxNode(myDummyRootNullNode);
-	ROP_FBXNodeInfo& stored_node_pair = myNodeManager->addNodePair(export_node, myDummyRootNullNode, dummy_info);
+	myNodeManager->addNodePair(export_node, myDummyRootNullNode, dummy_info);
     }
 
     UT_ASSERT(myDummyRootNullNode);

@@ -135,10 +135,10 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     bool is_visible = node->getDisplay();
 
     fpreal start_time = myParentExporter->getStartTime();
-    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", start_time);
+    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", 0, start_time);
     if(use_display_parm)
     {
-	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", start_time));
+	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", 0, start_time));
     }    
 
     bool force_exporting_as_null = false;

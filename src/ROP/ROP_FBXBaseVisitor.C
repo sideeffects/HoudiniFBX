@@ -400,9 +400,9 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
     // If not, check if it is hidden and if we're set to export hidden nodes
     // as nulls.
     bool is_visible = node->getDisplay();
-    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", myStartTime);
+    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", 0, myStartTime);
     if(use_display_parm)
-	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", myStartTime));
+	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", 0, myStartTime));
 
     if(!is_visible && myHiddenNodeExportMode == ROP_FBXInvisibleNodeExportAsNulls)
     {
