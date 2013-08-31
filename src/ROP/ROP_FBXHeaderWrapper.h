@@ -30,7 +30,15 @@ SYS_PRAGMA_DISABLE_IGNORED_QUALIFIERS()
 SYS_PRAGMA_DISABLE_OVERLOADED_VIRTUAL()
 SYS_PRAGMA_DISABLE_UNUSED_FUNCTION()
 
+// FBX has several PropertyNotify functions, which is fine unless
+// you have also included X11/X.h which defines PropertyNotify as
+// the number 28. Undefine it here.
+#ifdef PropertyNotify
+    #undef PropertyNotify
+#endif
+
 #include <fbx/fbxsdk.h>
+
 // Ingeniously, FBX SDK defines strdup as a macro,
 // so we undo the damage here.
 #undef strdup
