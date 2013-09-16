@@ -2956,8 +2956,8 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
 	float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
 	conversion_spare.duplicate(*gdp_orig);
 	GU_ConvertParms conv_parms;
-	conv_parms.fromType = GEO_PrimTypeCompat::GEOPRIMALL & (~supported_types);
-	conv_parms.toType = GEO_PrimTypeCompat::GEOPRIMPOLY;
+	conv_parms.setFromType(GEO_PrimTypeCompat::GEOPRIMALL & (~supported_types));
+	conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
 	conv_parms.method.setULOD(lod);
 	conv_parms.method.setVLOD(lod);
 	conversion_spare.convert(conv_parms);
