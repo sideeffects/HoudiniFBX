@@ -214,7 +214,7 @@ ROP_FBXExporter::doExport(void)
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
 
-    FbxGlobalTimeSettings& scene_time_setting = myScene->GlobalTimeSettings();
+    FbxGlobalSettings& scene_time_setting = myScene->GetGlobalSettings();
 
     bool exporting_single_frame = !getExportingAnimation();
     CH_Manager *ch_manager = CHgetManager();
@@ -241,7 +241,7 @@ ROP_FBXExporter::doExport(void)
 //	fbx_stop.SetSecondDouble(myEndTime);
 
 	FbxTimeSpan time_span(fbx_start, fbx_stop);
-	scene_time_setting.SetTimelineDefautTimeSpan(time_span);
+	scene_time_setting.SetTimelineDefaultTimeSpan(time_span);
 
 	// FBX doesn't support arbitrary frame rates.
 	// Try to match one if it's exact, otherwise default to 24fps and warn the user.

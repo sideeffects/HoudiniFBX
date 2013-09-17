@@ -1833,7 +1833,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	    full_name = "";
 	    if(attr_type == GA_TYPE_VECTOR)
 	    {
-		custom_types_array.Add(DTFloat);
+		custom_types_array.Add(FbxFloatDT);
 		if(attr_size <= 3)
 		{
 		    if(attr_size > 1)
@@ -1845,14 +1845,14 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
 	    }
 	    else if(attr_store == GA_STORECLASS_INT)
 	    {
-		custom_types_array.Add(DTInteger);
+		custom_types_array.Add(FbxIntDT);
 		if(attr_size > 1)
 		    suffix.sprintf("_%d", curr_pos);
 		is_supported = true;
 	    }
 	    else if(attr_store == GA_STORECLASS_REAL) 
 	    {
-		custom_types_array.Add(DTFloat);
+		custom_types_array.Add(FbxFloatDT);
 		if(attr_size > 1)
 		    suffix.sprintf("_%d", curr_pos);
 		is_supported = true;
@@ -2106,7 +2106,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     fpreal float_parm[3];
     int int_param;
     UT_String string_param;
-    fbxDouble3 fbx_col;
+    FbxDouble3 fbx_col;
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
     myNodeManager->makeNameUnique(node_name);
 
@@ -2671,7 +2671,7 @@ ROP_FBXMainVisitor::getDefaultMaterial(THdFbxMaterialMap& mat_map)
 
 	FbxSurfaceLambert* lamb_new_mat = FbxSurfaceLambert::Create(mySDKManager, (const char*)"default_material");
 	//FbxColor temp_fbx_col;
-	fbxDouble3 temp_fbx_col;
+	FbxDouble3 temp_fbx_col;
 
 	temp_fbx_col[0] = temp_col[0];
 	temp_fbx_col[1] = temp_col[1];
@@ -2809,7 +2809,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     myNodeManager->makeNameUnique(mat_name);
     fpreal temp_col[3];
     bool is_specular = false;
-    fbxDouble3 temp_fbx_col;
+    FbxDouble3 temp_fbx_col;
 
     ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 0, 0.0, &did_find);
     if(did_find)

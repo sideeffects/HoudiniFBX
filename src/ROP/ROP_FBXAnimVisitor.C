@@ -766,14 +766,28 @@ ROP_FBXAnimVisitor::outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, cons
     }
 
     // Open the file for writing
+    FbxStatus status;
     if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
-	res = v_cache->OpenFileForWrite(FbxCache::eMCOneFile, curr_fps, fbx_node->GetName());
+    {
+	// NOTE: FbxCache::eMCC is the old cache file format (32-bit).
+	//       FbxCache::eMCX is the new Maya 2014 cache file format (64-bit)
+	res = v_cache->OpenFileForWrite(
+		FbxCache::eMCOneFile,
+		curr_fps, fbx_node->GetName(),
+		FbxCache::eMCC,
+		FbxCache::eDoubleVectorArray,
+		"Points",
+		&status);
+    }
     else
-	res = v_cache->OpenFileForWrite(start_frame, curr_fps, frame_count, num_vc_points);  
+    {
+	res = v_cache->OpenFileForWrite(
+		start_frame, curr_fps, frame_count, num_vc_points, &status);
+    }
 
     if (!res)
     {
-	myErrorManager->addError("Cannot open the vertex cache file. Error message: ", v_cache->GetError().GetLastErrorString(), NULL,  false );
+	myErrorManager->addError("Cannot open the vertex cache file. Error message: ", status.GetErrorString(), NULL,  false );
 	return false;
     }
 
@@ -805,9 +819,9 @@ ROP_FBXAnimVisitor::outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, cons
 	}
     }
 
-    if (!v_cache->CloseFile())
+    if (!v_cache->CloseFile(&status))
     {
-	myErrorManager->addError("Cannot close the vertex cache file. Error message: ", v_cache->GetError().GetLastErrorString(), NULL, false);
+	myErrorManager->addError("Cannot close the vertex cache file. Error message: ", status.GetErrorString(), NULL, false);
     }	
 
     delete[] vert_coords;

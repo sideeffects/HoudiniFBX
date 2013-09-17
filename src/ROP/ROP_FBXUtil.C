@@ -797,7 +797,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
     fbx_vec4.Set(s[0],s[1],s[2]);
     fbx_node->LclScaling.Set(fbx_vec4);
 
-    fbx_node->SetRotationOrder(FbxNode::eDestinationPivot, eEULER_XYZ);
+    fbx_node->SetRotationOrder(FbxNode::eDestinationPivot, eEulerXYZ);
 }
 /********************************************************************************************************/
 bool 

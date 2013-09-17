@@ -58,7 +58,7 @@ public:
     void performAction(void);
 
 private:
-    void createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_deformed_node, KFbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context);
+    void createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_deformed_node, FbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context);
     void addNodeRecursive(FbxArray<FbxNode*>& node_array, FbxNode* curr_node);
     void storeBindPose(FbxNode* fbx_node, fpreal capture_frame);
 
