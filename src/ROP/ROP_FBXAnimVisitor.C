@@ -425,7 +425,6 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	int fbx_key_idx;
 	fpreal key_time;
 	FbxTime fbx_time;
-	CH_FullKey full_key;
 	CH_Segment* next_seg;
 	CH_Expression* hd_seg_expr;
 	UT_String str_expression(UT_String::ALWAYS_DEEP);
@@ -436,8 +435,6 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
 	    key_time = tmp_array[curr_frame];
-	    ch->getFullKey(key_time, full_key);
-
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
 	    fbx_key_idx = fbx_anim_curve->KeyAdd(fbx_time);
 	}
@@ -446,6 +443,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
 	    // Convert frame to time
+	    CH_FullKey full_key;
 	    key_time = tmp_array[curr_frame];
 	    ch->getFullKey(key_time, full_key);
 
