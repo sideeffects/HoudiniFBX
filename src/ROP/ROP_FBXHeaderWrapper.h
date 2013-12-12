@@ -22,7 +22,7 @@
 
 #undef VERSION // redefined in FBX headers
 
-#include <SYS/SYS_Types.h>
+#include <SYS/SYS_Pragma.h>
 
 SYS_PRAGMA_PUSH_WARN()
 SYS_PRAGMA_DISABLE_DEPRECATED()
