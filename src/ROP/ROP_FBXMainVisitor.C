@@ -6,7 +6,7 @@
  * Produced by:
  *	Oleg Samus
  *	Side Effects
-  *	123 Front Street West
+ *	123 Front Street West
  *	Toronto, Ontario
  *	Canada   M5V 3E7
  *	416-504-9876
@@ -27,6 +27,7 @@
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Director.h>
+#include <GA/GA_ATIGroupBool.h>
 #include <GA/GA_ElementWrangler.h>
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_ConvertParms.h>
@@ -1575,14 +1576,30 @@ void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr
 	return;
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
-    // Go over all points
-    GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
-    GA_Offset ptoff;
-    GA_FOR_ALL_PTOFF(gdp, ptoff)
+    const GA_ATIGroupBool *group = dynamic_cast<const GA_ATIGroupBool *>(attrib);
+    if (group)
     {
-	hd_type = attribhandle.get(ptoff, attr_subindex);
-	fbx_direct_array[array_pos] = hd_type;
-	array_pos++;
+        UT_ASSERT(attr_subindex == 0);
+        // Go over all points
+        GA_Offset ptoff;
+        GA_FOR_ALL_PTOFF(gdp, ptoff)
+        {
+            hd_type = group->contains(ptoff);
+            fbx_direct_array[array_pos] = hd_type;
+            array_pos++;
+        }
+    }
+    else
+    {
+        GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
+        // Go over all points
+        GA_Offset ptoff;
+        GA_FOR_ALL_PTOFF(gdp, ptoff)
+        {
+            hd_type = attribhandle.get(ptoff, attr_subindex);
+            fbx_direct_array[array_pos] = hd_type;
+            array_pos++;
+        }
     }
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
@@ -1609,13 +1626,19 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
     int array_pos = 0;
+    const GA_ATIGroupBool *group = dynamic_cast<const GA_ATIGroupBool *>(attrib);
+    UT_ASSERT(group == NULL || attr_subindex == 0);
     GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
     GA_FOR_ALL_PRIMITIVES(gdp, prim)
     {
 	GA_Size num_verts = prim->getVertexCount();
 	for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
 	{
-	    hd_type = attribhandle.get(prim->getVertexOffset(curr_vert), attr_subindex);
+            GA_Offset vtxoff = prim->getVertexOffset(curr_vert);
+            if (group)
+                hd_type = group->contains(vtxoff);
+            else
+                hd_type = attribhandle.get(vtxoff, attr_subindex);
 	    fbx_direct_array[array_pos] = hd_type;
 	    array_pos++;
 	}
@@ -1646,12 +1669,26 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GA_Attribute* attr, int 
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
-    GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
-    GA_FOR_ALL_PRIMITIVES(gdp, prim)
+    const GA_ATIGroupBool *group = dynamic_cast<const GA_ATIGroupBool *>(attrib);
+    if (group)
     {
-	hd_type = attribhandle.get(prim->getMapOffset(), attr_subindex);
-	fbx_direct_array[array_pos] = hd_type;
-	array_pos++;
+        UT_ASSERT(attr_subindex == 0);
+        GA_FOR_ALL_PRIMITIVES(gdp, prim)
+        {
+            hd_type = group->contains(prim->getMapOffset());
+            fbx_direct_array[array_pos] = hd_type;
+            array_pos++;
+        }
+    }
+    else
+    {
+        GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
+        GA_FOR_ALL_PRIMITIVES(gdp, prim)
+        {
+            hd_type = attribhandle.get(prim->getMapOffset(), attr_subindex);
+            fbx_direct_array[array_pos] = hd_type;
+            array_pos++;
+        }
     }
 
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
