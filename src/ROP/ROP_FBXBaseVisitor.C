@@ -63,7 +63,8 @@ ROP_FBXBaseVisitor::visitScene(OP_Node* start_node)
     
     clearVisitInfos();
 }
-/********************************************************************************************************
+/********************************************************************************************************/
+#if 0
 OP_Node*
 ROP_FBXBaseVisitor::whichNetworkNodeIs(OP_Node* input_node, int subnet_input, int input_counter, OP_Network* network)
 {
@@ -96,6 +97,7 @@ ROP_FBXBaseVisitor::whichNetworkNodeIs(OP_Node* input_node, int subnet_input, in
 
     return NULL;
 }
+#endif
 /********************************************************************************************************/
 void 
 ROP_FBXBaseVisitor::visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeVisitInfo* parent_info, int connected_input_idx, /* ROP_FBXBaseNodeVisitInfo** per_input_infos, */ ROP_FBXNetNodesToVisitType nodes_to_visit_flag, int connection_count)
