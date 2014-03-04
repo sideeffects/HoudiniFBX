@@ -409,7 +409,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     bool is_root = false;
     if(node_info && node_info->getParentInfo())
     {
-	if(UTverify_cast<ROP_FBXMainNodeVisitInfo*>(node_info)->getBoneLength() <= 0.0)
+	if(UTverify_cast<ROP_FBXMainNodeVisitInfo*>(node_info->getParentInfo())->getBoneLength() <= 0.0)
 	    is_root = true;
     }
 
