@@ -426,7 +426,6 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	fpreal key_time;
 	FbxTime fbx_time;
 	CH_Segment* next_seg;
-	CH_Expression* hd_seg_expr;
 	UT_String str_expression(UT_String::ALWAYS_DEEP);
 	int curr_frame, num_frames = tmp_array.entries();
 	double key_val, db_val;
@@ -480,8 +479,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	    next_seg = ch->getSegmentAfterKey(key_time);
 	    if(next_seg)
 	    { 
-		hd_seg_expr = next_seg->getCHExpr();
-		str_expression = hd_seg_expr->getExpression();
+		str_expression = next_seg->getCHExpr()->getExpression();
 		if(str_expression == "bezier()" || str_expression == "cubic()")
 		{
 		    fbx_anim_curve->KeySetInterpolation(fbx_key_idx, FbxAnimCurveDef::eInterpolationCubic);
