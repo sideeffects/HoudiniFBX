@@ -1165,11 +1165,11 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     FbxTime fbx_time;
     int fbx_key_idx;
     fpreal bone_length;
-    UT_Vector3 t_out, r_out, s_out;
+    UT_Vector3D t_out, r_out, s_out;
 
     OP_Node* parent_node;
     int prev_fbx_frame_idx;
-    UT_Vector3 prev_frame_rot, *prev_frame_rot_ptr = NULL;
+    UT_Vector3D prev_frame_rot, *prev_frame_rot_ptr = NULL;
 
     // Walk the time, compute the final transform matrix at each time, and break it.
     for(curr_time = start_time; curr_time < end_time; curr_time += time_step)

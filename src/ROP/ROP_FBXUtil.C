@@ -19,23 +19,28 @@
 
 #include "ROP_FBXUtil.h"
 #include "ROP_FBXCommon.h"
-#include <UT/UT_Interrupt.h>
-#include <UT/UT_Thread.h>
-#include <UT/UT_CrackMatrix.h>
-#include <GU/GU_DetailHandle.h>
-#include <OP/OP_Network.h>
-#include <OP/OP_Node.h>
-#include <OP/OP_Director.h>
-#include <CH/CH_Manager.h>
-#include <GEO/GEO_Primitive.h>
-#include <GEO/GEO_Point.h>
-#include <GEO/GEO_Vertex.h>
-#include <GEO/GEO_PrimPoly.h>
+
 #include <GU/GU_ConvertParms.h>
+#include <GU/GU_DetailHandle.h>
 #include <GU/GU_PrimPoly.h>
+
+#include <GEO/GEO_Point.h>
+#include <GEO/GEO_Primitive.h>
+#include <GEO/GEO_PrimPoly.h>
+#include <GEO/GEO_Vertex.h>
+
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
+
+#include <OP/OP_Director.h>
+#include <OP/OP_Network.h>
+#include <OP/OP_Node.h>
 #include <PRM/PRM_Parm.h>
+#include <CH/CH_Manager.h>
+
+#include <UT/UT_CrackMatrix.h>
+#include <UT/UT_Interrupt.h>
+#include <UT/UT_Thread.h>
 
 #ifdef UT_DEBUG
 #include <UT/UT_Debug.h>
@@ -437,7 +442,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-			UT_Vector3& t_out, UT_Vector3& r_out, UT_Vector3& s_out, FbxVector4* post_rotation, UT_Vector3* prev_frame_rotations, bool force_obj_transfrom_from_world)
+			UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations, bool force_obj_transfrom_from_world)
 {
     bool set_post_rotation = false;
 
@@ -460,10 +465,10 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
     // Get and set transforms
     OP_Context op_context(time_in);
-    UT_DMatrix4 full_xform;
+    UT_Matrix4D full_xform;
     if(obj_node)
     {
-	UT_DMatrix4		 world_xform, lookat, local_xform, parm_xform;
+	UT_Matrix4D world_xform, lookat, local_xform, parm_xform;
 	obj_node->getPreLocalTransform(op_context, local_xform);
 	obj_node->getParmTransform(op_context, parm_xform);
 	full_xform = parm_xform * local_xform;
@@ -484,7 +489,7 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
 	    if(parent_obj_node)
 	    {
-		UT_DMatrix4 parent_world_xform;
+		UT_Matrix4D parent_world_xform;
 		parent_obj_node->getWorldTransform(parent_world_xform, op_context);
 		parent_world_xform.invert();
 		full_xform = world_xform * parent_world_xform;
@@ -504,7 +509,7 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
     if(SYSequalZero(bone_length) == false)
     {
 	// Add a bone length transform
-	UT_DMatrix4 bone_trans;
+	UT_Matrix4D bone_trans;
 	UT_XformOrder xform_default;
 	bone_trans.identity();
 	bone_trans.xform(xform_default, 0.0,0.0,-bone_length, 
@@ -538,23 +543,12 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
     UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
     full_xform.explode(xform_order, r_out,s_out,t_out);
-    fpreal rots_out[3];
     if(prev_frame_rotations)
     {
-	UT_Vector3 prev_rot(*prev_frame_rotations);
+	UT_Vector3D prev_rot(*prev_frame_rotations);
 	prev_rot.degToRad();
-
-	// Because UTcrackMatrixSmooth takes a reference to fpreal while
-	// our UT_Vector3 is templated and depends on the build, we need
-	// this silliness here to let it actually compile.
-	rots_out[0] = r_out.x();
-	rots_out[1] = r_out.y();
-	rots_out[2] = r_out.z();
-
-	UTcrackMatrixSmooth(UT_XformOrder::SRT, rots_out[0], rots_out[1], rots_out[2], prev_rot.x(),
-	    prev_rot.y(), prev_rot.z());
-
-	r_out.assign(rots_out[0], rots_out[1], rots_out[2]);
+	UTcrackMatrixSmooth(xform_order, r_out.x(), r_out.y(), r_out.z(),
+			    prev_rot.x(), prev_rot.y(), prev_rot.z());
     }
     r_out.radToDeg();
 
@@ -769,12 +763,12 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
 				   fpreal ftime, UT_String* override_node_type, bool use_world_transform)
 {
 
-    UT_Vector3 t,r,s;
+    UT_Vector3D t,r,s;
     FbxVector4 post_rotate, fbx_vec4;
 
     if(use_world_transform)
     {
-	UT_DMatrix4 world_matrix;
+	UT_Matrix4D world_matrix;
 	OP_Context op_context(ftime);
 	(void) hd_node->getWorldTransform(world_matrix, op_context);
 

@@ -24,7 +24,7 @@
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 #include "ROP_FBXErrorManager.h"
-#include "UT/UT_DMatrix4.h"
+#include "UT/UT_Matrix4.h"
 #include "OBJ/OBJ_Node.h"
 #include "OP/OP_Node.h"
 #include "OP/OP_Director.h"
@@ -241,7 +241,7 @@ ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_
     ROP_FBXNodeInfo* node_info;
     OP_Node* hd_node;
     ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
-    UT_DMatrix4 world_matrix;
+    UT_Matrix4D world_matrix;
 
     node_info = node_manager.findNodeInfo(fbx_deformed_node);
     if(node_info)
@@ -337,7 +337,7 @@ ROP_FBXSkinningAction::storeBindPose(FbxNode* fbx_node, fpreal capture_frame)
 	ROP_FBXNodeInfo* node_info;
 	OP_Node* hd_node;
 	ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
-	UT_DMatrix4 world_matrix;
+	UT_Matrix4D world_matrix;
     
 	for (i=0; i<pose_fbx_nodes.GetCount(); i++)
 	{
