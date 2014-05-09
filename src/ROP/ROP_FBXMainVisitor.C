@@ -1197,12 +1197,12 @@ ROP_FBXMainVisitor::setNURBSSurfaceInfo(FbxNurbsSurface *nurbs_surf_attr, const 
     FbxVector4* fbx_points = nurbs_surf_attr->GetControlPoints();
     const GA_Detail &detail = hd_nurb->getDetail();
     int i_idx = 0;
-	for (int i_col = 0; i_col < u_point_count; ++i_col, ++i_idx)
+    for (int i_row = 0; i_row < v_point_count; ++i_row)
     {
-	for (int i_row = 0; i_row < v_point_count; i_row++)
+	for (int i_col = 0; i_col < u_point_count; ++i_col)
 	{
 	    UT_Vector4 temp_vec = detail.getPos4(hd_nurb->getPointOffset(i_row, i_col));
-	    fbx_points[i_idx].Set(temp_vec[0],temp_vec[1],temp_vec[2],temp_vec[3]);
+	    fbx_points[i_idx++].Set(temp_vec[0],temp_vec[1],temp_vec[2],temp_vec[3]);
 	}
     }
 }
