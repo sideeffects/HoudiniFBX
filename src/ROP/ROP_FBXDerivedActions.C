@@ -301,6 +301,9 @@ ROP_FBXSkinningAction::storeBindPose(FbxNode* fbx_node, fpreal capture_frame)
 		num_clusters += lSkin->GetClusterCount();	
 	    }
 	    break;
+	default:
+	    // ignore all others
+	    break;
 	}
 	//if we found some clusters we must add the node
 	if (num_clusters > 0)

@@ -20,28 +20,34 @@
 #include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXActionManager.h"
 #include "ROP_FBXExporter.h"
-#include <GU/GU_DetailHandle.h>
-#include <OP/OP_Network.h>
-#include <GEO/GEO_Primitive.h>
-#include <GEO/GEO_Point.h>
-#include <GU/GU_Detail.h>
-#include <OP/OP_Node.h>
-#include <OP/OP_Director.h>
-#include <OP/OP_BundleList.h>
-#include <OP/OP_Bundle.h>
-#include <UT/UT_UndoManager.h>
-#include <UT/UT_Interrupt.h>
+#include "ROP_FBXAnimVisitor.h"
+#include "ROP_FBXDerivedActions.h"
+#include "ROP_FBXMainVisitor.h"
+#include "ROP_FBXUtil.h"
+
 #include <OBJ/OBJ_Node.h>
-#include <TAKE/TAKE_Manager.h>
-#include <TAKE/TAKE_Take.h>
-#include <OP/OP_Take.h>
 #include <SOP/SOP_Node.h>
+
+#include <GU/GU_Detail.h>
+#include <GU/GU_DetailHandle.h>
+#include <GEO/GEO_Point.h>
+#include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_Vertex.h>
 
-#include "ROP_FBXUtil.h"
-#include "ROP_FBXAnimVisitor.h"
-#include "ROP_FBXMainVisitor.h"
-#include "ROP_FBXDerivedActions.h"
+#include <OP/OP_Bundle.h>
+#include <OP/OP_BundleList.h>
+#include <OP/OP_Director.h>
+#include <OP/OP_Network.h>
+#include <OP/OP_Node.h>
+#include <OP/OP_Take.h>
+
+#include <TAKE/TAKE_Manager.h>
+#include <TAKE/TAKE_Take.h>
+
+#include <UT/UT_Assert.h>
+#include <UT/UT_Interrupt.h>
+#include <UT/UT_UndoManager.h>
+
 
 // Always declare these variables although they are only modified when
 // compiling debug.
@@ -418,7 +424,7 @@ ROP_FBXExporter::finishExport(void)
 	    return false;
 
 	// Export the scene.
-	bool exp_status = fbx_exporter->Export(myScene); 
+	UT_VERIFY(fbx_exporter->Export(myScene)); 
 
 	// Destroy the exporter.
 	fbx_exporter->Destroy();
