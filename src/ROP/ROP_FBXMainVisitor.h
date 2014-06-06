@@ -83,8 +83,7 @@ public:
 	FbxLayer* attr_layer = myAttrNode->GetLayer(myNextLayerIndex[attr_type]);
 	if (attr_layer == NULL)
 	{
-	    int new_idx = myAttrNode->CreateLayer();
-	    UT_ASSERT(new_idx == myNextLayerIndex[attr_type]);
+	    UT_VERIFY(myAttrNode->CreateLayer() == myNextLayerIndex[attr_type]);
 	    attr_layer = myAttrNode->GetLayer(myNextLayerIndex[attr_type]);
 	}
 	if(index_out)
