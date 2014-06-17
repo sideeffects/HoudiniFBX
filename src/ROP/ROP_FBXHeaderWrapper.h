@@ -20,8 +20,6 @@
 #ifndef __ROP_FBXHeaderWrapper_h__
 #define __ROP_FBXHeaderWrapper_h__
 
-#undef VERSION // redefined in FBX headers
-
 #include <SYS/SYS_Pragma.h>
 
 SYS_PRAGMA_PUSH_WARN()
@@ -47,7 +45,6 @@ SYS_PRAGMA_DISABLE_MISSING_FIELD_INITIALIZERS()
 // so we undo the damage here.
 #undef strdup
 #undef getpid
-#undef VERSION
 #undef finite
 
 SYS_PRAGMA_POP_WARN()
