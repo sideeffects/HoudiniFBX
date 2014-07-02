@@ -1326,17 +1326,17 @@ ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_nam
 
     // Get the name without any numerical suffixes
     UT_String curr_attr_name(attr_name);
-    UT_String *base_name = curr_attr_name.base();
+    UT_String base_name;
+    curr_attr_name.base(base_name);
 
     // Now compare the base name against known standard names 
-    if(*base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL, 1))
+    if(base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL, 1))
 	curr_type = ROP_FBXAttributeNormal;
-    else if(*base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE, 1))
+    else if(base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE, 1))
 	curr_type = ROP_FBXAttributeUV;
-    else if(*base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE, 1))
+    else if(base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE, 1))
 	curr_type = ROP_FBXAttributeVertexColor;
 
-    delete base_name;
     return curr_type;
 }
 /********************************************************************************************************/
