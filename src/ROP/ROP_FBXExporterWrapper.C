@@ -20,10 +20,11 @@
 #ifdef FBX_ENABLED
 
 #include "ROP_FBXHeaderWrapper.h"
-#include <UT/UT_Taint.h>
 #include "ROP_FBXActionManager.h"
 #include "ROP_FBXExporter.h"
 #include "ROP_FBXExporterWrapper.h"
+#include <UT/UT_Taint.h>
+#include <LM/LM_Manager.h>
 
 using namespace std;
 
@@ -84,11 +85,8 @@ bool
 ROP_FBXExporterWrapper::isSupported(void) 
 { 
     // FBX export is only present in complete versions of Houdini (and in
-    // the educational versions, as well):
-    if (!UTisTainted()) //  && !UTignoreTaint())
-	return true; 
-    else
-	return false;
+    // the educational and Indie versions, as well):
+    return !LMisRunningAnyApprentice();
 }
 /********************************************************************************************************/
 #endif // FBX_ENABLED
