@@ -2140,7 +2140,6 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
 {
     UT_String string_param;
     fpreal float_parm[3];
-    double fov_angle, foc_len;
     FbxVector4 fbx_vec4;
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
     myNodeManager->makeNameUnique(node_name);
@@ -2177,7 +2176,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
 	length_mult = 304.8;
 
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focal");
-    foc_len = float_parm[0];
+    //double foc_len = float_parm[0];
     res_attr->SetApertureMode(FbxCamera::eFocalLength);
     res_attr->FocalLength.Set(float_parm[0]*length_mult);
 
@@ -2197,7 +2196,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     // convert our aperture into aperture width and height, in inches,
     // that the FBX SDK expects.
     float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aperture");
-    fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len*length_mult) ) * 2.0;
+    //double fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len*length_mult) ) * 2.0;
 
     // Get the x/y resolution of the camera to get aperture ratios.
     fpreal xres = ROP_FBXUtil::getFloatOPParm(node, "res",0);
@@ -2555,7 +2554,7 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
     OP_Node* surf_node = getSurfaceNodeFromMaterialNode(mat_node);
     int curr_texture, num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
     int num_textures = 0;
-    FbxTexture* fbx_texture, *fbx_default_texture;
+    FbxTexture* fbx_texture;
 
     for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
     {
@@ -2585,7 +2584,7 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 	diffuse_prop.ConnectSrcObject( layered_texture );
 
 	// Multi-layer texture
-	fbx_default_texture = getDefaultTexture(myTexturesMap);
+	/*fbx_default_texture =*/ getDefaultTexture(myTexturesMap);
 	for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
 	{
 	    fbx_texture = generateFbxTexture(mat_node, curr_texture, myTexturesMap);

@@ -579,7 +579,6 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
     fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
     fpreal curr_time, end_time = 0.0;
     int end_idx;
-    bool is_last;
     int fbx_key_idx;
     FbxTime fbx_time;
     CH_Segment *next_seg;
@@ -604,7 +603,6 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 	if((ch && next_seg) || (direct_eval_parm && parm_idx >= 0))
 	{
 	    opt_idx = 0;
-	    is_last = false;
 	    for(curr_time = key_time; curr_time < end_time; curr_time += time_step)
 	    {
 		if(direct_eval_parm && parm_idx >= 0)
@@ -791,7 +789,6 @@ ROP_FBXAnimVisitor::outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, cons
 
     // Allocate our buffer array
     double *vert_coords = new double[num_vc_points*3];
-    bool bWriteRes;
 
     // Output the points. Remember that when outputting this mesh, the points were reversed.
     for(curr_frame = start_frame; curr_frame <= end_frame; curr_frame++)
@@ -807,11 +804,11 @@ ROP_FBXAnimVisitor::outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, cons
 
 	if (myExportOptions->getVertexCacheFormat() == ROP_FBXVertexCacheExportFormatMaya)
 	{
-	    bWriteRes = v_cache->Write(channel_index, fbx_curr_time, vert_coords, num_vc_points);
+	    (void) v_cache->Write(channel_index, fbx_curr_time, vert_coords, num_vc_points);
 	}
 	else
 	{
-	    bWriteRes = v_cache->Write(curr_frame - start_frame, vert_coords);
+	    (void) v_cache->Write(curr_frame - start_frame, vert_coords);
 	}
     }
 
@@ -1074,7 +1071,6 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     start_frame = ch_manager->getSample(gb_start_time);
     end_frame = ch_manager->getSample(gb_end_time);
 
-    bool uses_overrides = false;
     bool force_resample = false;
     fpreal start_time = SYS_FPREAL_MAX, end_time = -SYS_FPREAL_MAX;
 
@@ -1092,7 +1088,6 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 	{
 	    if(parm->getIsOverrideActive(curr_trs_channel))
 	    {
-		uses_overrides = true;
 		force_resample = true;
 	    }
 
