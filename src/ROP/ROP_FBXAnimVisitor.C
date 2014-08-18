@@ -1084,7 +1084,8 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 	if(!parm)
 	    continue;
 
-	for(curr_trs_channel = 0; curr_trs_channel < num_trs_channels; curr_trs_channel++)
+	int num_parm_channels = parm->getVectorSize();
+	for(curr_trs_channel = 0; curr_trs_channel < num_parm_channels; curr_trs_channel++)
 	{
 	    if(parm->getIsOverrideActive(curr_trs_channel))
 	    {
