@@ -1169,7 +1169,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     UT_Vector3D t_out, r_out, s_out;
 
     OP_Node* parent_node;
-    int prev_fbx_frame_idx;
+    UT_IF_ASSERT(int prev_fbx_frame_idx;)
     UT_Vector3D prev_frame_rot, *prev_frame_rot_ptr = NULL;
 
     // Walk the time, compute the final transform matrix at each time, and break it.
@@ -1199,7 +1199,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 		{
 		    UT_ASSERT_MSG(prev_fbx_frame_idx != fbx_key_idx, "Frame overwriting occurred.");
 		}
-		prev_fbx_frame_idx = fbx_key_idx;
+		UT_IF_ASSERT(prev_fbx_frame_idx = fbx_key_idx;)
 	    }
 
 	    fbx_key_idx = fbx_r[curr_channel_idx]->KeyAdd(fbx_time, &r_opt_idx[curr_channel_idx]);
