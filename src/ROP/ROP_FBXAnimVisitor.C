@@ -707,8 +707,13 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(FbxNode* fbx_node, const char
     FbxVertexCacheDeformer* deformer = FbxVertexCacheDeformer::Create(mySDKManager, fbx_node->GetName());
 
     deformer->SetCache(v_cache);
+#if FBXSDK_VERSION_MAJOR >= 2015
+    deformer->Channel.Set(fbx_node->GetName());
+    deformer->Active.Set(true);
+#else
     deformer->SetCacheChannel(fbx_node->GetName());
     deformer->SetActive(true);
+#endif
 
     // Apply the deformer on the mesh
     fbx_node->GetGeometry()->AddDeformer(deformer);
