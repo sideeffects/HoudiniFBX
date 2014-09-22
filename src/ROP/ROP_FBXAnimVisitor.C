@@ -387,9 +387,9 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
     if(myExportOptions->getResampleAllAnimation() || force_resample)
     {
 	// Do the entire time range
-	tmp_array.entries(2);
-	tmp_array[0] = ch_manager->getTime(start_frame);
-	tmp_array[1] = ch_manager->getTime(end_frame);
+	tmp_array.setSize(2);
+	tmp_array(0) = ch_manager->getTime(start_frame);
+	tmp_array(1) = ch_manager->getTime(end_frame);
     }
     else
     {
@@ -416,7 +416,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	PRM_Parm* temp_parm_ptr = NULL;
 	if(use_override)
 	    temp_parm_ptr = parm;
-	outputResampled(fbx_anim_curve, ch, 0, tmp_array.entries()-1, tmp_array, false, temp_parm_ptr, parm_idx);
+	outputResampled(fbx_anim_curve, ch, 0, tmp_array.size()-1, tmp_array, false, temp_parm_ptr, parm_idx);
     }
     else
     {
@@ -427,23 +427,23 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	FbxTime fbx_time;
 	CH_Segment* next_seg;
 	UT_String str_expression(UT_String::ALWAYS_DEEP);
-	int curr_frame, num_frames = tmp_array.entries();
+	exint  num_frames = tmp_array.size();
 	double key_val, db_val;
 	int thread = SYSgetSTID();
 
-	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
+	for (exint curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
-	    key_time = tmp_array[curr_frame];
+	    key_time = tmp_array(curr_frame);
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
 	    fbx_key_idx = fbx_anim_curve->KeyAdd(fbx_time);
 	}
 
 	int c_index = 0;
-	for(curr_frame = 0; curr_frame < num_frames; curr_frame++)
+	for(exint curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
 	    // Convert frame to time
 	    CH_FullKey full_key;
-	    key_time = tmp_array[curr_frame];
+	    key_time = tmp_array(curr_frame);
 	    ch->getFullKey(key_time, full_key);
 
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
@@ -589,11 +589,11 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
     for(curr_idx = start_array_idx; curr_idx < end_array_idx; curr_idx++)
     {
 	// Insert keyframes, evaluate the values at the channel
-	key_time = time_array[curr_idx];
+	key_time = time_array(curr_idx);
 	end_idx = curr_idx + 1;
 	if(end_idx > end_array_idx)
 	    end_idx = end_array_idx;
-	end_time = time_array[end_idx];
+	end_time = time_array(end_idx);
 
 	if(ch)
 	    next_seg = ch->getSegmentAfterKey(key_time);
@@ -627,7 +627,7 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 	CH_FullKey full_key;
 
 	// We skipped the last frame. Add it now.
-	end_time = time_array[end_array_idx];
+	end_time = time_array(end_array_idx);
 	if(direct_eval_parm && parm_idx >= 0)
 	{
 	    direct_eval_parm->getValue(end_time, key_val, parm_idx, thread);
@@ -892,7 +892,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 
     int actual_gdp_points = final_gdp->getNumPoints();
     int curr_point;
-    UT_Vector4 ut_vec;
+    UT_Vector3 ut_vec;
     int arr_offset;
 
     if(node_info_in->getIsSurfacesOnly())
@@ -929,8 +929,8 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 		for(i_col = 0; i_col < v_point_count; i_col++)
 		{
 		    i_idx = i_col*u_point_count + i_row;
-		    if(i_idx < actual_gdp_points)	
-			ut_vec = prim->getVertexElement(i_idx).getPos();
+		    if(i_idx < actual_gdp_points)
+			ut_vec = prim->getPos3(i_idx);
 		    else
 			ut_vec = 0;
 
@@ -969,8 +969,8 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 		for(i_col = 0; i_col < v_point_count; i_col++)
 		{
 		    i_idx = i_col*u_point_count + i_row;
-		    if(i_idx < actual_gdp_points)	
-			ut_vec = prim->getVertexElement(i_idx).getPos();
+		    if(i_idx < actual_gdp_points)
+			ut_vec = prim->getPos3(i_idx);
 		    else
 			ut_vec = 0;
 
@@ -998,8 +998,8 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    int u_point_count = hd_nurb_curve->getVertexCount();
 	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
 	    {
-		if(i_idx < actual_gdp_points)	
-		    ut_vec = prim->getVertexElement(i_idx).getPos();
+		if(i_idx < actual_gdp_points)
+		    ut_vec = prim->getPos3(i_idx);
 		else
 		    ut_vec = 0;
 
@@ -1025,7 +1025,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    for(i_idx = 0; i_idx < u_point_count; i_idx++)
 	    {
 		if(i_idx < actual_gdp_points)	
-		    ut_vec = prim->getVertexElement(i_idx).getPos();
+		    ut_vec = prim->getPos3(i_idx);
 		else
 		    ut_vec = 0;
 
@@ -1044,7 +1044,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	for(curr_point = 0; curr_point < num_array_points; curr_point++)
 	{
 	    if(curr_point < actual_gdp_points)
-		ut_vec = final_gdp->getPos4(final_gdp->pointOffset(curr_point));
+		ut_vec = final_gdp->getPos3(final_gdp->pointOffset(curr_point));
 	    else
 		ut_vec = 0;
 
