@@ -20,14 +20,11 @@
 #include "ROP_FBXUtil.h"
 #include "ROP_FBXCommon.h"
 
-#include <GU/GU_ConvertParms.h>
 #include <GU/GU_DetailHandle.h>
-#include <GU/GU_PrimPoly.h>
 
-#include <GEO/GEO_Point.h>
+#include <GEO/GEO_ConvertParms.h>
 #include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_PrimPoly.h>
-#include <GEO/GEO_Vertex.h>
 
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
@@ -203,7 +200,7 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	{
 	    GU_DetailHandleAutoReadLock	 gdl(gdh);
 	    gdp = gdl.getGdp();
-	    if(!gdp || gdp->primitives().entries() <= 0)
+	    if(!gdp || gdp->getNumPrimitives() <= 0)
 		continue;
 
 	    looked_at_prims = true;
@@ -357,7 +354,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
     double cook_start, cook_end;
 #endif
     GU_Detail conv_gdp;
-    GU_ConvertParms conv_parms;
+    GEO_ConvertParms conv_parms;
     conv_parms.setFromType(GEO_PrimTypeCompat::GEOPRIMALL);
     conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
     conv_parms.method.setULOD(lod);
@@ -388,51 +385,38 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 
     cook_start = clock();
 #endif
+
     conv_gdp.convex(3);
-    
+
 #ifdef UT_DEBUG
     cook_end = clock();
     ROP_FBXdb_convexTime += (cook_end - cook_start);
 
     cook_start = clock();
 #endif
-    // We need to have all triangles not only have unique vertices, but also have 
+    // We need to have all triangles not only have unique vertices, but also have
     // each triangle consist of three consequent vertices.
-    GU_Detail conv_ordered_gdp;
-
-    int curr_prim_idx, num_prims = conv_gdp.primitives().entries();
-    GEO_Point *temp_pts[3];
-    GEO_Primitive* prim;
-    GEO_PrimPoly *prim_poly_ptr;
-    GU_PrimPoly *gu_prim;
-
-    for(curr_prim_idx = 0; curr_prim_idx < num_prims; curr_prim_idx++)
+    for (GA_Iterator it(conv_gdp.getPrimitiveRange()); !it.atEnd(); ++it)
     {
-	prim = conv_gdp.primitives()(curr_prim_idx);
-	gu_prim = dynamic_cast<GU_PrimPoly *>(prim);
+        const GA_Primitive *prim = conv_gdp.getPrimitive(*it);
+        if (prim->getTypeId() != GA_PRIMPOLY)
+            continue;
 
-	// In some cases (such as triangulating NURBS), we sometimes 
-	// end up with faces that have more than three vertices (and points),
-	// where some of the points actually occupy the same position in world space.
-	// After removing them, these faces become proper triangles.
-	if(gu_prim && prim->getVertexCount() > 3)
-	    gu_prim->removeRepeatedPoints(1e-5);
+        const GEO_PrimPoly *poly = UTverify_cast<const GEO_PrimPoly *>(prim);
 
-	UT_ASSERT(prim->getVertexCount() == 3);
+        UT_ASSERT(poly->getFastVertexCount() == 3);
 
-	temp_pts[0] = out_gdp.appendPointElement();
-	temp_pts[0]->setPos(prim->getVertexElement(0).getPos());
-	temp_pts[1] = out_gdp.appendPointElement();
-	temp_pts[1]->setPos(prim->getVertexElement(1).getPos());
-	temp_pts[2] = out_gdp.appendPointElement();
-	temp_pts[2]->setPos(prim->getVertexElement(2).getPos());
+        GA_Offset startpt = out_gdp.appendPointBlock(3);
+        out_gdp.setPos3(startpt+0, poly->getPos3(0));
+        out_gdp.setPos3(startpt+1, poly->getPos3(1));
+        out_gdp.setPos3(startpt+2, poly->getPos3(2));
 
-	prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GEO_PRIMPOLY);
-	prim_poly_ptr->setSize(0);
-	prim_poly_ptr->appendVertex(temp_pts[0]);
-	prim_poly_ptr->appendVertex(temp_pts[1]);
-	prim_poly_ptr->appendVertex(temp_pts[2]);
-	prim_poly_ptr->close(1,1);
+        GEO_PrimPoly *prim_poly_ptr = (GEO_PrimPoly *)out_gdp.appendPrimitive(GA_PRIMPOLY);
+        prim_poly_ptr->setSize(3);
+        prim_poly_ptr->setPointOffset(0, startpt+0);
+        prim_poly_ptr->setPointOffset(1, startpt+1);
+        prim_poly_ptr->setPointOffset(2, startpt+2);
+        prim_poly_ptr->setClosed(true);
     }
 #ifdef UT_DEBUG
     cook_end = clock();
