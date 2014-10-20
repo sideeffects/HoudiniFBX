@@ -1360,7 +1360,7 @@ inline void ROP_FBXassignValues(const UT_Vector3& hd_col, FbxColor& fbx_col, flo
 template <class HD_TYPE, class FBX_TYPE>
 void exportPointAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &attrib, const GA_ROHandleF &extra_attrib, FbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
-    if (!gdp || !layer_elem)
+    if (!gdp || !layer_elem || attrib.isInvalid())
 	return;
 
     // Go over all points
@@ -1385,7 +1385,7 @@ void exportPointAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &att
 template <class HD_TYPE, class FBX_TYPE>
 void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &attrib, const GA_ROHandleF &extra_attrib, FbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
-    if (!gdp || !layer_elem)
+    if (!gdp || !layer_elem || attrib.isInvalid())
 	return;
 
     // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
@@ -1424,7 +1424,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
 template <class HD_TYPE, class FBX_TYPE>
 void exportPrimitiveAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &attrib, const GA_ROHandleF &extra_attrib, FbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
-    if (!gdp || !layer_elem)
+    if (!gdp || !layer_elem || attrib.isInvalid())
 	return;
 
     // Go over all vertices
@@ -1451,7 +1451,7 @@ void exportPrimitiveAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> 
 template <class HD_TYPE, class FBX_TYPE>
 void exportDetailAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &attrib, const GA_ROHandleF &extra_attrib, FbxLayerElementTemplate<FBX_TYPE>* layer_elem)
 {
-    if (!gdp || !layer_elem)
+    if (!gdp || !layer_elem || attrib.isInvalid())
 	return;
 
     // Go over all vertices
@@ -1592,14 +1592,16 @@ void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr
     else
     {
         GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
-        // Go over all points
-        GA_Offset ptoff;
-        GA_FOR_ALL_PTOFF(gdp, ptoff)
-        {
-            hd_type = attribhandle.get(ptoff, attr_subindex);
-            fbx_direct_array[array_pos] = hd_type;
-            array_pos++;
-        }
+	if (attribhandle.isValid())
+	{
+	    GA_Offset ptoff;
+	    GA_FOR_ALL_PTOFF(gdp, ptoff)
+	    {
+		hd_type = attribhandle.get(ptoff, attr_subindex);
+		fbx_direct_array[array_pos] = hd_type;
+		array_pos++;
+	    }
+	}
     }
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
@@ -1629,18 +1631,21 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     const GA_ATIGroupBool *group = dynamic_cast<const GA_ATIGroupBool *>(attrib);
     UT_ASSERT(group == NULL || attr_subindex == 0);
     GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
-    GA_FOR_ALL_PRIMITIVES(gdp, prim)
+    if (attribhandle.isValid())
     {
-	GA_Size num_verts = prim->getVertexCount();
-	for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+	GA_FOR_ALL_PRIMITIVES(gdp, prim)
 	{
-            GA_Offset vtxoff = prim->getVertexOffset(curr_vert);
-            if (group)
-                hd_type = group->contains(vtxoff);
-            else
-                hd_type = attribhandle.get(vtxoff, attr_subindex);
-	    fbx_direct_array[array_pos] = hd_type;
-	    array_pos++;
+	    GA_Size num_verts = prim->getVertexCount();
+	    for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+	    {
+		GA_Offset vtxoff = prim->getVertexOffset(curr_vert);
+		if (group)
+		    hd_type = group->contains(vtxoff);
+		else
+		    hd_type = attribhandle.get(vtxoff, attr_subindex);
+		fbx_direct_array[array_pos] = hd_type;
+		array_pos++;
+	    }
 	}
     }
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
@@ -1683,12 +1688,15 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GA_Attribute* attr, int 
     else
     {
         GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
-        GA_FOR_ALL_PRIMITIVES(gdp, prim)
-        {
-            hd_type = attribhandle.get(prim->getMapOffset(), attr_subindex);
-            fbx_direct_array[array_pos] = hd_type;
-            array_pos++;
-        }
+	if (attribhandle.isValid())
+	{
+	    GA_FOR_ALL_PRIMITIVES(gdp, prim)
+	    {
+		hd_type = attribhandle.get(prim->getMapOffset(), attr_subindex);
+		fbx_direct_array[array_pos] = hd_type;
+		array_pos++;
+	    }
+	}
     }
 
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
@@ -1704,6 +1712,9 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     UT_ASSERT(attrib);
     if (!attrib)
 	return;
+    GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
+    if (attribhandle.isInvalid())
+	return;
 
     // Go over all vertices
     SIMPLE_TYPE hd_type;
@@ -1717,7 +1728,6 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     SIMPLE_TYPE* fbx_direct_array = NULL;
     fbx_direct_array = fbx_direct_array_ptr->GetLocked(fbx_direct_array);
 
-    GA_ROHandleT<SIMPLE_TYPE> attribhandle(attrib);
     hd_type = attribhandle.get(GA_Offset(0), attr_subindex);
     fbx_direct_array[array_pos] = hd_type;
     array_pos++;
