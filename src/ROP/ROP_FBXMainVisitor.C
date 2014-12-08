@@ -1565,7 +1565,7 @@ void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr
     SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
-    const GA_Attribute *attrib = gdp->findPointAttrib(*attr).get();
+    const GA_Attribute *attrib = gdp->findPointAttrib(*attr);
     UT_ASSERT(attrib);
     if (!attrib)
 	return;
@@ -1616,7 +1616,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     const GEO_Primitive* prim;
     SIMPLE_TYPE hd_type;
 
-    const GA_Attribute *attrib = gdp->findVertexAttrib(*attr).get();
+    const GA_Attribute *attrib = gdp->findVertexAttrib(*attr);
     UT_ASSERT(attrib);
     if (!attrib)
 	return;
@@ -1662,7 +1662,7 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GA_Attribute* attr, int 
     SIMPLE_TYPE hd_type;
     int array_pos = 0;
 
-    const GA_Attribute *attrib = gdp->findPrimAttrib(*attr).get();
+    const GA_Attribute *attrib = gdp->findPrimAttrib(*attr);
     UT_ASSERT(attrib);
     if (!attrib)
 	return;
@@ -1708,7 +1708,7 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     if(!gdp || !layer_elem)
 	return;
 
-    const GA_Attribute *attrib = gdp->findGlobalAttrib(*attr).get();
+    const GA_Attribute *attrib = gdp->findGlobalAttrib(*attr);
     UT_ASSERT(attrib);
     if (!attrib)
 	return;
