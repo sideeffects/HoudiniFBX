@@ -35,16 +35,23 @@
 #include <vector>
 #include <string>
 
-class GU_DetailHandle;
-class GU_Detail;
+
 class ROP_FBXGDPCache;
-class SOP_Node;
-class OP_Context;
-class OP_Node;
-class OP_Network;
-class GEO_Primitive;
-class UT_String;
 class ROP_FBXMainNodeVisitInfo;
+
+class SOP_Node;
+class GEO_Primitive;
+class GU_Detail;
+class GU_DetailHandle;
+
+class OP_Context;
+class OP_Network;
+class OP_Node;
+
+class UT_String;
+class UT_XformOrder;
+
+
 /********************************************************************************************************/
 class ROP_API ROP_FBXUtil
 {
@@ -62,7 +69,9 @@ public:
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
     static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
+    static EFbxRotationOrder fbxRotationOrder(UT_XformOrder::xyzOrder rot_order);
     static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
+	const UT_XformOrder& xform_order,
 	UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations, bool force_obj_transfrom_from_world);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0);

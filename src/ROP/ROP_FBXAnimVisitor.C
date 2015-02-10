@@ -165,12 +165,14 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	bool force_resampled_anim = false;
 	bool account_for_pivot = hasPivotInfo(node);
 	bool has_pretransform = false;
+	UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
 	OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(node);
 	if(obj_node)
 	{
 	    // Check for pre-transform
 	    UT_Matrix4 pretransform;
-	    OP_Context op_context(myParentExporter->getStartTime());
+	    fpreal t = myParentExporter->getStartTime();
+	    OP_Context op_context(t);
 	    obj_node->getPreLocalTransform(op_context, pretransform);
 	    if(pretransform.isIdentity() == false)
 		has_pretransform = true;
@@ -188,6 +190,14 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		force_resampled_anim = true;
 		force_obj_transfrom_from_world = true;
 	    }
+
+	    // Maintain the rotation order of obj_node. This assumes that
+	    // ROP_FBXUtil::setStandardTransforms() has already set the
+	    // transform order in an identical fashion.
+	    xform_order.rotOrder(OP_Node::getRotOrder(obj_node->XYZ(t)));
+	    // FBX only supports SRT transform orders, so if it's different, we need to resample
+	    if (OP_Node::getMainOrder(obj_node->TRS(t)) != UT_XformOrder::SRT)
+		force_resampled_anim = true;
 	}
 
 	if(node_type == "bone" || account_for_pivot || has_pretransform || force_resampled_anim)
@@ -199,7 +209,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // since this FBX node corresponds to the end tip of the bone.
 	    //FbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
 	    //exportResampledAnimation(curr_fbx_bone_take, node);
-	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in, force_obj_transfrom_from_world);
+	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in, xform_order, force_obj_transfrom_from_world);
 	}
 	else
 	{
@@ -319,13 +329,13 @@ ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, FbxAnimLayer* curr_fbx_ani
 
     // Scaling
     channel_name = channel_prefix + "s";
-    curr_anim_curve = fbx_node->LclRotation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_X, true);
+    curr_anim_curve = fbx_node->LclScaling.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_X, true);
     exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
 
-    curr_anim_curve = fbx_node->LclRotation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+    curr_anim_curve = fbx_node->LclScaling.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Y, true);
     exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
 
-    curr_anim_curve = fbx_node->LclRotation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+    curr_anim_curve = fbx_node->LclScaling.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Z, true);
     exportChannel(curr_anim_curve, node, channel_name.c_str(), 2); 
 
 }
@@ -1061,7 +1071,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 void 
 ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, 
 					     FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, 
-					     bool force_obj_transfrom_from_world)
+					     const UT_XformOrder& xform_order, bool force_obj_transfrom_from_world)
 {
     // Get channels, range, and make sure we have any animation at all
     int curr_trs_channel;
@@ -1180,7 +1190,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
 	prev_frame_rot_ptr = &prev_frame_rot;
 	prev_frame_rot = r_out;
 
@@ -1220,7 +1230,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 	if(parent_node)
 	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
 	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)

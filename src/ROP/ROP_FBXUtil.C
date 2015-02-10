@@ -35,9 +35,11 @@
 #include <PRM/PRM_Parm.h>
 #include <CH/CH_Manager.h>
 
+#include <UT/UT_Assert.h>
 #include <UT/UT_CrackMatrix.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Thread.h>
+#include <UT/UT_XformOrder.h>
 
 #ifdef UT_DEBUG
 #include <UT/UT_Debug.h>
@@ -437,7 +439,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-			UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations, bool force_obj_transfrom_from_world)
+			const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations, bool force_obj_transfrom_from_world)
 {
     bool set_post_rotation = false;
 
@@ -536,7 +538,6 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 	set_post_rotation = true;
     }
 
-    UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
     full_xform.explode(xform_order, r_out,s_out,t_out);
     if(prev_frame_rotations)
     {
@@ -753,13 +754,41 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
     return found;
 }
 /********************************************************************************************************/
+EFbxRotationOrder 
+ROP_FBXUtil::fbxRotationOrder(UT_XformOrder::xyzOrder rot_order)
+{
+    switch (rot_order)
+    {
+	case UT_XformOrder::XYZ:
+	    return eEulerXYZ;
+	case UT_XformOrder::XZY:
+	    return eEulerXZY;
+	case UT_XformOrder::YXZ:
+	    return eEulerYXZ;
+	case UT_XformOrder::YZX:
+	    return eEulerYZX;
+	case UT_XformOrder::ZXY:
+	    return eEulerZXY;
+	case UT_XformOrder::ZYX:
+	    return eEulerZYX;
+    }
+    UT_ASSERT(!"Unhandled rotation order");
+    return eEulerXYZ;
+}
+/********************************************************************************************************/
 void 
 ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, 
 				   fpreal ftime, UT_String* override_node_type, bool use_world_transform)
 {
-
     UT_Vector3D t,r,s;
     FbxVector4 post_rotate, fbx_vec4;
+
+    // Maintain the same rotation order as obj_node. This logic is relied upon
+    // by ROP_FBXAnimVisitor::visit() for cracking rotations!
+    UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+    OBJ_Node* obj_node = CAST_OBJNODE(hd_node);
+    if (obj_node)
+	xform_order.rotOrder(OP_Node::getRotOrder(obj_node->XYZ(ftime)));
 
     if(use_world_transform)
     {
@@ -767,11 +796,11 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
 	OP_Context op_context(ftime);
 	(void) hd_node->getWorldTransform(world_matrix, op_context);
 
-	UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type, t,r,s, &post_rotate, NULL, false))
+    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type,
+					    xform_order, t,r,s, &post_rotate, NULL, false))
     {
 	fbx_node->SetPostRotation(FbxNode::eSourcePivot, post_rotate);
 	fbx_node->SetRotationActive(true);
@@ -786,7 +815,10 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
     fbx_vec4.Set(s[0],s[1],s[2]);
     fbx_node->LclScaling.Set(fbx_vec4);
 
-    fbx_node->SetRotationOrder(FbxNode::eDestinationPivot, eEulerXYZ);
+    fbx_node->SetRotationOrder(FbxNode::eSourcePivot, fbxRotationOrder(xform_order.rotOrder()));
+
+    // Houdini only has one inherit type
+    fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
 }
 /********************************************************************************************************/
 bool 

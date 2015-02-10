@@ -28,16 +28,23 @@
 
 #include <string>
 
-class ROP_FBXExporter;
-class GU_Detail;
-class UT_Interrupt;
-class ROP_FBXErrorManager;
-class ROP_FBXNodeInfo;
-class SOP_Node;
-class CH_Channel;
-class ROP_FBXNodeManager;
+
 class ROP_FBXActionManager;
+class ROP_FBXErrorManager;
+class ROP_FBXExporter;
+class ROP_FBXNodeInfo;
+class ROP_FBXNodeManager;
+
+class SOP_Node;
+class GU_Detail;
+
 class PRM_Parm;
+class CH_Channel;
+
+class UT_Interrupt;
+class UT_XformOrder;
+
+
 /********************************************************************************************************/
 class ROP_API ROP_FBXAnimNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
 {
@@ -65,7 +72,7 @@ public:
 
 protected:
 
-    void exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool force_obj_transfrom_from_world);
+    void exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, const UT_XformOrder& xform_order, bool force_obj_transfrom_from_world);
     void exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
     void outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx);
 
