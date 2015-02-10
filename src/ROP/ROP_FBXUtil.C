@@ -42,8 +42,8 @@
 #ifdef UT_DEBUG
 #include <UT/UT_Debug.h>
 #include <time.h>
+extern double ROP_FBXdb_maxVertsCountingTime;
 extern double ROP_FBXdb_cookingTime;
-
 extern double ROP_FBXdb_convexTime;
 extern double ROP_FBXdb_reorderTime;
 extern double ROP_FBXdb_convertTime;
@@ -152,6 +152,9 @@ int
 ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpreal end_time, float lod, bool allow_constant_point_detection, 
 				       bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces)
 {
+#ifdef UT_DEBUG
+    double timer_start = clock();
+#endif
     CH_Manager *ch_manager = CHgetManager();
     fpreal start_frame, end_frame;
     start_frame = ch_manager->getSample(start_time);
@@ -186,7 +189,12 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	if(boss_op && curr_frame % 5)
 	{
 	    if(boss_op->opInterrupt())
+	    {
+#ifdef UT_DEBUG
+		ROP_FBXdb_maxVertsCountingTime += clock() - timer_start;
+#endif
 		return -1;
+	    }
 	}
 
 	OP_Context  context(hd_time);
@@ -259,6 +267,9 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	is_pure_surfaces = true;
     }
 
+#ifdef UT_DEBUG
+    ROP_FBXdb_maxVertsCountingTime += clock() - timer_start;
+#endif
     return max_points;
 }
 /********************************************************************************************************/
