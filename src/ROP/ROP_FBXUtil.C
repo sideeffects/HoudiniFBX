@@ -372,6 +372,8 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
     conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
     conv_parms.method.setULOD(lod);
     conv_parms.method.setVLOD(lod);
+    conv_parms.myDestDetail = &conv_gdp;
+    conv_parms.mySourceDetail = &conv_gdp;
 #ifdef UT_DEBUG
     cook_start = clock();
 #endif
