@@ -220,7 +220,7 @@ ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_
     FbxAMatrix xform_matrix;
 
     main_cluster->SetLink(fbx_joint_node);
-    main_cluster->SetLinkMode(FbxCluster::eTotalOne);
+    main_cluster->SetLinkMode(FbxCluster::eNormalize);
 
     // Set the skin deformer params
     int curr_point, num_points = cap_data.getNumStoredPts();
@@ -232,8 +232,13 @@ ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_
 	pt_weight = cap_data.getPointWeight(curr_point, region_idx, &opt_get_weight_idx);
 	if(pt_weight < 0.0)
 	    pt_weight = 0.0;
-	main_cluster->AddControlPointIndex(curr_point, pt_weight);
+        if( pt_weight > 0.0 )
+        {            
+	    main_cluster->AddControlPointIndex(curr_point, pt_weight);
+        }
     }
+
+
 
     // Set transform matrices:
     // transform - world matrx of the actual model being deformed?
