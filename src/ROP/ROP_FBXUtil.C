@@ -888,7 +888,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
     // Check if bone length is an expression
     UT_String bone_length_str;
     ROP_FBXUtil::getStringOPParm(bone_node, "length", bone_length_str, true);
-    if (bone_length_str.isFloat())
+    if (!bone_length_str.isFloat())
 	return false;
 
     // Look through all its parents
