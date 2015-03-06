@@ -28,6 +28,7 @@
 #include <OP/OP_Network.h>
 #include <OP/OP_Director.h>
 #include <GA/GA_ATIGroupBool.h>
+#include <GA/GA_AttributeFilter.h>
 #include <GA/GA_ElementWrangler.h>
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_ConvertParms.h>
@@ -1915,10 +1916,13 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     // Go through point attributes first.
     if(gdp->getNumPoints() > 0)
     {
+	GA_AttributeFilter filter_no_P = GA_AttributeFilter::selectStandard(gdp->getP());
 	for (GA_AttributeDict::iterator itor = gdp->pointAttribs().begin();
 	     itor != gdp->pointAttribs().end(); ++itor)
 	{
 	    attr = itor.attrib();
+	    if (!filter_no_P.match(attr))
+		continue;
 
 	    // Determine the proper attribute type
 	    curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -1949,10 +1953,13 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Go through vertex attributes
+    GA_AttributeFilter filter = GA_AttributeFilter::selectStandard();
     for (GA_AttributeDict::iterator itor = gdp->vertexAttribs().begin();
 	 itor != gdp->vertexAttribs().end(); ++itor)
     {
 	attr = itor.attrib();
+	if (!filter.match(attr))
+	    continue;
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -1986,6 +1993,8 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 	 itor != gdp->primitiveAttribs().end(); ++itor)
     {
 	attr = itor.attrib();
+	if (!filter.match(attr))
+	    continue;
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -2018,6 +2027,8 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 	 itor != gdp->attribs().end(); ++itor)
     {
 	attr = itor.attrib();
+	if (!filter.match(attr))
+	    continue;
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
