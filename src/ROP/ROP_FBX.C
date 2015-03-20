@@ -126,6 +126,8 @@ static PRM_Template	geoObsolete[] = {
     PRM_Template()
 };
 
+static PRM_Name	ropDoRender	("execute",	"Save to Disk");
+
 PRM_Template *
 ROP_FBX::getTemplates()
 {
@@ -135,7 +137,10 @@ ROP_FBX::getTemplates()
 	return theTemplate;
 
     theTemplate = new PRM_Template[ROP_FBX_MAXPARMS+1];
-    theTemplate[ROP_FBX_RENDER] = theRopTemplates[ROP_RENDER_TPLATE];
+    theTemplate[ROP_FBX_RENDER] = PRM_Template(
+		PRM_CALLBACK|PRM_TYPE_NOREFRESH|PRM_TYPE_JOIN_NEXT, 
+		PRM_TYPE_NONE, 1, &ropDoRender,
+		0, 0, 0, ROP_Node::doRenderCback, &theRopTakeAlways),
     theTemplate[ROP_FBX_RENDER_CTRL] = theRopTemplates[ROP_RENDERDIALOG_TPLATE];
     theTemplate[ROP_FBX_TRANGE] = theRopTemplates[ROP_TRANGE_TPLATE];
     theTemplate[ROP_FBX_FRANGE] = theRopTemplates[ROP_FRAMERANGE_TPLATE];
