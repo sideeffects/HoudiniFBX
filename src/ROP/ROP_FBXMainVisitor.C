@@ -1954,10 +1954,10 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
     // Go through vertex attributes
     GA_AttributeFilter filter = GA_AttributeFilter::selectStandard();
-    for (GA_AttributeDict::iterator itor = gdp->vertexAttribs().begin();
-	 itor != gdp->vertexAttribs().end(); ++itor)
+    for (GA_AttributeDict::ordered_iterator itor = gdp->vertexAttribs().obegin();
+	 itor != gdp->vertexAttribs().oend(); ++itor)
     {
-	attr = itor.attrib();
+	attr = itor.item();
 	if (!filter.match(attr))
 	    continue;
 
