@@ -58,7 +58,7 @@ enum ROP_FBXAttributeType
     ROP_FBXAttributeLastPlaceholder
 };
 /********************************************************************************************************/
-typedef std::vector < GA_Attribute* > THDAttributeVector;
+typedef std::vector < const GA_Attribute* > THDAttributeVector;
 typedef std::map < OP_Node* , FbxSurfaceMaterial* > THdFbxMaterialMap;
 typedef std::map < OP_Node* , int > THdNodeIntMap;
 //typedef set < OP_Node* > THdNodeSet;
@@ -169,7 +169,7 @@ protected:
     // In this case, it doesn't ever need to be deleted.
     const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, GA_PrimCompat::TypeMask &prim_types_in_out);
 
-    void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GA_Attribute* attr);
+    void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
     bool outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);

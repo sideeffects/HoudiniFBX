@@ -1558,7 +1558,7 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttrib
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
+void exportUserPointAttribute(const GU_Detail* gdp, const GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->getNumPoints() == 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -1608,7 +1608,7 @@ void exportUserPointAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
+void exportUserVertexAttribute(const GU_Detail* gdp, const GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem || gdp->getNumPoints() <= 0 || !fbx_prop_name || strlen(fbx_prop_name) <= 0)
 	return;
@@ -1653,7 +1653,7 @@ void exportUserVertexAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserPrimitiveAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
+void exportUserPrimitiveAttribute(const GU_Detail* gdp, const GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1704,7 +1704,7 @@ void exportUserPrimitiveAttribute(const GU_Detail* gdp, GA_Attribute* attr, int 
 }
 /********************************************************************************************************/
 template < class SIMPLE_TYPE >
-void exportUserDetailAttribute(const GU_Detail* gdp, GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
+void exportUserDetailAttribute(const GU_Detail* gdp, const GA_Attribute* attr, int attr_subindex, const char* fbx_prop_name, FbxLayerElementUserData *layer_elem)
 {
     if(!gdp || !layer_elem)
 	return;
@@ -1736,7 +1736,7 @@ void exportUserDetailAttribute(const GU_Detail* gdp, GA_Attribute* attr, int att
     fbx_direct_array_ptr->Release((void**)&fbx_direct_array);
 }
 /********************************************************************************************************/
-int getNumAttrElems(GA_Attribute* attr)
+static int getNumAttrElems(const GA_Attribute* attr)
 {
     GA_StorageClass storage = attr->getStorageClass();
     if(storage == GA_STORECLASS_REAL || storage == GA_STORECLASS_INT)
@@ -1763,7 +1763,6 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     GA_StorageClass attr_store;
     int attr_size;
     const char* orig_name;
-    GA_Attribute* attr;
     TStringVector attr_names;
     char* temp_name;
     bool is_supported;
@@ -1773,7 +1772,20 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     int curr_hd_attr, num_hd_attrs = hd_attribs.size();
     for(curr_hd_attr = 0; curr_hd_attr < num_hd_attrs; curr_hd_attr++)
     {
-	attr = hd_attribs[curr_hd_attr];
+	const GA_Attribute *attr = hd_attribs[curr_hd_attr];
+
+        // P is already stored in other ways
+        UT_ASSERT(attr != attr->getDetail().getP());
+        if (attr == attr->getDetail().getP())
+            continue;
+
+        // Don't store private attributes, including internal groups
+        UT_ASSERT(attr->getScope() != GA_SCOPE_PRIVATE);
+        if (attr->getScope() == GA_SCOPE_PRIVATE)
+            continue;
+        UT_ASSERT(attr->getScope() != GA_SCOPE_GROUP || !GA_ATIGroupBool::cast(attr)->getGroup()->getInternal());
+        if (attr->getScope() == GA_SCOPE_GROUP && GA_ATIGroupBool::cast(attr)->getGroup()->getInternal())
+            continue;
 
 	// Get the attribute type
 	attr_type = attr->getTypeInfo();
@@ -1861,7 +1873,7 @@ ROP_FBXMainVisitor::addUserData(const GU_Detail* gdp, THDAttributeVector& hd_att
     // Add data to it
     for(curr_hd_attr = 0; curr_hd_attr < num_hd_attrs; curr_hd_attr++)
     {
-	attr = hd_attribs[curr_hd_attr];
+	const GA_Attribute *attr = hd_attribs[curr_hd_attr];
 
 	// Get the attribute type
 	attr_store = attr->getStorageClass();
@@ -1904,7 +1916,6 @@ void
 ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 {
     ROP_FBXAttributeLayerManager attr_manager(mesh_attr);
-    GA_Attribute* attr;
     ROP_FBXAttributeType curr_attr_type;
     FbxLayer* attr_layer;
     GA_ROAttributeRef attr_offset, extra_attr_offset;
@@ -1916,13 +1927,17 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     // Go through point attributes first.
     if(gdp->getNumPoints() > 0)
     {
-	GA_AttributeFilter filter_no_P = GA_AttributeFilter::selectStandard(gdp->getP());
+	GA_AttributeFilter filter_no_P = GA_AttributeFilter::selectOr(GA_AttributeFilter::selectStandard(gdp->getP()),GA_AttributeFilter::selectGroup());
 	for (GA_AttributeDict::iterator itor = gdp->pointAttribs().begin();
 	     itor != gdp->pointAttribs().end(); ++itor)
 	{
-	    attr = itor.attrib();
+	    const GA_Attribute *attr = itor.attrib();
 	    if (!filter_no_P.match(attr))
 		continue;
+            if (attr->getScope() == GA_SCOPE_PRIVATE)
+                continue;
+            if (attr->getScope() == GA_SCOPE_GROUP && GA_ATIGroupBool::cast(attr)->getGroup()->getInternal())
+                continue;
 
 	    // Determine the proper attribute type
 	    curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -1953,13 +1968,17 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Go through vertex attributes
-    GA_AttributeFilter filter = GA_AttributeFilter::selectStandard();
+    GA_AttributeFilter filter = GA_AttributeFilter::selectOr(GA_AttributeFilter::selectStandard(),GA_AttributeFilter::selectGroup());
     for (GA_AttributeDict::ordered_iterator itor = gdp->vertexAttribs().obegin();
 	 itor != gdp->vertexAttribs().oend(); ++itor)
     {
-	attr = itor.item();
+	const GA_Attribute *attr = itor.item();
 	if (!filter.match(attr))
 	    continue;
+        if (attr->getScope() == GA_SCOPE_PRIVATE)
+            continue;
+        if (attr->getScope() == GA_SCOPE_GROUP && GA_ATIGroupBool::cast(attr)->getGroup()->getInternal())
+            continue;
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -1992,9 +2011,13 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     for (GA_AttributeDict::iterator itor = gdp->primitiveAttribs().begin();
 	 itor != gdp->primitiveAttribs().end(); ++itor)
     {
-	attr = itor.attrib();
+	const GA_Attribute *attr = itor.attrib();
 	if (!filter.match(attr))
 	    continue;
+        if (attr->getScope() == GA_SCOPE_PRIVATE)
+            continue;
+        if (attr->getScope() == GA_SCOPE_GROUP && GA_ATIGroupBool::cast(attr)->getGroup()->getInternal())
+            continue;
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -2026,9 +2049,13 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     for (GA_AttributeDict::iterator itor = gdp->attribs().begin();
 	 itor != gdp->attribs().end(); ++itor)
     {
-	attr = itor.attrib();
+	const GA_Attribute *attr = itor.attrib();
 	if (!filter.match(attr))
 	    continue;
+        if (attr->getScope() == GA_SCOPE_PRIVATE)
+            continue;
+        if (attr->getScope() == GA_SCOPE_GROUP && GA_ATIGroupBool::cast(attr)->getGroup()->getInternal())
+            continue;
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
@@ -2889,7 +2916,7 @@ ROP_FBXgFindMappedName(const char *attr, const char *varname, void *data)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXMainVisitor::setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, GA_Attribute* attr)
+ROP_FBXMainVisitor::setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr)
 {
     if(!fbx_layer_elem || !attr || !attr->getName())
 	return;
