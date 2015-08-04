@@ -554,203 +554,215 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me)
+ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me, UT_Set<OP_Node*> *already_visited)
 {
-    bool is_time_dependent = false;
-    OP_Node *	found = NULL;
-    int		i;
     OP_Context op_context(ftime);
+
+    // NOTE: Traversing a node network (directed acyclic graph) like a tree
+    //       can and has produced cases (e.g. Bug 70324) where some nodes
+    //       will be visited an exponential number of times, due to multiple
+    //       nodes using the same node as input.
+    //       DO NOT allow a node to be visited multiple times, even from
+    //       different downstream nodes!
+    if (!already_visited)
+        already_visited = new UT_Set<OP_Node*>();
+    else if (already_visited->count(op))
+        return false;
+
+    if (op == NULL)
+        return false;
+
+    already_visited->insert(op);
 
     // Check if the node we are checking is already on the stack. If so,
     // we're at risk of recursion, so bail out.
-    if( op != NULL && !op->flags().getRecursion()) // Don't care about locks: && !op->getHardLock() )
+    // Don't care about locks: if (!op->getHardLock())
+
+    if (include_me)
     {
-	op->flags().setRecursion( true );
-
-	if( include_me )
+	// See if this op is one of the types we can ignore.
+        bool found = false;
+	for (int i = 0; !found && ignored_node_types[i]; i++)
 	{
-	    // See if this op is one of the types we can ignore.
-	    for( i = 0; !found && ignored_node_types[i]; i++ )
-	    {
-		if( op->getOperator()->getName() == ignored_node_types[i] )
-		    found = op;  
-	    }
-
-	    if(opt_more_types)
-	    {
-		for( i = 0; !found && opt_more_types[i]; i++ )
-		{
-		    if( op->getOperator()->getName() == opt_more_types[i] )
-			found = op;  
-		}
-	    }
-
-	    if(!found)
-		is_time_dependent |= op->isTimeDependent(op_context);		
+	    if (op->getOperator()->getName() == ignored_node_types[i])
+		found = true;
 	}
 
-	// Found a time-dependent node. That's all we need.
-	if(is_time_dependent)
+	if(opt_more_types)
 	{
-	    op->flags().setRecursion( false );
-	    return true;
-	}
-
-	// If we are a subnet, try to find an appropriate node within the
-	// subnet, starting with the subnet's display node.
-	if(op->isSubNetwork(false) )
-	{
-	    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode(((OP_Network *)op)->getDisplayNodePtr(), ignored_node_types, opt_more_types, ftime, true);
-	}
-
-	// if we're a switch SOP, then look up the appropriate input chain
-	bool is_aswitch = false;
-	if(op->getOperator()->getName() == "switch" )
-	{
-	    PRM_Parm *	parm;
-
-	    parm = op->getParmList()->getParmPtr( "input" );
-	    if( parm != NULL )
+	    for (int i = 0; !found && opt_more_types[i]; i++)
 	    {
-		parm->getValue(
-		    ftime,
-		    i, 0, op_context.getThread());
-		if( op->getInput(i) != NULL )
-		{
-		    is_aswitch = true;
-		    is_time_dependent |= ROP_FBXUtil::findTimeDependentNode( op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
-
-		    // Found a time-dependent node. That's all we need.
-		    if(is_time_dependent)
-		    {
-			op->flags().setRecursion( false );
-			return true;
-		    }
-
-		}
+		if (op->getOperator()->getName() == opt_more_types[i])
+		    found = true;
 	    }
 	}
 
-	for( i = op->getConnectedInputIndex(-1); !is_aswitch && !is_time_dependent && i >= 0;
-	    i = op->getConnectedInputIndex(i) )
-	{
-	    // We need to traverse reference inputs as well, in cases,
-	    // for example, where particles are present.
-	    if( op->getInput(i) ) //  && !op->isRefInput(i) )
-	    {
-		is_time_dependent |= ROP_FBXUtil::findTimeDependentNode(op->getInput(i), ignored_node_types, opt_more_types, ftime, true);
-		// Found a time-dependent node. That's all we need.
-		if(is_time_dependent)
-		{
-		    op->flags().setRecursion( false );
-		    return true;
-		}
-	    }
-	}
+	if(!found)
+        {
+	    bool is_time_dependent = op->isTimeDependent(op_context);
 
-	op->flags().setRecursion( false );
+            // Found a time-dependent node. That's all we need.
+            if (is_time_dependent)
+                return true;
+        }
     }
 
-    return is_time_dependent;
+    // If we are a subnet, try to find an appropriate node within the
+    // subnet, starting with the subnet's display node.
+    if(op->isSubNetwork(false))
+    {
+        bool is_time_dependent = ROP_FBXUtil::findTimeDependentNode(((OP_Network *)op)->getDisplayNodePtr(), ignored_node_types, opt_more_types, ftime, true, already_visited);
+        // Found a time-dependent node. That's all we need.
+        if (is_time_dependent)
+            return true;
+    }
+
+    // if we're a switch SOP, then look up the appropriate input chain
+    bool is_aswitch = false;
+    if (op->getOperator()->getName() == "switch")
+    {
+	PRM_Parm *parm = op->getParmList()->getParmPtr( "input" );
+	if (parm != NULL)
+	{
+            int i;
+	    parm->getValue(
+		ftime,
+		i, 0, op_context.getThread());
+	    if( op->getInput(i) != NULL )
+	    {
+		is_aswitch = true;
+		bool is_time_dependent = ROP_FBXUtil::findTimeDependentNode(op->getInput(i), ignored_node_types, opt_more_types, ftime, true, already_visited);
+
+		// Found a time-dependent node. That's all we need.
+		if (is_time_dependent)
+		    return true;
+	    }
+	}
+    }
+
+    for (int i = op->getConnectedInputIndex(-1); !is_aswitch && i >= 0;
+	i = op->getConnectedInputIndex(i) )
+    {
+	// We need to traverse reference inputs as well, in cases,
+	// for example, where particles are present.
+	if( op->getInput(i) ) //  && !op->isRefInput(i) )
+	{
+	    bool is_time_dependent = ROP_FBXUtil::findTimeDependentNode(op->getInput(i), ignored_node_types, opt_more_types, ftime, true, already_visited);
+	    // Found a time-dependent node. That's all we need.
+	    if (is_time_dependent)
+		return true;
+	}
+    }
+
+    return false;
 }
 /********************************************************************************************************/
 OP_Node*
-ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level)
+ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level, UT_Set<OP_Node*> *already_visited)
 {
-    OP_Node *	found = NULL;
-    int		i;
-    bool did_is_allowed_only_local;
     bool child_did_find_allowed_types_only;
     int thread = SYSgetSTID();
 
-    if(rec_level == 0 && did_find_allowed_only)
+    if (rec_level == 0 && did_find_allowed_only)
 	*did_find_allowed_only = true;
+
+    // NOTE: Traversing a node network (directed acyclic graph) like a tree
+    //       can and has produced cases (e.g. Bug 70324) where some nodes
+    //       will be visited an exponential number of times, due to multiple
+    //       nodes using the same node as input.
+    //       DO NOT allow a node to be visited multiple times, even from
+    //       different downstream nodes!
+    if (!already_visited)
+        already_visited = new UT_Set<OP_Node*>();
+    else if (already_visited->count(op))
+        return NULL;
+
+    if (op == NULL)
+        return NULL;
+
+    already_visited->insert(op);
 
     // Check if the node we are checking is already on the stack. If so,
     // we're at risk of recursion, so bail out.
-    if( op != NULL && !op->flags().getRecursion()) // Don't care about locks: && !op->getHardLock() )
+    // Don't care about locks: if (!op->getHardLock())
+
+    OP_Node *found = NULL;
+
+    if (include_me)
     {
-	op->flags().setRecursion( true );
+	// See if this op is one of the types we are looking for.
+	for (int i = 0; !found && find_op_types[i]; i++)
+	    if (op->getOperator()->getName() == find_op_types[i])
+		found = op;
 
-	if( include_me )
+	// See if this op, if not found, is one of the allowed types
+	if(allowed_node_types && !found)
 	{
-	    // See if this op is one of the types we are looking for.
-	    for( i = 0; !found && find_op_types[i]; i++ )
-		if( op->getOperator()->getName() == find_op_types[i] )
-		    found = op;
+	    bool did_is_allowed_only_local = false;
 
-	    // See if this op, if not found, is one of the allowed types
-	    if(allowed_node_types && !found)
+	    for (int i = 0; !did_is_allowed_only_local && allowed_node_types[i]; i++)
 	    {
-		did_is_allowed_only_local = false; 
-
-		for( i = 0; !did_is_allowed_only_local && allowed_node_types[i]; i++ )
+		if( op->getOperator()->getName() == allowed_node_types[i] )
 		{
-		    if( op->getOperator()->getName() == allowed_node_types[i] )
-		    {
-			did_is_allowed_only_local = true;
-			break;
-		    }
+		    did_is_allowed_only_local = true;
+		    break;
 		}
-
-		if(!did_is_allowed_only_local && did_find_allowed_only)
-		    *did_find_allowed_only = false;
-
 	    }
-	    else if(found && did_find_allowed_only)
-		*did_find_allowed_only = true;
 
-	}
-
-	// If we are a subnet, try to find an appropriate node within the
-	// subnet, starting with the subnet's display node.
-	if( !found && op->isSubNetwork(false) )
-	{
-	    child_did_find_allowed_types_only = false;
-	    found = ROP_FBXUtil::findOpInput(((OP_Network *)op)->getDisplayNodePtr(),
-				   find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1);
-	    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
+	    if(!did_is_allowed_only_local && did_find_allowed_only)
 		*did_find_allowed_only = false;
-	}
 
-	// if we're a switch SOP, then look up the appropriate input chain
-	bool is_aswitch = false;
-	if( !found && op->getOperator()->getName() == "switch" )
-	{
-	    PRM_Parm *	parm;
-	    
-	    parm = op->getParmList()->getParmPtr( "input" );
-	    if( parm != NULL )
-	    {
-		parm->getValue(
-			CHgetEvalTime(),
-			i, 0, thread);
-		if( op->getInput(i) != NULL )
-		{
-		    is_aswitch = true;
-	    	    child_did_find_allowed_types_only = false;
-		    found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1 );
-		    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
-			*did_find_allowed_only = false;
-		}
-	    }
 	}
+	else if(found && did_find_allowed_only)
+	    *did_find_allowed_only = true;
 
-	for( i = op->getConnectedInputIndex(-1); !is_aswitch && !found && i >= 0;
-	     i = op->getConnectedInputIndex(i) )
+    }
+
+    // If we are a subnet, try to find an appropriate node within the
+    // subnet, starting with the subnet's display node.
+    if( !found && op->isSubNetwork(false) )
+    {
+	child_did_find_allowed_types_only = false;
+	found = ROP_FBXUtil::findOpInput(((OP_Network *)op)->getDisplayNodePtr(),
+				find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1, already_visited);
+	if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
+	    *did_find_allowed_only = false;
+    }
+
+    // if we're a switch SOP, then look up the appropriate input chain
+    bool is_aswitch = false;
+    if( !found && op->getOperator()->getName() == "switch" )
+    {
+	PRM_Parm *parm = op->getParmList()->getParmPtr( "input" );
+	if( parm != NULL )
 	{
-	    // We need to traverse reference inputs as well, in cases,
-	    // for example, where particles are present.
-	    if( op->getInput(i)) // && !op->isRefInput(i) )
+            int i;
+	    parm->getValue(
+		    CHgetEvalTime(),
+		    i, 0, thread);
+	    if( op->getInput(i) != NULL )
 	    {
-        	child_did_find_allowed_types_only = false;
-		found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1 );
+		is_aswitch = true;
+	    	child_did_find_allowed_types_only = false;
+		found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1, already_visited);
 		if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
 		    *did_find_allowed_only = false;
 	    }
 	}
+    }
 
-	op->flags().setRecursion( false );
+    for (int i = op->getConnectedInputIndex(-1); !is_aswitch && !found && i >= 0;
+	    i = op->getConnectedInputIndex(i))
+    {
+	// We need to traverse reference inputs as well, in cases,
+	// for example, where particles are present.
+	if( op->getInput(i)) // && !op->isRefInput(i) )
+	{
+            child_did_find_allowed_types_only = false;
+	    found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1, already_visited);
+	    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
+		*did_find_allowed_only = false;
+	}
     }
 
     return found;
