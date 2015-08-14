@@ -817,7 +817,6 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
 					    xform_order, t,r,s, &post_rotate, NULL, false))
     {
 	fbx_node->SetPostRotation(FbxNode::eSourcePivot, post_rotate);
-	fbx_node->SetRotationActive(true);
     }
 
     fbx_vec4.Set(r[0], r[1], r[2]);
@@ -829,6 +828,9 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
     fbx_vec4.Set(s[0],s[1],s[2]);
     fbx_node->LclScaling.Set(fbx_vec4);
 
+    // SetRotationActive(true) must be used for the rotation order (as well as
+    // pre/post rotations) to be interpreted by the FBX importer.
+    fbx_node->SetRotationActive(true);
     fbx_node->SetRotationOrder(FbxNode::eSourcePivot, fbxRotationOrder(xform_order.rotOrder()));
 
     // Houdini only has one inherit type
