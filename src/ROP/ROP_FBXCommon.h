@@ -25,6 +25,7 @@
 
 #include "ROP_API.h"
 #include <SYS/SYS_Types.h>
+#include <UT/UT_String.h>
 
 #ifdef FBXFILESDK_NAMESPACE_USE
     #define FBX_FILMBOX_NAMESPACE FBXFILESDK_NAMESPACE
