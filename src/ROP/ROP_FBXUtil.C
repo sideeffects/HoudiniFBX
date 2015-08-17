@@ -454,11 +454,11 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
     if(hd_node)
 	node_type = hd_node->getOperator()->getName();
 
-    if(node_type == "hlight" || node_type == "cam")
+    if(ROPfbxIsLightNodeType(node_type) || node_type == "cam")
 	do_special_rotate = true;
     if(override_node_type)
     {
-	if(*override_node_type == "hlight" || *override_node_type == "cam")
+	if(ROPfbxIsLightNodeType(*override_node_type) || *override_node_type == "cam")
 	    do_special_rotate = true;
     }
 
@@ -525,14 +525,14 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 	// Set post-transform instead
 	if(override_node_type)
 	{
-	    if(*override_node_type == "hlight")
+	    if(ROPfbxIsLightNodeType(*override_node_type))
 		post_rotation->Set(-90,0,0);
 	    else // if(node_type == "cam")
 		post_rotation->Set(0,-90,0);
 	}
 	else
 	{
-	    if(node_type == "hlight")
+	    if(ROPfbxIsLightNodeType(node_type))
 		post_rotation->Set(-90,0,0);
 	    else // if(node_type == "cam")
 		post_rotation->Set(0,-90,0);

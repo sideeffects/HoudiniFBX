@@ -19,6 +19,7 @@
 
 #include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXAnimVisitor.h"
+#include "ROP_FBXCommon.h"
 #include "ROP_FBXExporter.h"
 
 #include <UT/UT_Interrupt.h>
@@ -239,7 +240,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 #endif
 	    }
 	}
-	else if(node_type == "hlight")
+	else if(ROPfbxIsLightNodeType(node_type))
 	{
 	    FbxLight *light_attrib = FbxCast<FbxLight>(fbx_node->GetNodeAttribute());
 

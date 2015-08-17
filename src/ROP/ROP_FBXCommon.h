@@ -35,14 +35,20 @@
 
 typedef std::vector  < std::string > TStringVector;
 /********************************************************************************************************/
-const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
+static const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
+
+static bool
+ROPfbxIsLightNodeType(const UT_String &node_type)
+{
+    return (node_type == "hlight" || node_type == "hlight::2.0");
+}
 
 // Determines which network types the visitor dives into
-const char* const ROP_FBXnetworkTypesToIgnore[] = { "geo", "bone", "null", "cam", "instance", "hlight", 
-	"ambient", "dopnet", "ropnet", "chopnet",  "popnet",  "vopnet",  "shopnet", 0 };
+static const char* const ROP_FBXnetworkTypesToIgnore[] = { "geo", "bone", "null", "cam", "instance", "hlight", 
+	"hlight::2.0", "ambient", "dopnet", "ropnet", "chopnet",  "popnet",  "vopnet",  "shopnet", 0 };
 
 // These declare any node that does not modify the mesh, its vertices or points.
-const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
+static const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
 "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
 "attribpromote", "attribstringedit", "attribute", 0};
 /********************************************************************************************************/

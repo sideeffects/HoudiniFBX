@@ -18,6 +18,7 @@
  */
 
 #include "ROP_FBXHeaderWrapper.h"
+#include "ROP_FBXCommon.h"
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 
@@ -155,7 +156,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     if(!force_exporting_as_null)
     if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
-	|| node_type == "null" || node_type == "hlight" || node_type == "cam" || node_type == "bone" || node_type == "ambient")
+	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient")
     {
 	if(node_type == "geo")
 	{
@@ -191,7 +192,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    if(inst_target)
 	    {
 		UT_String inst_target_node_type = inst_target->getOperator()->getName();
-		if(inst_target_node_type == "cam" || inst_target_node_type == "hlight")
+		if(inst_target_node_type == "cam" || ROPfbxIsLightNodeType(inst_target_node_type))
 		    override_node_type = inst_target_node_type;
 	    }
 
@@ -218,13 +219,16 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		res_type = ROP_FBXVisitorResultSkipSubnet;
 	    }
 	}
-	else if(node_type == "hlight")
+	else if(ROPfbxIsLightNodeType(node_type))
 	{
 	    outputLightNode(node, node_info, fbx_parent_node, res_nodes);
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 
-	    // Light, of course, is special.
-	    lookat_parm_name = "l_" + lookat_parm_name;	
+	    if (node_type == "hlight")
+	    {
+		// Old hlight is special.
+		lookat_parm_name = "l_" + lookat_parm_name;
+	    }
 	}
 	else if(node_type == "cam")
 	{
