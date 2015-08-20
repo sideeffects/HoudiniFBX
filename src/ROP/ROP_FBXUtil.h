@@ -172,7 +172,6 @@ private:
 typedef std::multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
 typedef std::map < FbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
 typedef std::vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
-typedef std::set < std::string > TStringSet;
 typedef std::set < OP_Node* > THDNodeSet;
 /********************************************************************************************************/
 class ROP_FBXNodeManager
@@ -195,7 +194,8 @@ private:
     THDToNodeInfoMap myHdToNodeInfoMap;
     TFbxToNodeInfoMap myFbxToNodeInfoMap;
 
-    TStringSet myNamesSet;
+    // TStringSet myNamesSet; Removed as a fix for RFE #67311, more detailed 
+    //                        comment in the .c file makeNameUnique()
 
     // Includes all nodes that are in the bundles we're exporting.
     THDNodeSet myNodesInBundles;

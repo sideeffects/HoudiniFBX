@@ -1068,7 +1068,13 @@ ROP_FBXNodeManager::makeNameUnique(UT_String& strName)
     if(strName == "Scene")
 	strName.incrementNumberedName();
 
-    TStringSet::iterator si;
+    /*This section was commented out because the exported sections caused
+    unique names for the whole tree, not just within the section. Houdini also
+    has a requirement that node names are unique within a section already so
+    there is no need for the following logic. Fix for RFE #67311.
+    http://internal.sidefx.com/issues/showbrief.php?id=67311 */
+
+    /*TStringSet::iterator si;
     si = myNamesSet.find((const char*)strName);
 
     // NOTE: This will be slow if we sequentially generate names
@@ -1081,7 +1087,7 @@ ROP_FBXNodeManager::makeNameUnique(UT_String& strName)
 	si = myNamesSet.find((const char*)strName);
     }
 
-    myNamesSet.insert((const char*)strName); 
+    myNamesSet.insert((const char*)strName); */
 }
 /********************************************************************************************************/
 void 
