@@ -2254,6 +2254,9 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     fpreal xres = ROP_FBXUtil::getFloatOPParm(node, "res",0);
     fpreal yres = ROP_FBXUtil::getFloatOPParm(node, "res",1);
 
+    // Record the camera resolution
+    res_attr->SetAspect(FbxCamera::eFixedResolution, xres, yres);
+
     fpreal ap_height = float_parm[0];
     if(SYSequalZero(xres) == false)
 	ap_height = float_parm[0]*yres/xres;
