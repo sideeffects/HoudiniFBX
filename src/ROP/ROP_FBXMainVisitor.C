@@ -45,7 +45,6 @@
 #include <GD/GD_PrimPoly.h>
 #include <GD/GD_TrimPiece.h>
 #include <GEO/GEO_Primitive.h>
-#include <GEO/GEO_Point.h>
 #include <GEO/GEO_Profiles.h>
 #include <GEO/GEO_TPSurf.h>
 #include <GEO/GEO_Vertex.h>

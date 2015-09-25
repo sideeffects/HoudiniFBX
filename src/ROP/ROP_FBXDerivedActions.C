@@ -24,13 +24,12 @@
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 #include "ROP_FBXErrorManager.h"
-#include "UT/UT_Matrix4.h"
-#include "OBJ/OBJ_Node.h"
-#include "OP/OP_Node.h"
-#include "OP/OP_Director.h"
-#include "GEO/GEO_Point.h"
-#include "SOP/SOP_Node.h"
-#include "SOP/SOP_Capture.h"
+#include <UT/UT_Matrix4.h>
+#include <OBJ/OBJ_Node.h>
+#include <OP/OP_Node.h>
+#include <OP/OP_Director.h>
+#include <SOP/SOP_Node.h>
+#include <SOP/SOP_Capture.h>
 #include <GEO/GEO_CaptureData.h>
 
 using namespace std;

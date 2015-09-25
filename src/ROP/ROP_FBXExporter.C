@@ -30,7 +30,6 @@
 
 #include <GU/GU_Detail.h>
 #include <GU/GU_DetailHandle.h>
-#include <GEO/GEO_Point.h>
 #include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_Vertex.h>
 
