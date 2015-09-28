@@ -31,6 +31,7 @@
 #include <GA/GA_ATIGroupBool.h>
 #include <GA/GA_AttributeFilter.h>
 #include <GA/GA_ElementWrangler.h>
+#include <GA/GA_Names.h>
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_ConvertParms.h>
 #include <GU/GU_PrimNURBSurf.h>
@@ -1334,11 +1335,11 @@ ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_nam
     curr_attr_name.base(base_name);
 
     // Now compare the base name against known standard names 
-    if(base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL, 1))
+    if (GA_Names::N == base_name)
 	curr_type = ROP_FBXAttributeNormal;
-    else if(base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE, 1))
+    else if (GA_Names::uv == base_name)
 	curr_type = ROP_FBXAttributeUV;
-    else if(base_name == gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE, 1))
+    else if (GA_Names::Cd == base_name)
 	curr_type = ROP_FBXAttributeVertexColor;
 
     return curr_type;
