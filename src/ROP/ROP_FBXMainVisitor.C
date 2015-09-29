@@ -2925,7 +2925,7 @@ ROP_FBXgFindMappedName(const char *attr, const char *varname, void *data)
 void 
 ROP_FBXMainVisitor::setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr)
 {
-    if(!fbx_layer_elem || !attr || !attr->getName())
+    if(!fbx_layer_elem || !attr || !attr->getName().isstring())
 	return;
 
     // Try to get a mapped name
