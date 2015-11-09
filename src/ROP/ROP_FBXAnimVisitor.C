@@ -356,7 +356,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
     PRM_Parm    *parm;
 
     // Get parameter.
-    parm = &source_node->getParm(parm_name);
+    parm = source_node->getParmList()->getParmPtr(parm_name);
     if (!parm)
 	return;
 
@@ -1095,7 +1095,8 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     // Get parameter.
     for(curr_channel_idx = 0; curr_channel_idx < num_channels; curr_channel_idx++)
     {
-	parm = &source_node->getParm(channel_names[curr_channel_idx]);
+	parm = source_node->getParmList()->getParmPtr(
+		channel_names[curr_channel_idx]);
 	if(!parm)
 	    continue;
 
@@ -1365,7 +1366,7 @@ ROP_FBXAnimVisitor::hasPivotInfo(OP_Node* node)
     int count;
 
     // Get parameter.
-    parm = &node->getParm("p");
+    parm = node->getParmList()->getParmPtr("p");
     if (!parm)
 	return false;
 
