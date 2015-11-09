@@ -2954,7 +2954,7 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
     if(myParentExporter->getExportOptions()->getConvertSurfaces() == false)
 	supported_types |= ( GEO_PrimTypeCompat::GEOPRIMNURBSURF  | GEO_PrimTypeCompat::GEOPRIMBEZSURF ); 
 
-    if( (prim_types_in_out & (~supported_types)) != 0)
+    if (prim_types_in_out & (~supported_types))
     {
 	// We have some primitives that are not supported
 	float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
