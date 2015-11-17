@@ -135,14 +135,14 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     // Determine which type of Houdini node this is
     string lookat_parm_name("lookatpath");
     UT_String node_type = node->getOperator()->getName();
-    bool is_visible = node->getDisplay();
 
+    bool is_visible;
     fpreal start_time = myParentExporter->getStartTime();
-    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", 0, start_time);
-    if(use_display_parm)
-    {
-	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", 0, start_time));
-    }    
+    OBJ_Node *obj_node = node->castToOBJNode();
+    if (obj_node)
+	is_visible = obj_node->getObjectDisplay(start_time);
+    else
+	is_visible = node->getVisible();
 
     bool force_exporting_as_null = false;
     if(myParentExporter->getExportOptions()->isExportingBundles() &&
@@ -323,6 +323,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     else
     {
 	new_node->SetVisibility(is_visible);
+	new_node->VisibilityInheritance.Set(false);
 
 	// Set the standard transformations (unless we're in the instance)
 	fpreal bone_length = 0.0;
@@ -391,7 +392,8 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 	res_node->SetNodeAttribute(res_attr);
 	res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);
 
-	res_node->SetVisibility(last_node->getDisplay());
+	res_node->SetVisibility(last_node->getVisible());
+	res_node->VisibilityInheritance.Set(false);
 
 	ROP_FBXUtil::setStandardTransforms(NULL, res_node, last_node_info, false, cast_info->getBoneLength(), myStartTime, NULL );
 

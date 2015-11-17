@@ -108,6 +108,12 @@ ROP_FBXAnimVisitor::visitBegin(OP_Node* node, int input_idx_on_this_node)
     return new ROP_FBXBaseNodeVisitInfo(node);
 }
 /********************************************************************************************************/
+static inline fpreal
+fbxHoudiniTime(const FbxTime& fbx_time)
+{
+    return fbx_time.GetSecondDouble() - (1.0 / CHgetManager()->getSamplesPerSec());
+}
+/********************************************************************************************************/
 ROP_FBXVisitorResultType 
 ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 {
@@ -275,8 +281,19 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 
 	// Export visibility channel
-	curr_anim_curve = fbx_node->Visibility.GetCurve(myAnimLayer, NULL, true);
-	exportChannel(curr_anim_curve, node, "vm_renderable", 0);
+	if (obj_node && obj_node->isDisplayTimeDependent())
+	{
+	    // The viewport doesn't support tdisplay being animated
+	    curr_anim_curve = fbx_node->Visibility.GetCurve(myAnimLayer, NULL, true);
+	    exportChannel(curr_anim_curve, node, "display", 0);
+	    curr_anim_curve->KeyModifyBegin();
+	    for (int k = 0, nk = curr_anim_curve->KeyGetCount(); k < nk; ++k)
+	    {
+		fpreal key_time = fbxHoudiniTime(curr_anim_curve->KeyGetTime(k));
+		curr_anim_curve->KeySetValue(k, obj_node->getObjectDisplay(key_time) ? 1.0f : 0.0f);
+	    }
+	    curr_anim_curve->KeyModifyEnd();
+	}
 
     } // end for over all fbx nodes
 
