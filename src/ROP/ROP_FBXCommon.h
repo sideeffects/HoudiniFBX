@@ -27,12 +27,6 @@
 #include <SYS/SYS_Types.h>
 #include <UT/UT_String.h>
 
-#ifdef FBXFILESDK_NAMESPACE_USE
-    #define FBX_FILMBOX_NAMESPACE FBXFILESDK_NAMESPACE
-    using namespace FBX_FILMBOX_NAMESPACE;
-#else
-    #define FBX_FILMBOX_NAMESPACE  
-#endif
 
 typedef std::vector  < std::string > TStringVector;
 /********************************************************************************************************/
