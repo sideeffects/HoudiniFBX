@@ -325,7 +325,7 @@ ROP_FBXExporter::doExport(void)
 	    if(myDummyRootNullNode)
 	    {			
 		//FbxTakeNode* curr_world_take_node = ROP_FBXAnimVisitor::addFBXTakeNode(myDummyRootNullNode);
-		anim_visitor.exportTRSAnimation(geom_node, anim_layer, myDummyRootNullNode);
+		anim_visitor.exportTRSAnimation(geom_node->castToOBJNode(), anim_layer, myDummyRootNullNode);
 	    }	    
 
 	    anim_visitor.visitScene(geom_node);
@@ -595,6 +595,7 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 
 	myDummyRootNullNode = FbxNode::Create(mySDKManager, (const char*)node_name);
 	FbxNull *res_attr = FbxNull::Create(mySDKManager, (const char*)node_name);
+	res_attr->Look.Set(FbxNull::eNone);
 	myDummyRootNullNode->SetNodeAttribute(res_attr);
 
 	// Set world transform

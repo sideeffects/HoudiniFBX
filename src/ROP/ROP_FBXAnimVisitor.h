@@ -35,6 +35,7 @@ class ROP_FBXExporter;
 class ROP_FBXNodeInfo;
 class ROP_FBXNodeManager;
 
+class OBJ_Node;
 class SOP_Node;
 class GU_Detail;
 
@@ -68,11 +69,11 @@ public:
 
     void reset(FbxAnimLayer* curr_layer);
 
-    void exportTRSAnimation(OP_Node* node, FbxAnimLayer* curr_fbx_anim_layer, FbxNode* fbx_node);
+    void exportTRSAnimation(OBJ_Node* node, FbxAnimLayer* curr_fbx_anim_layer, FbxNode* fbx_node);
 
 protected:
 
-    void exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, const UT_XformOrder& xform_order, bool force_obj_transfrom_from_world);
+    void exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OBJ_Node* source_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info);
     void exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
     void outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx);
 
@@ -80,7 +81,6 @@ protected:
     FbxVertexCacheDeformer* addedVertexCacheDeformerToNode(FbxNode* fbx_node, const char* file_name);
     bool fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, int num_array_points, ROP_FBXNodeInfo* node_pair_info, fpreal frame_num);
     int lookupExactPointCount(OP_Node *node, fpreal time, int selected_prim_idx);
-    bool hasPivotInfo(OP_Node* node);
 private:
 
     ROP_FBXExporter* myParentExporter;

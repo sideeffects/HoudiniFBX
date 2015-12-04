@@ -31,22 +31,25 @@
 #include <string>
 #include <vector>
 
+class ROP_FBXActionManager;
+class ROP_FBXCreateInstancesAction;
+class ROP_FBXErrorManager;
 class ROP_FBXExporter;
+class ROP_FBXGDPCache;
+class ROP_FBXGDPCache;
+class ROP_FBXNodeManager;
+
+class OBJ_Node;
 class GU_Detail;
+class GU_PrimNURBCurve;
+class GU_PrimNURBSurf;
+class GEO_Primitive;
+class GD_TrimRegion;
 class GA_Attribute;
 class GA_ROAttributeRef;
 namespace GA_PrimCompat { class TypeMask; }
-class GD_TrimRegion;
-class ROP_FBXErrorManager;
-class ROP_FBXGDPCache;
-class ROP_FBXNodeManager;
-class GEO_Primitive;
-class GU_PrimNURBSurf;
-class GU_PrimNURBCurve;
-class ROP_FBXActionManager;
 class UT_Interrupt;
-class ROP_FBXCreateInstancesAction;
-class ROP_FBXGDPCache;
+
 /********************************************************************************************************/
 enum ROP_FBXAttributeType
 {
@@ -110,12 +113,8 @@ public:
     bool getIsVisitingFromInstance(void);
     void setIsVisitingFromInstance(bool value);
 
-    bool getIgnoreBoneLengthForTransforms(void);
-    void setIgnoreBoneLengthForTransforms(bool bValue);
-
 private:
 
-    bool myIgnoreLengthForTransforms;
     bool myIsVisitingFromInstance;
     double myBoneLength;
 };
@@ -207,6 +206,8 @@ protected:
 	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
 	ROP_FBXGDPCache *v_cache, bool is_visible);
     void finalizeGeoNode(FbxNodeAttribute *res_attr, OP_Node* skin_deform_node, int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes);
+
+    void exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNode* fbx_node);
 
     void setNURBSSurfaceInfo(FbxNurbsSurface *nurbs_surf_attr, const GU_PrimNURBSurf* hd_nurb);
     void setNURBSCurveInfo(FbxNurbsCurve* nurbs_curve_attr, const GU_PrimNURBCurve* hd_nurb);

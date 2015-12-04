@@ -19,40 +19,46 @@
 
 #include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXAnimVisitor.h"
+
+#include "ROP_FBXActionManager.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXExporter.h"
+#include "ROP_FBXUtil.h"
 
-#include <UT/UT_Interrupt.h>
-#include <UT/UT_Matrix4.h>
-#include <UT/UT_FloatArray.h>
-#include <UT/UT_Thread.h>
-#include <OP/OP_Node.h>
-#include <OP/OP_Network.h>
-#include <OP/OP_Director.h>
-#include <OP/OP_Take.h>
-#include <TAKE/TAKE_Take.h>
-#include <PRM/PRM_Parm.h>
-#include <CH/CH_Channel.h>
-#include <CH/CH_Segment.h>
-#include <SOP/SOP_Node.h>
-#include <CH/CH_Expression.h>
-#include <GA/GA_ElementWrangler.h>
-#include <GU/GU_DetailHandle.h>
-#include <GU/GU_ConvertParms.h>
-#include <GEO/GEO_Primitive.h>
-#include <GEO/GEO_Vertex.h>
-#include <GU/GU_Detail.h>
-#include <GU/GU_PrimNURBSurf.h>
-#include <GU/GU_PrimNURBCurve.h>
-#include <GU/GU_PrimRBezCurve.h>
-#include <GU/GU_PrimRBezSurf.h>
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
 
-#include "ROP_FBXUtil.h"
-#include "ROP_FBXActionManager.h"
+#include <GU/GU_ConvertParms.h>
+#include <GU/GU_Detail.h>
+#include <GU/GU_DetailHandle.h>
+#include <GU/GU_PrimNURBCurve.h>
+#include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimRBezCurve.h>
+#include <GU/GU_PrimRBezSurf.h>
+#include <GEO/GEO_Primitive.h>
+#include <GEO/GEO_Vertex.h>
+#include <GA/GA_ElementWrangler.h>
 
-#include "ROP_FBXUtil.h"
+#include <OP/OP_Director.h>
+#include <OP/OP_Network.h>
+#include <OP/OP_Node.h>
+#include <OP/OP_Take.h>
+#include <PRM/PRM_Parm.h>
+#include <CH/CH_Channel.h>
+#include <CH/CH_Expression.h>
+#include <CH/CH_Manager.h>
+#include <CH/CH_Segment.h>
+
+#include <TAKE/TAKE_Take.h>
+#include <UT/UT_FloatArray.h>
+#include <UT/UT_Interrupt.h>
+#include <UT/UT_Matrix4.h>
+#include <UT/UT_Thread.h>
+#include <SYS/SYS_SequentialThreadIndex.h>
+#include <SYS/SYS_StaticAssert.h>
+#include <SYS/SYS_TypeTraits.h>
+
+
 #ifdef UT_DEBUG
 extern double ROP_FBXdb_vcacheExportTime;
 #endif
@@ -137,15 +143,12 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	stored_node_info_ptr = fbx_nodes[curr_fbx_node];
 	if(!stored_node_info_ptr || !stored_node_info_ptr->getFbxNode())
 	    continue;
-    /*
-	{
-	    // An object may validly be not exported (meaning this will be NULL).
-	    return res_type;
-	}
-	*/
+	res_type = stored_node_info_ptr->getVisitResultType();
 
-	if(stored_node_info_ptr)
-	    res_type = stored_node_info_ptr->getVisitResultType();
+	// Skip non-objects, because we can't get transforms for them anyways
+	OBJ_Node* obj_node = node->castToOBJNode();
+	if (!obj_node)
+	    continue;
 
 	FbxNode *fbx_node = stored_node_info_ptr->getFbxNode();
 	node_info_in->setMaxObjectPoints(stored_node_info_ptr->getMaxObjectPoints());
@@ -153,76 +156,14 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	node_info_in->setIsSurfacesOnly(stored_node_info_ptr->getIsSurfacesOnly());
 	node_info_in->setSourcePrimitive(stored_node_info_ptr->getSourcePrimitive());
 
-/*
-	// Don't need this anymore.
-	// Create take nodes
-	FbxTakeNode* curr_fbx_take;
-	FbxTakeNode* fbx_attr_take_node = NULL;
-	KFCurve* curr_fbx_curve;
-	curr_fbx_take = addFBXTakeNode(fbx_node);
+	const fpreal t = myParentExporter->getStartTime();
+	if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
+	    exportTRSAnimation(obj_node, myAnimLayer, fbx_node);
+	else
+	    exportResampledAnimation(myAnimLayer, obj_node, fbx_node, node_info_in);
 
-	if(!curr_fbx_take)
-	    return res_type;
-*/
 	FbxAnimCurve* curr_anim_curve;
 	UT_String node_type = node->getOperator()->getName();
-
-	bool force_obj_transfrom_from_world = false;
-	bool force_resampled_anim = false;
-	bool account_for_pivot = hasPivotInfo(node);
-	bool has_pretransform = false;
-	UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
-	OBJ_Node* obj_node = dynamic_cast<OBJ_Node*>(node);
-	if(obj_node)
-	{
-	    // Check for pre-transform
-	    UT_Matrix4 pretransform;
-	    fpreal t = myParentExporter->getStartTime();
-	    OP_Context op_context(t);
-	    obj_node->getPreLocalTransform(op_context, pretransform);
-	    if(pretransform.isIdentity() == false)
-		has_pretransform = true;
-
-	    // In the case of a rivet, we have no parameter transforms
-	    // that are animated, but instead we have an internal matrix
-	    // that stores them. In this case, we force the retrieval of
-	    // transformation channels by computing the local matrix 
-	    // from the node's world matrix and the parent's inverse world
-	    // matrix.
-	    UT_String node_type(UT_String::ALWAYS_DEEP, "");
-	    node_type = obj_node->getOperator()->getName();
-	    if(node_type == "rivet")
-	    {
-		force_resampled_anim = true;
-		force_obj_transfrom_from_world = true;
-	    }
-
-	    // Maintain the rotation order of obj_node. This assumes that
-	    // ROP_FBXUtil::setStandardTransforms() has already set the
-	    // transform order in an identical fashion.
-	    xform_order.rotOrder(OP_Node::getRotOrder(obj_node->XYZ(t)));
-	    // FBX only supports SRT transform orders, so if it's different, we need to resample
-	    if (OP_Node::getMainOrder(obj_node->TRS(t)) != UT_XformOrder::SRT)
-		force_resampled_anim = true;
-	}
-
-	if(node_type == "bone" || account_for_pivot || has_pretransform || force_resampled_anim)
-	{
-	    // Bones are special, since we have to force-resample them and
-	    // output all channels at the same time.
-
-	    // Also, we have to put the bone animation onto the parent of the fbx node,
-	    // since this FBX node corresponds to the end tip of the bone.
-	    //FbxTakeNode* curr_fbx_bone_take = fbx_node->GetParent()->GetCurrentTakeNode();    
-	    //exportResampledAnimation(curr_fbx_bone_take, node);
-	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in, xform_order, force_obj_transfrom_from_world);
-	}
-	else
-	{
-
-	    exportTRSAnimation(node, myAnimLayer, fbx_node);
-	}
-
 	if(node_type == "geo" || node_type == "instance")
 	{
 	    // For geometry, check if we have a dopimport SOP in the chain.
@@ -301,60 +242,145 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, FbxAnimLayer* curr_fbx_anim_layer, FbxNode* fbx_node)
+ROP_FBXAnimVisitor::exportTRSAnimation(OBJ_Node* node, FbxAnimLayer* fbx_anim_layer, FbxNode* fbx_node)
 {
-    FbxAnimCurve* curr_anim_curve;
-
-    if(!node || !curr_fbx_anim_layer)
+    if(!node || !fbx_anim_layer)
 	return;
 
+    // NOTE: Notice that shears is missing from these lists because (as of) FBX
+    //	     2016.1, they still don't support shears in their local transforms.
+    typedef FbxPropertyT<FbxDouble3> FbxDouble3Property;
+    FbxDouble3Property* props[] =
+    {
+	&(fbx_node->LclTranslation),
+	&(fbx_node->RotationOffset),
+	&(fbx_node->PreRotation),
+	&(fbx_node->LclRotation),
+	&(fbx_node->PostRotation),
+	&(fbx_node->RotationPivot),
+	&(fbx_node->ScalingOffset),
+	&(fbx_node->LclScaling),
+	&(fbx_node->ScalingPivot),
+    };
+    const char* hd_names[] = 
+    {
+	"t",
+	"roffset",
+	"rpre",
+	"r",
+	"rpost",
+	"rpivot",
+	"soffset",
+	"s",
+	"spivot",
+    };
+    enum
+    {
+	ROP_FBX_T,
+	ROP_FBX_ROFFSET,
+	ROP_FBX_RPRE,
+	ROP_FBX_R,
+	ROP_FBX_RPOST,
+	ROP_FBX_RPIVOT,
+	ROP_FBX_SOFFSET,
+	ROP_FBX_S,
+	ROP_FBX_SPIVOT,
+	ROP_FBX_N
+    };
+    SYS_STATIC_ASSERT(SYScountof(hd_names) == SYScountof(props));
+
+    const int NUM_COMPONENTS = 3;
+    const char* components[NUM_COMPONENTS] =
+    {
+	FBXSDK_CURVENODE_COMPONENT_X,
+	FBXSDK_CURVENODE_COMPONENT_Y,
+	FBXSDK_CURVENODE_COMPONENT_Z
+    };
+
     UT_String node_type = node->getOperator()->getName();
-    string channel_prefix;
+    const char *UNIFORM_SCALE = "scale";
     if(node_type == "instance")
-	channel_prefix = "i_";
-    else if(node_type == "hlight")
-	channel_prefix = "l_";
+    {
+	hd_names[ROP_FBX_T] = "i_t";
+	hd_names[ROP_FBX_R] = "i_r";
+	hd_names[ROP_FBX_S] = "i_s";
+	UNIFORM_SCALE = "i_scale";
+    }
+    else if(node_type == "hlight") // for old hlight 1.0 only
+    {
+	hd_names[ROP_FBX_T] = "l_t";
+	hd_names[ROP_FBX_R] = "l_r";
+	hd_names[ROP_FBX_S] = "l_s";
+	UNIFORM_SCALE = "l_scale";
+    }
 
-    // Create the curves
-//     fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
-//     fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
-//     fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
+    const PRM_ParmList *plist = node->getParmList();
 
-    string channel_name;
+    // We need to output resampled scales if we have at uniform scale value
+    // other than 1.0 and we have either uniform scale or regular scales
+    // animated.
+    int skip_i = -1;
+    const PRM_Parm *scale_parm = plist->getParmPtr(hd_names[ROP_FBX_S]);
+    const PRM_Parm *uniform_scale_parm = plist->getParmPtr(UNIFORM_SCALE);
+    if (uniform_scale_parm
+	&& (uniform_scale_parm->isTimeDependent() || (scale_parm && scale_parm->isTimeDependent())))
+    {
+	skip_i = ROP_FBX_S;
 
-    // Translations
-    channel_name = channel_prefix + "t";
-    curr_anim_curve = fbx_node->LclTranslation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_X, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
+	int curve_last[NUM_COMPONENTS] = { 0, 0, 0 };
+	FbxAnimCurve* curves[NUM_COMPONENTS];
+	for (int c = 0; c < NUM_COMPONENTS; ++c)
+	{
+	    curves[c] = fbx_node->LclScaling.GetCurve(fbx_anim_layer, components[c], true);
+	    curves[c]->KeyModifyBegin();
+	}
 
-    curr_anim_curve = fbx_node->LclTranslation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Y, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
+	const int thread = SYSgetSTID();
+	const fpreal secs_per_sample = 1.0/CHgetManager()->getSamplesPerSec();
+	const fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+	const fpreal beg_time = myParentExporter->getStartTime();
+	const fpreal end_time = myParentExporter->getEndTime();
+	for (fpreal key_time = beg_time; key_time < end_time; key_time += time_step)
+	{
+	    UT_Vector3 scale;
+	    scale_parm->getValues(key_time, scale.data(), thread);
+	    fpreal uniform_scale;
+	    uniform_scale_parm->getValue(key_time, uniform_scale, 0, thread);
+	    scale *= uniform_scale;
 
-    curr_anim_curve = fbx_node->LclTranslation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Z, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 2);
+	    FbxTime fbx_time;
+	    fbx_time.SetSecondDouble(key_time + secs_per_sample);
+	    for (int c = 0; c < NUM_COMPONENTS; ++c)
+	    {
+		FbxAnimCurve* curve = curves[c];
+		int key_i = curve->KeyAdd(fbx_time, &curve_last[c]);
+		curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+		curve->KeySetValue(key_i, scale(c));
+	    }
+	}
 
-    // Rotations
-    channel_name = channel_prefix + "r";
-    curr_anim_curve = fbx_node->LclRotation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_X, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
+	for (auto& curve : curves)
+	    curve->KeyModifyEnd();
+    }
 
-    curr_anim_curve = fbx_node->LclRotation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Y, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
+    for (int i = 0; i < ROP_FBX_N; ++i)
+    {
+	if (i == skip_i)
+	    continue;
 
-    curr_anim_curve = fbx_node->LclRotation.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Z, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 2);
+	const char *parm_name = hd_names[i];
+	const PRM_Parm *parm = plist->getParmPtr(parm_name);
+	if (!parm)
+	    continue;
 
-    // Scaling
-    channel_name = channel_prefix + "s";
-    curr_anim_curve = fbx_node->LclScaling.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_X, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 0);
-
-    curr_anim_curve = fbx_node->LclScaling.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Y, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 1);
-
-    curr_anim_curve = fbx_node->LclScaling.GetCurve(curr_fbx_anim_layer, FBXSDK_CURVENODE_COMPONENT_Z, true);
-    exportChannel(curr_anim_curve, node, channel_name.c_str(), 2); 
-
+	for (int c = 0; c < NUM_COMPONENTS; ++c)
+	{
+	    FbxAnimCurve* curve = props[i]->GetCurve(fbx_anim_layer, components[c], true);
+	    if (!curve) // can fail if not animatible
+		continue;
+	    exportChannel(curve, node, parm_name, c);
+	}
+    }
 }
 /********************************************************************************************************/
 void 
@@ -1086,79 +1112,30 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, 
-					     FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, 
-					     const UT_XformOrder& xform_order, bool force_obj_transfrom_from_world)
+ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OBJ_Node* source_node, 
+					     FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
 {
-    // Get channels, range, and make sure we have any animation at all
-    int curr_trs_channel;
-    const int num_trs_channels = 3;
-    const int num_channels = 10;
-    int curr_channel_idx;
-    const char* const channel_names[] = { "t", "r", "scale", "length", "pathobjpath", "roll", "pathorient", "up", "bank", "pos"};
-    CH_Manager *ch_manager = CHgetManager();
-    fpreal start_frame, end_frame;
-    fpreal gb_start_time = myParentExporter->getStartTime();
-    fpreal gb_end_time = myParentExporter->getEndTime();
-    start_frame = ch_manager->getSample(gb_start_time);
-    end_frame = ch_manager->getSample(gb_end_time);
-
-    bool force_resample = false;
-    fpreal start_time = SYS_FPREAL_MAX, end_time = -SYS_FPREAL_MAX;
-
-    CH_Channel  *ch;
-    PRM_Parm    *parm;
-
-    // Get parameter.
-    for(curr_channel_idx = 0; curr_channel_idx < num_channels; curr_channel_idx++)
-    {
-	parm = source_node->getParmList()->getParmPtr(
-		channel_names[curr_channel_idx]);
-	if(!parm)
-	    continue;
-
-	int num_parm_channels = parm->getVectorSize();
-	for(curr_trs_channel = 0; curr_trs_channel < num_parm_channels; curr_trs_channel++)
-	{
-	    if(parm->getIsOverrideActive(curr_trs_channel))
-	    {
-		force_resample = true;
-	    }
-
-	    ch = parm->getChannel(curr_trs_channel);
-	    if(!ch)
-		continue;
-	    if(ch->getStart() < start_time) start_time = ch->getStart();
-	    if(ch->getEnd() > end_time) end_time = ch->getEnd();
-
-	    if(SYSequalZero(ch->getLength()))
-	    {
-		// This might be an expression.
-		force_resample |= ch->isTimeDependent();
-	    }
-	}
-    }
-
-    if(force_obj_transfrom_from_world)
-	force_resample = true;
-
-    // No animation.
-    if((start_time == SYS_FPREAL_MAX || start_time >= end_time) && !force_resample)
+    // Skip if it's not time dependent by cooking it. If there's errors, then just bail.
+    // This check can cause more nodes to be resampled because don't we know if
+    // the local transform changes due to different input transforms. So even
+    // if none of the cooking parms on the node are time dependent, the output
+    // transform might still vary across frames.
+    OP_Context context(myParentExporter->getStartTime());
+    if (!source_node->cook(context) || !source_node->isTimeDependent(context))
 	return;
 
-    if(force_resample)
-    {
-	// Output the entire range
-	start_time = ch_manager->getTime(start_frame);
-	end_time = ch_manager->getTime(end_frame);
-    }
+    // Output the entire range
+    fpreal start_time = myParentExporter->getStartTime();
+    fpreal end_time = myParentExporter->getEndTime();
 
-    // Create the curves
-//     fbx_node->LclRotation.GetKFCurveNode(true, curr_fbx_take->GetName());
-//     fbx_node->LclTranslation.GetKFCurveNode(true, curr_fbx_take->GetName());
-//     fbx_node->LclScaling.GetKFCurveNode(true, curr_fbx_take->GetName());
+    // Maintain the rotation order of source_node. This assumes that
+    // ROP_FBXUtil::setStandardTransforms() has already set the
+    // transform order in an identical fashion.
+    UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+    xform_order.rotOrder(OP_Node::getRotOrder(source_node->XYZ(start_time)));
 
     // Get fbx curves
+    const int num_trs_channels = 3;
     FbxAnimCurve* fbx_t[num_trs_channels];
     FbxAnimCurve* fbx_r[num_trs_channels];
     FbxAnimCurve* fbx_s[num_trs_channels];
@@ -1177,7 +1154,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     int t_opt_idx[3];
     int r_opt_idx[3];
     int s_opt_idx[3];
-    for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
+    for (int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
     {
 	fbx_t[curr_channel_idx]->KeyModifyBegin();
 	fbx_r[curr_channel_idx]->KeyModifyBegin();
@@ -1188,32 +1165,25 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 	s_opt_idx[curr_channel_idx] = 0;
     }
 
-    double secs_per_sample = 1.0/(double)ch_manager->getSamplesPerSec();
+    double secs_per_sample = 1.0/(double)CHgetManager()->getSamplesPerSec();
     double time_step = secs_per_sample * (double)myExportOptions->getResampleIntervalInFrames();
     double curr_time;
     FbxTime fbx_time;
     int fbx_key_idx;
-    fpreal bone_length;
     UT_Vector3D t_out, r_out, s_out;
 
-    OP_Node* parent_node;
     UT_IF_ASSERT(int prev_fbx_frame_idx;)
     UT_Vector3D prev_frame_rot, *prev_frame_rot_ptr = NULL;
 
     // Walk the time, compute the final transform matrix at each time, and break it.
     for(curr_time = start_time; curr_time < end_time; curr_time += time_step)
     {
-	bone_length = 0;
-	parent_node = source_node->getInput(source_node->getConnectedInputIndex(-1));
-	if(parent_node)
-	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
-	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, curr_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, curr_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, 0.0, curr_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
 	prev_frame_rot_ptr = &prev_frame_rot;
 	prev_frame_rot = r_out;
 
 	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
-	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
+	for(int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
 	    // Note that we can't use KeyInsert() here because sometimes (but not always) it returns
 	    // the same key index for different key times, essentially causing us to overwrite frames.
@@ -1243,15 +1213,10 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 
     if(curr_time >= end_time)
     {
-	bone_length = 0;
-	parent_node = source_node->getInput(source_node->getConnectedInputIndex(-1));
-	if(parent_node)
-	    bone_length = ROP_FBXUtil::getFloatOPParm(parent_node, "length", 0, curr_time);
-	//bone_length = ROP_FBXUtil::getFloatOPParm(source_node, "length", 0, end_time);
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, bone_length, end_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr, force_obj_transfrom_from_world);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, 0.0, end_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
-	for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
+	for(int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
 	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyAdd(fbx_time, &t_opt_idx[curr_channel_idx]);
 	    fbx_t[curr_channel_idx]->KeySetInterpolation(fbx_key_idx, FbxAnimCurveDef::eInterpolationLinear);
@@ -1267,7 +1232,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 	}
     }
 
-    for(curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
+    for(int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
     {
 	fbx_t[curr_channel_idx]->KeyModifyEnd();
 	fbx_r[curr_channel_idx]->KeyModifyEnd();
@@ -1365,36 +1330,6 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
     }
 
     return -1;
-}
-/********************************************************************************************************/
-bool 
-ROP_FBXAnimVisitor::hasPivotInfo(OP_Node* node)
-{
-    fpreal px = ROP_FBXUtil::getFloatOPParm(node, "p", 0, myParentExporter->getStartTime());
-    fpreal py = ROP_FBXUtil::getFloatOPParm(node, "p", 1, myParentExporter->getStartTime());
-    fpreal pz = ROP_FBXUtil::getFloatOPParm(node, "p", 2, myParentExporter->getStartTime());
-
-    if(!SYSequalZero(px) || !SYSequalZero(py) || !SYSequalZero(pz))
-	return true;
-
-    // Check if we have any channels on pivots
-    CH_Channel  *ch;
-    PRM_Parm    *parm;
-    int count;
-
-    // Get parameter.
-    parm = node->getParmList()->getParmPtr("p");
-    if (!parm)
-	return false;
-
-    for(count = 0; count < 3; count++) 
-    {
-	ch = parm->getChannel(count);
-	if(ch && ch->getLastSegment() != NULL && ch->getLastSegment()->getLength() > 0.0)
-	    return true;
-    }
-
-    return false;
 }
 /********************************************************************************************************/
 // ROP_FBXAnimNodeVisitInfo

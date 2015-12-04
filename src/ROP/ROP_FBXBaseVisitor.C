@@ -257,9 +257,20 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 	UT_ASSERT(thisNodeInfo);
 	thisNodeInfo->setParentInfo(parent_info);
 
+	bool skip = false;
+	// Skip if it does not have object children and either not an object or
+	// an object that's been visited before
+	skip |= (test_net && test_net->getChildTypeID() != OBJ_OPTYPE_ID
+		 && (!test_net->castToOBJNode() || myAllVisitInfos.count(node) > 0));
+	// Skip if it's an hidden node that's not visible and has no connections
+	skip |= (!node->getExpose() && !node->getVisible() && node->nConnectedInputs() == 0 && node->nOutputs() == 0);
+
 	addNodeVisitInfo(thisNodeInfo);
 
-	visit_result = visit(node, thisNodeInfo);
+	if (skip)
+	    visit_result = ROP_FBXVisitorResultSkipSubtreeAndSubnet;
+	else
+	    visit_result = visit(node, thisNodeInfo);
     }
 
     if(visit_result == ROP_FBXVisitorResultAbort)
@@ -385,11 +396,19 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
     // TODO: Now check for excluded, not included, types; not visitable
     // if hidden and export as nulls is set.
 
-    // Excluded types: dopnet, ropnet, chopnet, popnet, shopnet, vopnet
-    if(!node || !node->isNetwork())
+    if (!node)
+	return false;
+
+    // Exclude if it has no children. If it does, then it must be an OP_Network
+    if (!node->isNetwork())
+	return false;
+
+    // Exclude if it's not an object *and* cannot have object children
+    if (static_cast<OP_Network*>(node)->getChildTypeID() != OBJ_OPTYPE_ID)
 	return false;
 
     // Check if the network type is black-listed.
+    // Excluded types: dopnet, ropnet, chopnet, popnet, shopnet, vopnet
     UT_String type_name = node->getOperator()->getName();
     string string_type(type_name);
     int curr_id, num_ids = myNetworkTypesNotToVisit.size();

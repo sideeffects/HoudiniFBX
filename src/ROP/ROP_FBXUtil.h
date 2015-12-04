@@ -30,6 +30,7 @@
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_Set.h>
 #include <UT/UT_VectorTypes.h>
+#include <SYS/SYS_Types.h>
 
 #include <set>
 #include <map>
@@ -40,6 +41,7 @@
 class ROP_FBXGDPCache;
 class ROP_FBXMainNodeVisitInfo;
 
+class OBJ_Node;
 class SOP_Node;
 class GEO_Primitive;
 class GU_Detail;
@@ -71,9 +73,10 @@ public:
     static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
 
     static EFbxRotationOrder fbxRotationOrder(UT_XformOrder::xyzOrder rot_order);
+    static bool mapsToFBXTransform(fpreal t, OBJ_Node* node);
     static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
 	const UT_XformOrder& xform_order,
-	UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations, bool force_obj_transfrom_from_world);
+	UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0, UT_Set<OP_Node*> *already_visited=NULL);
     static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me, UT_Set<OP_Node*> *already_visited=NULL);

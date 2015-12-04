@@ -18,50 +18,52 @@
  */
 
 #include "ROP_FBXHeaderWrapper.h"
-#include "ROP_FBXCommon.h"
 #include "ROP_FBXMainVisitor.h"
-#include "ROP_FBXExporter.h"
 
-#include <UT/UT_Interrupt.h>
-#include <UT/UT_Matrix4.h>
-#include <UT/UT_BoundingRect.h>
-#include <OP/OP_Node.h>
-#include <OP/OP_Network.h>
-#include <OP/OP_Director.h>
+#include "ROP_FBXActionManager.h"
+#include "ROP_FBXCommon.h"
+#include "ROP_FBXDerivedActions.h"
+#include "ROP_FBXExporter.h"
+#include "ROP_FBXUtil.h"
+
+#include <OBJ/OBJ_Node.h>
+#include <SOP/SOP_Node.h>
+#include <SHOP/SHOP_Node.h>
+#include <SHOP/SHOP_Output.h>
+
+#include <GU/GU_ConvertParms.h>
+#include <GU/GU_Detail.h>
+#include <GU/GU_DetailHandle.h>
+#include <GU/GU_PrimNURBCurve.h>
+#include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimPoly.h>
+#include <GU/GU_PrimRBezCurve.h>
+#include <GU/GU_PrimRBezSurf.h>
+#include <GEO/GEO_Primitive.h>
+#include <GEO/GEO_PrimPoly.h>
+#include <GEO/GEO_Profiles.h>
+#include <GEO/GEO_TPSurf.h>
+#include <GEO/GEO_Vertex.h>
+#include <GD/GD_Detail.h>
+#include <GD/GD_Face.h>
+#include <GD/GD_PrimPoly.h>
+#include <GD/GD_PrimRBezCurve.h>
+#include <GD/GD_TrimPiece.h>
+#include <GD/GD_TrimRegion.h>
 #include <GA/GA_ATIGroupBool.h>
 #include <GA/GA_AttributeFilter.h>
 #include <GA/GA_ElementWrangler.h>
 #include <GA/GA_Names.h>
-#include <GU/GU_DetailHandle.h>
-#include <GU/GU_ConvertParms.h>
-#include <GU/GU_PrimNURBSurf.h>
-#include <GU/GU_PrimNURBCurve.h>
-#include <GU/GU_PrimPoly.h>
-#include <GU/GU_PrimRBezCurve.h>
-#include <GU/GU_PrimRBezSurf.h>
-#include <GD/GD_TrimRegion.h>
-#include <GD/GD_PrimRBezCurve.h>
-#include <GD/GD_Detail.h>
-#include <GD/GD_Face.h>
-#include <GD/GD_PrimPoly.h>
-#include <GD/GD_TrimPiece.h>
-#include <GEO/GEO_Primitive.h>
-#include <GEO/GEO_Profiles.h>
-#include <GEO/GEO_TPSurf.h>
-#include <GEO/GEO_Vertex.h>
-#include <GEO/GEO_PrimPoly.h>
-#include <GU/GU_Detail.h>
-#include <OBJ/OBJ_Node.h>
-#include <SOP/SOP_Node.h>
+
+#include <OP/OP_Director.h>
+#include <OP/OP_Network.h>
+#include <OP/OP_Node.h>
 #include <OP/OP_Utils.h>
 
-#include <SHOP/SHOP_Node.h>
-#include <SHOP/SHOP_Output.h>
+#include <UT/UT_BoundingRect.h>
+#include <UT/UT_Interrupt.h>
+#include <UT/UT_Matrix4.h>
 
-#include "ROP_FBXActionManager.h"
-#include "ROP_FBXDerivedActions.h"
-
-#include "ROP_FBXUtil.h"
 
 #ifdef UT_DEBUG
 extern double ROP_FBXdb_maxVertsCountingTime;
@@ -156,7 +158,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     if(!force_exporting_as_null)
     if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
-	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient")
+	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient" )
     {
 	if(node_type == "geo")
 	{
@@ -279,6 +281,11 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	// take forever to export. Might make this an option later.
 	if(!is_visible)
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
+
+	// Set the result to skip the subnet for all non standard objects so
+	// that we don't try to output them twice.
+	if (obj_node && obj_node->getChildTypeID() != OBJ_OPTYPE_ID)
+	    res_type = ROP_FBXVisitorResultSkipSubnet;
     }
 
     if(res_nodes.size() > 0 && fbx_parent_node)
@@ -325,18 +332,19 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	new_node->SetVisibility(is_visible);
 	new_node->VisibilityInheritance.Set(false);
 
-	// Set the standard transformations (unless we're in the instance)
-	fpreal bone_length = 0.0;
-	if(node_info && node_info->getParentInfo())
+	OBJ_Node *obj_node = hd_node->castToOBJNode();
+	if (ROP_FBXUtil::mapsToFBXTransform(myStartTime, obj_node))
 	{
-	    bone_length = UTverify_cast<ROP_FBXMainNodeVisitInfo *>(node_info->getParentInfo())->getBoneLength();
-	    if(UTverify_cast<ROP_FBXMainNodeVisitInfo *>(node_info->getParentInfo())->getIgnoreBoneLengthForTransforms())
-		bone_length = 0;
+	    exportFBXTransform(myStartTime, obj_node, new_node);
 	}
-	UT_String* override_type_ptr = NULL;
-	if(override_node_type.isstring())
-	    override_type_ptr = &override_node_type;
-	ROP_FBXUtil::setStandardTransforms(hd_node, new_node, node_info, (lookatobjectpath.length() > 0), bone_length, myStartTime, override_type_ptr);
+	else
+	{
+	    // Set the standard transformations (unless we're in the instance)
+	    UT_String* override_type_ptr = NULL;
+	    if(override_node_type.isstring())
+		override_type_ptr = &override_node_type;
+	    ROP_FBXUtil::setStandardTransforms(hd_node, new_node, node_info, (lookatobjectpath.length() > 0), 0.0, myStartTime, override_type_ptr);
+	}
 
 	// If there's a lookat object, queue up the action
 	if(lookatobjectpath.length() > 0)
@@ -374,6 +382,124 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 
 }
 /********************************************************************************************************/
+void
+ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNode *fbx_node)
+{
+    // NOTE: Notice that shears is missing from these lists because (as of) FBX
+    //	     2016.1, they still don't support shears in their local transforms.
+    typedef FbxPropertyT<FbxDouble3> FbxDouble3Property;
+    FbxDouble3Property* props[] =
+    {
+	&(fbx_node->LclTranslation),
+	&(fbx_node->RotationOffset),
+	&(fbx_node->PreRotation),
+	&(fbx_node->LclRotation),
+	&(fbx_node->PostRotation),
+	&(fbx_node->RotationPivot),
+	&(fbx_node->ScalingOffset),
+	&(fbx_node->LclScaling),
+	&(fbx_node->ScalingPivot),
+    };
+    const char* hd_names[] = 
+    {
+	"t",
+	"roffset",
+	"rpre",
+	"r",
+	"rpost",
+	"rpivot",
+	"soffset",
+	"s",
+	"spivot",
+    };
+    enum
+    {
+	ROP_FBX_T,
+	ROP_FBX_ROFFSET,
+	ROP_FBX_RPRE,
+	ROP_FBX_R,
+	ROP_FBX_RPOST,
+	ROP_FBX_RPIVOT,
+	ROP_FBX_SOFFSET,
+	ROP_FBX_S,
+	ROP_FBX_SPIVOT,
+	ROP_FBX_N
+    };
+    SYS_STATIC_ASSERT(SYScountof(hd_names) == ROP_FBX_N);
+    SYS_STATIC_ASSERT(SYScountof(hd_names) == SYScountof(props));
+
+    const int NUM_COMPONENTS = 3;
+    const char* components[NUM_COMPONENTS] =
+    {
+	FBXSDK_CURVENODE_COMPONENT_X,
+	FBXSDK_CURVENODE_COMPONENT_Y,
+	FBXSDK_CURVENODE_COMPONENT_Z
+    };
+
+    UT_String node_type = hd_node->getOperator()->getName();
+    const char* UNIFORM_SCALE = "scale";
+    if(node_type == "instance")
+    {
+	hd_names[ROP_FBX_T] = "i_t";
+	hd_names[ROP_FBX_R] = "i_r";
+	hd_names[ROP_FBX_S] = "i_s";
+	UNIFORM_SCALE = "i_scale";
+    }
+    else if(node_type == "hlight") // for old hlight 1.0 only
+    {
+	hd_names[ROP_FBX_T] = "l_t";
+	hd_names[ROP_FBX_R] = "l_r";
+	hd_names[ROP_FBX_S] = "l_s";
+	UNIFORM_SCALE = "l_scale";
+    }
+
+    FbxNode::EPivotState src, dst;
+    fbx_node->GetPivotState(FbxNode::eSourcePivot, src);
+    fbx_node->GetPivotState(FbxNode::eSourcePivot, dst);
+    
+    const int thread = SYSgetSTID();
+    const PRM_ParmList *plist = hd_node->getParmList();
+    for (int i = 0; i < ROP_FBX_N; ++i)
+    {
+	const char *parm_name = hd_names[i];
+	const PRM_Parm *parm = plist->getParmPtr(parm_name);
+	if (!parm)
+	    continue;
+	UT_Vector3R v;
+	parm->getValues(t, v.data(), thread);
+	if (i == ROP_FBX_S)
+	{
+	    parm = plist->getParmPtr(UNIFORM_SCALE);
+	    if (parm)
+	    {
+		fpreal s;
+		parm->getValue(t, s, 0, thread);
+		v *= s;
+	    }
+	}
+	props[i]->Set(FbxDouble3(v(0), v(1), v(2)));
+    }
+
+    // SetRotationActive(true) must be used for the rotation order (as well as
+    // pre/post rotations) to be interpreted by the FBX importer.
+    fbx_node->SetRotationActive(true);
+
+    // When saving, the pre/post rotations and pivots are only taken from the
+    // eSourcePivot set. But we only set the properties above so we need to
+    // update the pivots from the properties.
+    // NOTE: This is an unofficial API that they say can change with FBX
+    //       versions!
+    fbx_node->UpdatePivotsAndLimitsFromProperties();
+
+    // Maintain the same rotation order. This logic is relied upon by
+    // ROP_FBXAnimVisitor::visit() for cracking rotations!
+    EFbxRotationOrder rot_order = ROP_FBXUtil::fbxRotationOrder(OP_Node::getRotOrder(hd_node->XYZ(t)));
+    fbx_node->SetRotationOrder(FbxNode::eSourcePivot, rot_order);
+
+    // Houdini only has one inherit type
+    fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
+}
+/********************************************************************************************************/
 void 
 ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info)
 {
@@ -395,6 +521,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 	res_node->SetVisibility(last_node->getVisible());
 	res_node->VisibilityInheritance.Set(false);
 
+	// Pass in the bone-length here so that it gets placed at the end of the bone
 	ROP_FBXUtil::setStandardTransforms(NULL, res_node, last_node_info, false, cast_info->getBoneLength(), myStartTime, NULL );
 
 	if(last_node_info->getFbxNode())
@@ -428,10 +555,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     // Get the bone's length
     fpreal bone_length = 0.0;
     if(is_a_null)
-    {
 	bone_length = 1.0; // Some dummy value so the next joint knows it's not a root.
-	node_info->setIgnoreBoneLengthForTransforms(true);
-    }
     else
 	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length", 0, myStartTime);
     node_info->setBoneLength(bone_length);
@@ -2093,11 +2217,24 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 bool
 ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
+    // Determine what null look we should output. Only output as a cross if we have geometry.
+    // This means that subnets get output as fbx nulls with no look, matching
+    // what Maya imports/exports for group nodes.
+    bool as_cross = false;
+    OBJ_Node *obj = node->castToOBJNode();
+    if (obj && obj->getChildTypeID() == SOP_OPTYPE_ID)
+    {
+	OP_Context context(myParentExporter->getStartTime());
+	const GU_Detail* gdp = obj->getDisplayGeometry(context, /*check_enable*/false);
+	as_cross = !gdp || (gdp->getNumPoints() > 0);
+    }
+
     UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
     myNodeManager->makeNameUnique(node_name);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxNull *res_attr = FbxNull::Create(mySDKManager, (const char*)node_name);
+    res_attr->Look.Set(as_cross ? FbxNull::eCross : FbxNull::eNone);
     res_node->SetNodeAttribute(res_attr);
 
     res_nodes.push_back(res_node);
@@ -2889,7 +3026,9 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     }
 
     // Alpha
-    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", 0);
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", 0, 0.0, &did_find);
+    if(!did_find)
+	temp_col[0] = 1.0;
     lamb_new_mat->TransparencyFactor.Set(1.0 - temp_col[0]);
     temp_col[0] = 1.0;
     temp_col[1] = 1.0;
@@ -2983,7 +3122,6 @@ ROP_FBXMainNodeVisitInfo::ROP_FBXMainNodeVisitInfo(OP_Node* hd_node) : ROP_FBXBa
 {
     myBoneLength = 0.0;
     myIsVisitingFromInstance = false;
-    myIgnoreLengthForTransforms = false;
 }
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo::~ROP_FBXMainNodeVisitInfo()
@@ -3013,17 +3151,5 @@ void
 ROP_FBXMainNodeVisitInfo::setIsVisitingFromInstance(bool value)
 {
     myIsVisitingFromInstance = value;
-}
-/********************************************************************************************************/
-bool 
-ROP_FBXMainNodeVisitInfo::getIgnoreBoneLengthForTransforms(void)
-{
-    return myIgnoreLengthForTransforms;
-}
-/********************************************************************************************************/
-void 
-ROP_FBXMainNodeVisitInfo::setIgnoreBoneLengthForTransforms(bool bValue)
-{
-    myIgnoreLengthForTransforms = bValue;
 }
 /********************************************************************************************************/

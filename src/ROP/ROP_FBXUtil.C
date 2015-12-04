@@ -37,6 +37,7 @@
 
 #include <UT/UT_Assert.h>
 #include <UT/UT_CrackMatrix.h>
+#include <UT/UT_FSATable.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Thread.h>
 #include <UT/UT_XformOrder.h>
@@ -441,7 +442,7 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-			const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations, bool force_obj_transfrom_from_world)
+			const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations)
 {
     bool set_post_rotation = false;
 
@@ -464,61 +465,31 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 
     // Get and set transforms
     OP_Context op_context(time_in);
-    UT_Matrix4D full_xform;
+    UT_Matrix4D full_xform(1.0); // identity
     if(obj_node)
     {
-	UT_Matrix4D world_xform, lookat, local_xform, parm_xform;
-	obj_node->getPreLocalTransform(op_context, local_xform);
-	obj_node->getParmTransform(op_context, parm_xform);
-	full_xform = parm_xform * local_xform;
-
+	UT_Matrix4D world_xform;
 	obj_node->getWorldTransform(world_xform, op_context);
 
-	// In the case of a rivet or a blend, we have no parameter transforms
-	// that are animated, but instead we have an internal matrix
-	// that stores them. In this case, we force the retrieval of
-	// transformation channels by computing the local matrix 
-	// from the node's world matrix and the parent's inverse world
-	// matrix.
-	if(node_type == "blend" || node_type == "rivet" || force_obj_transfrom_from_world)
-	{
-	    OBJ_Node* parent_obj_node = NULL;
-	    if(node_info && node_info->getParentInfo())
-		parent_obj_node = dynamic_cast<OBJ_Node*>(node_info->getParentInfo()->getHdNode());
+	OBJ_Node* parent_obj_node = NULL;
+	if(node_info && node_info->getParentInfo())
+	    parent_obj_node = dynamic_cast<OBJ_Node*>(node_info->getParentInfo()->getHdNode());
 
-	    if(parent_obj_node)
-	    {
-		UT_Matrix4D parent_world_xform;
-		parent_obj_node->getWorldTransform(parent_world_xform, op_context);
-		parent_world_xform.invert();
-		full_xform = world_xform * parent_world_xform;
-	    }
-	    else
-		full_xform = world_xform;
+	if(parent_obj_node)
+	{
+	    UT_Matrix4D inverse_parent_world;
+	    parent_obj_node->getIWorldTransform(inverse_parent_world, op_context);
+	    full_xform = world_xform * inverse_parent_world;
 	}
-
-	if (obj_node->buildLookAt(op_context, world_xform, lookat))
+	else
 	{
-	    full_xform = lookat * full_xform;
+	    full_xform = world_xform;
 	}
     }
-    else
-	full_xform.identity();
 
+    // Add a bone length transform if requested
     if(SYSequalZero(bone_length) == false)
-    {
-	// Add a bone length transform
-	UT_Matrix4D bone_trans;
-	UT_XformOrder xform_default;
-	bone_trans.identity();
-	bone_trans.xform(xform_default, 0.0,0.0,-bone_length, 
-	    0.0,0.0,0.0,
-	    1.0,1.0,1.0,
-	    0.0,0.0,0.0,
-	    0);
-
-	full_xform = full_xform * bone_trans;
-    }
+	full_xform.translate(0.0, 0.0, -bone_length);
 
     if(do_special_rotate && !has_lookat_node && post_rotation)
     {
@@ -661,7 +632,6 @@ OP_Node*
 ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level, UT_Set<OP_Node*> *already_visited)
 {
     bool child_did_find_allowed_types_only;
-    int thread = SYSgetSTID();
 
     if (rec_level == 0 && did_find_allowed_only)
 	*did_find_allowed_only = true;
@@ -680,7 +650,20 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
     if (op == NULL)
         return NULL;
 
-    already_visited->insert(op);
+    // Skip pass through nodes, marking as visited along the way
+    const fpreal now = CHgetEvalTime();
+    while (true)
+    {
+	already_visited->insert(op);
+	OP_Node* pass_through = op->getPassThroughNode(now);
+	if (!pass_through)
+	{   
+	    if (op->getOperator()->getName() != "cache")
+		break;
+	    pass_through = op->getInput(0);
+	}
+	op = pass_through;
+    }
 
     // Check if the node we are checking is already on the stack. If so,
     // we're at risk of recursion, so bail out.
@@ -718,40 +701,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 
     }
 
-    // If we are a subnet, try to find an appropriate node within the
-    // subnet, starting with the subnet's display node.
-    if( !found && op->isSubNetwork(false) )
-    {
-	child_did_find_allowed_types_only = false;
-	found = ROP_FBXUtil::findOpInput(((OP_Network *)op)->getDisplayNodePtr(),
-				find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1, already_visited);
-	if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
-	    *did_find_allowed_only = false;
-    }
-
-    // if we're a switch SOP, then look up the appropriate input chain
-    bool is_aswitch = false;
-    if( !found && op->getOperator()->getName() == "switch" )
-    {
-	PRM_Parm *parm = op->getParmList()->getParmPtr( "input" );
-	if( parm != NULL )
-	{
-            int i;
-	    parm->getValue(
-		    CHgetEvalTime(),
-		    i, 0, thread);
-	    if( op->getInput(i) != NULL )
-	    {
-		is_aswitch = true;
-	    	child_did_find_allowed_types_only = false;
-		found = ROP_FBXUtil::findOpInput( op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1, already_visited);
-		if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
-		    *did_find_allowed_only = false;
-	    }
-	}
-    }
-
-    for (int i = op->getConnectedInputIndex(-1); !is_aswitch && !found && i >= 0;
+    for (int i = op->getConnectedInputIndex(-1); !found && i >= 0;
 	    i = op->getConnectedInputIndex(i))
     {
 	// We need to traverse reference inputs as well, in cases,
@@ -790,6 +740,49 @@ ROP_FBXUtil::fbxRotationOrder(UT_XformOrder::xyzOrder rot_order)
     return eEulerXYZ;
 }
 /********************************************************************************************************/
+bool
+ROP_FBXUtil::mapsToFBXTransform(fpreal t, OBJ_Node* node)
+{
+    if (!node)
+	return false;
+
+    // FBX only supports SRT transform orders, so if it's different, we need to resample
+    if (OP_Node::getMainOrder(node->TRS(t)) != UT_XformOrder::SRT)
+	return false;
+
+    // Non-zero pivots currently need to resample
+    const PRM_Parm &parm(node->getParm("p"));
+    if (parm.isTimeDependent())
+	return false;
+    UT_Vector3R p;
+    node->P(p.data(), t);
+    if (!SYSequalZero(p(0)) || !SYSequalZero(p(1)) || !SYSequalZero(p(2)))
+	return false;
+
+    static const UT_FSATable full_obj_types(
+				     0, "rivet",
+				     1, "bone",
+				     2, "blend",
+				     3, "pythonscript",
+				     4, "muscle",
+				     5, "switcher",
+				     6, "fetch",
+				     7, "extractgeo",
+				     8, "sticky",
+				     9, "blendsticky",
+				    -1, nullptr);
+    if (full_obj_types.findSymbol(node->getOperator()->getName()) >= 0)
+	return false;
+
+    OP_Context op_context(t);
+    UT_Matrix4 pretransform;
+    node->getPreLocalTransform(op_context, pretransform);
+    if (!pretransform.isIdentity())
+	return false;
+
+    return true;
+}
+/********************************************************************************************************/
 void 
 ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, 
 				   fpreal ftime, UT_String* override_node_type, bool use_world_transform)
@@ -814,7 +807,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
 	r.radToDeg();
     }
     else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type,
-					    xform_order, t,r,s, &post_rotate, NULL, false))
+					    xform_order, t,r,s, &post_rotate, NULL))
     {
 	fbx_node->SetPostRotation(FbxNode::eSourcePivot, post_rotate);
     }
