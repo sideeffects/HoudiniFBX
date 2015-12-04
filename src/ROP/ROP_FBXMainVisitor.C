@@ -428,14 +428,6 @@ ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNod
     SYS_STATIC_ASSERT(SYScountof(hd_names) == ROP_FBX_N);
     SYS_STATIC_ASSERT(SYScountof(hd_names) == SYScountof(props));
 
-    const int NUM_COMPONENTS = 3;
-    const char* components[NUM_COMPONENTS] =
-    {
-	FBXSDK_CURVENODE_COMPONENT_X,
-	FBXSDK_CURVENODE_COMPONENT_Y,
-	FBXSDK_CURVENODE_COMPONENT_Z
-    };
-
     UT_String node_type = hd_node->getOperator()->getName();
     const char* UNIFORM_SCALE = "scale";
     if(node_type == "instance")
