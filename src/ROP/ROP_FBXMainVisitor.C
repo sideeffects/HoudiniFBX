@@ -2802,7 +2802,7 @@ ROP_FBXMainVisitor::getDefaultMaterial(THdFbxMaterialMap& mat_map)
     {
 	// Create it
 
-	float temp_col[3] = { 193.0/255.0,193.0/255.0,193.0/255.0};
+	float temp_col[3] = { 193.0f/255.0f,193.0f/255.0f,193.0f/255.0f};
 
 	FbxSurfaceLambert* lamb_new_mat = FbxSurfaceLambert::Create(mySDKManager, (const char*)"default_material");
 	//FbxColor temp_fbx_col;
