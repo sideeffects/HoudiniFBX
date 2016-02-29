@@ -759,6 +759,12 @@ ROP_FBXUtil::mapsToFBXTransform(fpreal t, OBJ_Node* node)
     if (!SYSequalZero(p(0)) || !SYSequalZero(p(1)) || !SYSequalZero(p(2)))
 	return false;
 
+    // It's non-trivial to know if a python script operator maps nicely so fail on the conservative side
+    const OP_Operator &op = *node->getOperator();
+    if (op.getScriptIsPython())
+	return false;
+
+    // Explicit black list
     static const UT_FSATable full_obj_types(
 				     0, "rivet",
 				     1, "bone",
@@ -774,6 +780,7 @@ ROP_FBXUtil::mapsToFBXTransform(fpreal t, OBJ_Node* node)
     if (full_obj_types.findSymbol(node->getOperator()->getName()) >= 0)
 	return false;
 
+    // Fail if we have a pretransform of some sort
     OP_Context op_context(t);
     UT_Matrix4 pretransform;
     node->getPreLocalTransform(op_context, pretransform);
