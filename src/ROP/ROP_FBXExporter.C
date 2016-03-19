@@ -599,7 +599,7 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 	myDummyRootNullNode->SetNodeAttribute(res_attr);
 
 	// Set world transform
-	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, NULL, false, 0.0, getStartTime(), NULL, true );
+	ROP_FBXUtil::setStandardTransforms(export_node, myDummyRootNullNode, NULL, 0.0, getStartTime(), true);
 	fbx_scene_root->AddChild(myDummyRootNullNode);
 
 	// Add nodes to the map

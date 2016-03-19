@@ -61,6 +61,7 @@
 #include <OP/OP_Utils.h>
 
 #include <UT/UT_BoundingRect.h>
+#include <UT/UT_CrackMatrix.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
 
@@ -340,10 +341,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	else
 	{
 	    // Set the standard transformations (unless we're in the instance)
-	    UT_String* override_type_ptr = NULL;
-	    if(override_node_type.isstring())
-		override_type_ptr = &override_node_type;
-	    ROP_FBXUtil::setStandardTransforms(hd_node, new_node, node_info, (lookatobjectpath.length() > 0), 0.0, myStartTime, override_type_ptr);
+	    ROP_FBXUtil::setStandardTransforms(hd_node, new_node, node_info, 0.0, myStartTime);
 	}
 
 	// If there's a lookat object, queue up the action
@@ -355,6 +353,29 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	    // Queue up an object to look at. Post-action because it may not have been created yet.
 	    if(lookat_node)
 		myActionManager->addLookAtAction(new_node, lookat_node);
+	}
+	else
+	{
+	    // For lights/cameras, they have a look at axis that is different from Houdini/Maya that use
+	    // the -Z axis. To compensate, we multiply in a post rotation so that we go from Houdini's -Z
+	    // to either the +X (for cameras) or -Y (for lights).
+
+	    UT_String node_type = hd_node->getOperator()->getName();
+	    UT_String* node_type_ptr = &node_type;
+	    if(override_node_type.isstring())
+		node_type_ptr = &override_node_type;
+
+	    FbxVector4 adjustment;
+	    if (ROP_FBXUtil::getPostRotateAdjust(*node_type_ptr, adjustment))
+	    {
+		// We assume here that either exportFBXTransform() or setStandardTransforms() has already
+		// enabled the Rotation Active flag. It needs to be enabled in order for the post rotate
+		// to have an effect.
+		UT_ASSERT(new_node->GetRotationActive());
+		FbxVector4 post_rotate = new_node->GetPostRotation(FbxNode::eSourcePivot);
+		ROP_FBXUtil::doPostRotateAdjust(post_rotate, adjustment);
+		new_node->SetPostRotation(FbxNode::eSourcePivot, post_rotate);
+	    }
 	}
 
 	// Add nodes to the map
@@ -445,10 +466,6 @@ ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNod
 	UNIFORM_SCALE = "l_scale";
     }
 
-    FbxNode::EPivotState src, dst;
-    fbx_node->GetPivotState(FbxNode::eSourcePivot, src);
-    fbx_node->GetPivotState(FbxNode::eSourcePivot, dst);
-    
     const int thread = SYSgetSTID();
     const PRM_ParmList *plist = hd_node->getParmList();
     for (int i = 0; i < ROP_FBX_N; ++i)
@@ -468,6 +485,19 @@ ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNod
 		parm->getValue(t, s, 0, thread);
 		v *= s;
 	    }
+	}
+	else if (i == ROP_FBX_RPOST)
+	{
+	    // FBX's Post Rotate is the inverse of Maya's Rotate Axis (and
+	    // Houdini's chosen Post Rotate). So we need to invert.
+	    const UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+	    v.degToRad();
+	    UT_Matrix3D mat(1.0);
+	    mat.rotate(v, order);
+	    mat.transpose();	    // invert rotation matrix
+	    mat.crack(v, order);  // smooth wrt (0,0,0) for consistency 
+	    UTcrackMatrixSmooth(order, v(0), v(1), v(2), 0, 0, 0);
+	    v.radToDeg();
 	}
 	props[i]->Set(FbxDouble3(v(0), v(1), v(2)));
     }
@@ -514,7 +544,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 	res_node->VisibilityInheritance.Set(false);
 
 	// Pass in the bone-length here so that it gets placed at the end of the bone
-	ROP_FBXUtil::setStandardTransforms(NULL, res_node, last_node_info, false, cast_info->getBoneLength(), myStartTime, NULL );
+	ROP_FBXUtil::setStandardTransforms(NULL, res_node, last_node_info, cast_info->getBoneLength(), myStartTime);
 
 	if(last_node_info->getFbxNode())
 	    last_node_info->getFbxNode()->AddChild(res_node);

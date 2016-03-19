@@ -376,11 +376,63 @@ ROP_FBXAnimVisitor::exportTRSAnimation(OBJ_Node* node, FbxAnimLayer* fbx_anim_la
 	for (int c = 0; c < NUM_COMPONENTS; ++c)
 	{
 	    FbxAnimCurve* curve = props[i]->GetCurve(fbx_anim_layer, components[c], true);
-	    if (!curve) // can fail if not animatible
+	    if (!curve) // can fail if not animatible (eg. pre/post rotation)
 		continue;
 	    exportChannel(curve, node, parm_name, c);
 	}
     }
+
+    // For lights/cameras, they have a look at axis that is different from Houdini/Maya that use the -Z
+    // axis. If there's an animated post rotation, we multiply in a adjustment so that we go from
+    // Houdini's -Z to either the +X (for cameras) or -Y (for lights). This requires that we resample the
+    // animation for correctness.
+    //
+    // NOTE: This code is all moot right now because FBX doesn't allow us to create animated post rotation
+    // curves in the first place. So the caller has to go through the resampled output code path for now
+    // in order to preserve animation.
+#if 0
+    FbxVector4 rotate_adjust;
+    if (ROP_FBXUtil::getPostRotateAdjust(node_type, rotate_adjust))
+    {
+	const PRM_Parm *post_rotate_parm = plist->getParmPtr(hd_names[ROP_FBX_RPOST]);
+	if (post_rotate_parm && post_rotate_parm->isTimeDependent())
+	{
+	    int curve_last[NUM_COMPONENTS] = { 0, 0, 0 };
+	    FbxAnimCurve* curves[NUM_COMPONENTS];
+	    for (int c = 0; c < NUM_COMPONENTS; ++c)
+	    {
+		curves[c] = fbx_node->PostRotation.GetCurve(fbx_anim_layer, components[c], true);
+		curves[c]->KeyModifyBegin();
+	    }
+
+	    const int thread = SYSgetSTID();
+	    const fpreal secs_per_sample = 1.0/CHgetManager()->getSamplesPerSec();
+	    const fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+	    const fpreal beg_time = myParentExporter->getStartTime();
+	    const fpreal end_time = myParentExporter->getEndTime();
+	    for (fpreal key_time = beg_time; key_time < end_time; key_time += time_step)
+	    {
+		UT_Vector3 post_rot;
+		post_rotate_parm->getValues(key_time, post_rot.data(), thread);
+		FbxVector4 post_rotate(post_rot(0), post_rot(1), post_rot(2));
+		ROP_FBXUtil::doPostRotateAdjust(post_rotate, rotate_adjust);
+
+		FbxTime fbx_time;
+		fbx_time.SetSecondDouble(key_time + secs_per_sample);
+		for (int c = 0; c < NUM_COMPONENTS; ++c)
+		{
+		    FbxAnimCurve* curve = curves[c];
+		    int key_i = curve->KeyAdd(fbx_time, &curve_last[c]);
+		    curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+		    curve->KeySetValue(key_i, post_rotate[c]);
+		}
+	    }
+
+	    for (auto& curve : curves)
+		curve->KeyModifyEnd();
+	}
+    }
+#endif
 }
 /********************************************************************************************************/
 void 
@@ -1178,7 +1230,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     // Walk the time, compute the final transform matrix at each time, and break it.
     for(curr_time = start_time; curr_time < end_time; curr_time += time_step)
     {
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, 0.0, curr_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, 0.0, curr_time, xform_order, t_out, r_out, s_out, prev_frame_rot_ptr);
 	prev_frame_rot_ptr = &prev_frame_rot;
 	prev_frame_rot = r_out;
 
@@ -1213,7 +1265,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 
     if(curr_time >= end_time)
     {
-	ROP_FBXUtil::getFinalTransforms(source_node, node_info, false, 0.0, end_time, NULL, xform_order, t_out, r_out, s_out, NULL, prev_frame_rot_ptr);
+	ROP_FBXUtil::getFinalTransforms(source_node, node_info, 0.0, end_time, xform_order, t_out, r_out, s_out, prev_frame_rot_ptr);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	for(int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)

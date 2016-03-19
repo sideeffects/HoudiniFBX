@@ -74,13 +74,16 @@ public:
 
     static EFbxRotationOrder fbxRotationOrder(UT_XformOrder::xyzOrder rot_order);
     static bool mapsToFBXTransform(fpreal t, OBJ_Node* node);
-    static bool getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-	const UT_XformOrder& xform_order,
-	UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations);
+    static void getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, fpreal bone_length, fpreal time_in,
+	const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out,
+	UT_Vector3D* prev_frame_rotations);
+
+    static bool getPostRotateAdjust(const UT_String &node_type, FbxVector4 &post_rotate);
+    static void doPostRotateAdjust(FbxVector4 &post_rotate, const FbxVector4 &adjustment);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0, UT_Set<OP_Node*> *already_visited=NULL);
     static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me, UT_Set<OP_Node*> *already_visited=NULL);
-    static void setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal ftime, UT_String* override_node_type, bool use_world_transform = false);
+    static void setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, fpreal bone_length, fpreal ftime, bool use_world_transform = false);
     static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
 
     static GA_PrimCompat::TypeMask getGdpPrimId(const GU_Detail* gdp);

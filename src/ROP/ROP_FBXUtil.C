@@ -440,32 +440,16 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 #endif
 }
 /********************************************************************************************************/
-bool 
-ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, fpreal time_in, UT_String* override_node_type,
-			const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out, FbxVector4* post_rotation, UT_Vector3D* prev_frame_rotations)
+void 
+ROP_FBXUtil::getFinalTransforms(
+	OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node_info, fpreal bone_length, fpreal time_in,
+	const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out,
+	UT_Vector3D* prev_frame_rotations)
 {
-    bool set_post_rotation = false;
-
-    OBJ_Node* obj_node = NULL;
-    if(hd_node)
-	obj_node = dynamic_cast<OBJ_Node*>(hd_node);
-
-    bool do_special_rotate = false;
-    UT_String node_type(UT_String::ALWAYS_DEEP, "");
-    if(hd_node)
-	node_type = hd_node->getOperator()->getName();
-
-    if(ROPfbxIsLightNodeType(node_type) || node_type == "cam")
-	do_special_rotate = true;
-    if(override_node_type)
-    {
-	if(ROPfbxIsLightNodeType(*override_node_type) || *override_node_type == "cam")
-	    do_special_rotate = true;
-    }
-
     // Get and set transforms
     OP_Context op_context(time_in);
     UT_Matrix4D full_xform(1.0); // identity
+    OBJ_Node* obj_node = CAST_OBJNODE(hd_node);
     if(obj_node)
     {
 	UT_Matrix4D world_xform;
@@ -491,26 +475,6 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
     if(SYSequalZero(bone_length) == false)
 	full_xform.translate(0.0, 0.0, -bone_length);
 
-    if(do_special_rotate && !has_lookat_node && post_rotation)
-    {
-	// Set post-transform instead
-	if(override_node_type)
-	{
-	    if(ROPfbxIsLightNodeType(*override_node_type))
-		post_rotation->Set(-90,0,0);
-	    else // if(node_type == "cam")
-		post_rotation->Set(0,-90,0);
-	}
-	else
-	{
-	    if(ROPfbxIsLightNodeType(node_type))
-		post_rotation->Set(-90,0,0);
-	    else // if(node_type == "cam")
-		post_rotation->Set(0,-90,0);
-	}
-	set_post_rotation = true;
-    }
-
     full_xform.explode(xform_order, r_out,s_out,t_out);
     if(prev_frame_rotations)
     {
@@ -520,8 +484,34 @@ ROP_FBXUtil::getFinalTransforms(OP_Node* hd_node, ROP_FBXBaseNodeVisitInfo *node
 			    prev_rot.x(), prev_rot.y(), prev_rot.z());
     }
     r_out.radToDeg();
+}
+/********************************************************************************************************/
+bool
+ROP_FBXUtil::getPostRotateAdjust(const UT_String &node_type, FbxVector4 &post_rotate)
+{
+    // For lights/cameras, they have a look at axis that is different from Houdini/Maya that use
+    // the -Z axis. To compensate, we multiply in a post rotation so that we go from Houdini's -Z
+    // to either the +X (for cameras) or -Y (for lights).
+    if(ROPfbxIsLightNodeType(node_type))
+	post_rotate.Set(-90, 0, 0);
+    else if(node_type == "cam")
+	post_rotate.Set(0, -90, 0);
+    else
+	return false;
+    return true;
+}
 
-    return set_post_rotation;
+void
+ROP_FBXUtil::doPostRotateAdjust(FbxVector4 &post_rotate, const FbxVector4 &adjustment)
+{
+    FbxAMatrix rot_xform;
+    rot_xform.SetR(post_rotate);
+
+    FbxAMatrix adjust_xform;
+    adjust_xform.SetR(adjustment);
+
+    rot_xform *= adjust_xform;
+    post_rotate = rot_xform.GetR();
 }
 /********************************************************************************************************/
 bool
@@ -759,6 +749,12 @@ ROP_FBXUtil::mapsToFBXTransform(fpreal t, OBJ_Node* node)
     if (!SYSequalZero(p(0)) || !SYSequalZero(p(1)) || !SYSequalZero(p(2)))
 	return false;
 
+    // Animated post rotations are not currently supported by FBX so we need to resample to SRT animation
+    // in that case.
+    const PRM_Parm *post_rotate_parm = node->getParmList()->getParmPtr("rpost");
+    if (post_rotate_parm && post_rotate_parm->isTimeDependent())
+	return false;
+
     // It's non-trivial to know if a python script operator maps nicely so fail on the conservative side
     const OP_Operator &op = *node->getOperator();
     if (op.getScriptIsPython())
@@ -791,11 +787,11 @@ ROP_FBXUtil::mapsToFBXTransform(fpreal t, OBJ_Node* node)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, bool has_lookat_node, fpreal bone_length, 
-				   fpreal ftime, UT_String* override_node_type, bool use_world_transform)
+ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, fpreal bone_length, 
+				   fpreal ftime, bool use_world_transform)
 {
     UT_Vector3D t,r,s;
-    FbxVector4 post_rotate, fbx_vec4;
+    FbxVector4 fbx_vec4;
 
     // Maintain the same rotation order as obj_node. This logic is relied upon
     // by ROP_FBXAnimVisitor::visit() for cracking rotations!
@@ -813,10 +809,9 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
 	world_matrix.explode(xform_order, r,s,t);
 	r.radToDeg();
     }
-    else if(ROP_FBXUtil::getFinalTransforms(hd_node, node_info, has_lookat_node, bone_length, ftime, override_node_type,
-					    xform_order, t,r,s, &post_rotate, NULL))
+    else
     {
-	fbx_node->SetPostRotation(FbxNode::eSourcePivot, post_rotate);
+	ROP_FBXUtil::getFinalTransforms(hd_node, node_info, bone_length, ftime, xform_order, t,r,s, nullptr);
     }
 
     fbx_vec4.Set(r[0], r[1], r[2]);
