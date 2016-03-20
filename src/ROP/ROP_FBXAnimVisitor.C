@@ -213,11 +213,14 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	else if(node_type == "cam")
 	{
 	    FbxCamera *cam_attrib = FbxCast<FbxCamera>(fbx_node->GetNodeAttribute());
-///	    fbx_attr_take_node = addFBXTakeNode(cam_attrib);
-//	    cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
+	    if (cam_attrib)
+	    {
+///		fbx_attr_take_node = addFBXTakeNode(cam_attrib);
+//		cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
 
-	    curr_anim_curve = cam_attrib->FocalLength.GetCurve(myAnimLayer, NULL, true);
-	    exportChannel(curr_anim_curve, node, "focal", 0);
+		curr_anim_curve = cam_attrib->FocalLength.GetCurve(myAnimLayer, NULL, true);
+		exportChannel(curr_anim_curve, node, "focal", 0);
+	    }
 	}
 
 
