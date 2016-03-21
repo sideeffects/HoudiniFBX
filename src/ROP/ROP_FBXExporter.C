@@ -45,6 +45,7 @@
 
 #include <UT/UT_Assert.h>
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_ScopeExit.h>
 #include <UT/UT_UndoManager.h>
 
 
@@ -133,11 +134,13 @@ ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal
 void 
 ROP_FBXExporter::doExport(void)
 {
-    UT_UndoManager::disableUndoCreation();
+    UT_AutoDisableUndos disable_undos_scope;
+    UT_AutoInterrupt progress("Exporting FBX");
 
-    myBoss = UTgetInterrupt();
+    myBoss = progress.getInterrupt();
+    UT_AT_SCOPE_EXIT(myBoss = nullptr);
 
-    if( !myBoss->opStart("Exporting FBX" ) )
+    if (progress.wasInterrupted())
 	return;
 
     // See if we're exporting bundles
@@ -215,6 +218,13 @@ ROP_FBXExporter::doExport(void)
     }
     else
 	take_mgr->takeSet(myExportOptions.getExportTakeName());
+    
+    // Restore original take on exit
+    UT_SCOPE_EXIT
+    {
+	if(init_take)
+	    take_mgr->takeSet(init_take->getName());
+    };
 
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
@@ -336,15 +346,6 @@ ROP_FBXExporter::doExport(void)
 	if(!myDidCancel)
 	    myActionManager->performPostActions();
     }
-
-    // Restore original take
-    if(init_take)
-	take_mgr->takeSet(init_take->getName());
-
-    myBoss->opEnd();
-    myBoss = NULL;
-
-    UT_UndoManager::enableUndoCreation();
 }
 /********************************************************************************************************/
 bool
