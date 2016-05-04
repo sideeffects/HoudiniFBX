@@ -2460,7 +2460,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 //    OP_Director* op_director = OPgetDirector();
 
     UT_String main_mat_path;
-    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL_PATH, main_mat_path, true);
+    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL, main_mat_path, true);
     OP_Node* main_mat_node = NULL;
     if(main_mat_path.isstring())
 	main_mat_node = source_node->findNode(main_mat_path);
@@ -2493,7 +2493,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	    if(final_detail)
 	    {
 		// See if we have any per-prim materials
-		GA_ROAttributeRef attrOffset = final_detail->findStringTuple(GA_ATTRIB_PRIMITIVE, GEO_STD_ATTRIB_MATERIAL_PATH);
+		GA_ROAttributeRef attrOffset = final_detail->findStringTuple(GA_ATTRIB_PRIMITIVE, GEO_STD_ATTRIB_MATERIAL);
 		const GA_Attribute *matPathAttr = attrOffset.getAttribute();
     	    
 		const char *loc_mat_path = NULL;
