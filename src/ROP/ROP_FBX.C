@@ -18,6 +18,7 @@
  */
 
 #include "ROP_FBX.h"
+#include <UT/UT_InfoTree.h>
 #include <CH/CH_LocalVariable.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
@@ -442,5 +443,28 @@ ROP_FBX::getNodeSpecificInfoText(OP_Context &context,
     evalStringRaw(out, "sopoutput", 0, 0.0f);
     iparms.append("Write to          ");
     iparms.append(out);
+}
+
+void
+ROP_FBX::fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
+	const OP_NodeInfoTreeParms &parms)
+{
+    ROP_Node::fillInfoTreeNodeSpecific(tree, parms);
+
+    UT_InfoTree		*branch = tree.addChildMap("FBX ROP Info");
+    SOP_Node		*sop;
+    UT_String		 out;
+    UT_String		 soppath;
+    
+    // If we have an input, get the full path to that SOP.
+    sop = CAST_SOPNODE(getInput(0));
+    if( sop )
+	sop->getFullPath(soppath);
+
+    if(soppath.isstring())
+	branch->addProperties("Render SOP", soppath);
+
+    evalStringRaw(out, "sopoutput", 0, 0.0f);
+    branch->addProperties("Writes to", out);
 }
 

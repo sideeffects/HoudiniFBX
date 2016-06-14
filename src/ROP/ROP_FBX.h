@@ -97,8 +97,10 @@ public:
 
     virtual void		 inputConnectChanged(int which);
     
-    virtual void	 getNodeSpecificInfoText(OP_Context &context,
+    virtual void		 getNodeSpecificInfoText(OP_Context &context,
 					OP_NodeInfoParms &iparms);
+    virtual void		 fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
+					const OP_NodeInfoTreeParms &parms);
 
 protected:
 	     ROP_FBX(OP_Network *net, const char *name, OP_Operator *op);
