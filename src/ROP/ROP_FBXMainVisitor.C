@@ -2080,10 +2080,10 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     if(gdp->getNumPoints() > 0)
     {
 	GA_AttributeFilter filter_no_P = GA_AttributeFilter::selectOr(GA_AttributeFilter::selectStandard(gdp->getP()),GA_AttributeFilter::selectGroup());
-	for (GA_AttributeDict::iterator itor = gdp->pointAttribs().begin();
-	     itor != gdp->pointAttribs().end(); ++itor)
+	for (GA_AttributeDict::ordered_iterator itor = gdp->pointAttribs().obegin();
+	     itor != gdp->pointAttribs().oend(); ++itor)
 	{
-	    const GA_Attribute *attr = itor.attrib();
+	    const GA_Attribute *attr = itor.item();
 	    if (!filter_no_P.match(attr))
 		continue;
             if (attr->getScope() == GA_SCOPE_PRIVATE)
@@ -2160,10 +2160,10 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Primitive attributes
-    for (GA_AttributeDict::iterator itor = gdp->primitiveAttribs().begin();
-	 itor != gdp->primitiveAttribs().end(); ++itor)
+    for (GA_AttributeDict::ordered_iterator itor = gdp->primitiveAttribs().obegin();
+	 itor != gdp->primitiveAttribs().oend(); ++itor)
     {
-	const GA_Attribute *attr = itor.attrib();
+	const GA_Attribute *attr = itor.item();
 	if (!filter.match(attr))
 	    continue;
         if (attr->getScope() == GA_SCOPE_PRIVATE)
@@ -2198,10 +2198,10 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     user_attribs.clear();
 
     // Detail attributes
-    for (GA_AttributeDict::iterator itor = gdp->attribs().begin();
-	 itor != gdp->attribs().end(); ++itor)
+    for (GA_AttributeDict::ordered_iterator itor = gdp->attribs().obegin();
+	 itor != gdp->attribs().oend(); ++itor)
     {
-	const GA_Attribute *attr = itor.attrib();
+	const GA_Attribute *attr = itor.item();
 	if (!filter.match(attr))
 	    continue;
         if (attr->getScope() == GA_SCOPE_PRIVATE)
