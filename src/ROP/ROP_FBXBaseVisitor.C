@@ -23,7 +23,7 @@
 #include <OP/OP_Node.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Input.h>
-#include <OP/OP_InputIndirect.h>
+#include <OP/OP_SubnetIndirectInput.h>
 #include <OBJ/OBJ_Node.h>
 
 #define NEEDED_INDEX_IS_INTERNAL_NODE	    -2
@@ -118,13 +118,16 @@ ROP_FBXBaseVisitor::visitNetworkNodes(OP_Network* network_node, ROP_FBXBaseNodeV
 	    input_ptr = network_node->getInputReferenceConst(connected_input_idx);
 	    if(input_ptr && input_ptr->getNode())
 	    {
-		OP_InputIndirect* indir_input = network_node->getParentInput(connected_input_idx);
+		OP_SubnetIndirectInput* indir_input = network_node->getParentInput(connected_input_idx);
 		if(indir_input)
 		{
-		    int curr_output, num_outputs = indir_input->getNOutputs();
+		    OP_NodeList		 outputs;
+
+		    indir_input->getOutputNodes(outputs);
+		    int curr_output, num_outputs = outputs.entries();
 		    for(curr_output = 0; curr_output < num_outputs; curr_output++)
 		    {
-			target_child = indir_input->getOutput(curr_output);
+			target_child = outputs(curr_output);
 
 			UT_ASSERT(target_child);
 			if(!target_child)
@@ -263,7 +266,7 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 	skip |= (test_net && test_net->getChildTypeID() != OBJ_OPTYPE_ID
 		 && (!test_net->castToOBJNode() || myAllVisitInfos.count(node) > 0));
 	// Skip if it's an hidden node that's not visible and has no connections
-	skip |= (!node->getExpose() && !node->getVisible() && node->nConnectedInputs() == 0 && node->nOutputs() == 0);
+	skip |= (!node->getExpose() && !node->getVisible() && node->nConnectedInputs() == 0 && !node->hasAnyOutputNodes());
 
 	addNodeVisitInfo(thisNodeInfo);
 
@@ -323,10 +326,9 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
     // Now visit the hierarchy children, if any
     if(visit_result != ROP_FBXVisitorResultSkipSubtree && visit_result != ROP_FBXVisitorResultSkipSubtreeAndSubnet && allow_visiting_children )
     {
-	int curr_child, num_children = node->nOutputs();
 	int input_idx_on_target_node, temp_counter;
+	OP_OutputIterator node_outputs(*node);
 	THdNodeIntMap node_inp_counters;
-	OP_Node* target_child;
 
 	ROP_FBXBaseNodeVisitInfo* parent_info_ptr = NULL;
 
@@ -344,9 +346,8 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 	{
 	    node_inp_counters.clear();
 	    parent_info_ptr = all_parents[curr_parent_info];
-	    for(curr_child = 0; curr_child < num_children; curr_child++)
+	    for(auto &&target_child : node_outputs)
 	    {
-		target_child = node->getOutput(curr_child);
 		if(node_inp_counters.find(target_child) == node_inp_counters.end())
 		    temp_counter = 0;
 		else
@@ -365,7 +366,7 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 		break;
 	}
 
-	if(num_children == 0)
+	if(node_outputs.entries() == 0)
 	    onEndHierarchyBranchVisiting(node, thisNodeInfo);
     }
 

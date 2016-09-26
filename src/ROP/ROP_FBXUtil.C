@@ -844,17 +844,13 @@ ROP_FBXUtil::isJointNullNode(OP_Node* null_node)
 
     // Find a bone among its children
     OP_Node* child_bone = NULL;
-    int curr_child, num_children = null_node->nOutputs();
-    for(curr_child = 0; curr_child < num_children; curr_child++)
+    for (auto &&output : OP_OutputIterator(*null_node))
     {
-	if(null_node->getOutput(curr_child))
+	node_type = output->getOperator()->getName();
+	if(node_type == "bone")
 	{
-	    node_type = null_node->getOutput(curr_child)->getOperator()->getName();
-	    if(node_type == "bone")
-	    {
-		child_bone = null_node->getOutput(curr_child);
-		break;
-	    }
+	    child_bone = output;
+	    break;
 	}
     }
     if(!child_bone)	
@@ -881,7 +877,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
 	return false;
 
     // Get num children
-    if(bone_node->nOutputs() > 0)
+    if(bone_node->hasAnyOutputNodes())
 	return false;
 
     OP_Node* look_at_node = NULL;
