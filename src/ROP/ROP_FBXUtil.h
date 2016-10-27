@@ -53,8 +53,6 @@ class OP_Node;
 
 class UT_String;
 class UT_XformOrder;
-class UT_Set;
-
 
 /********************************************************************************************************/
 class ROP_API ROP_FBXUtil

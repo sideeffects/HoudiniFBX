@@ -23,6 +23,7 @@
 #include <UT/UT_Color.h>
 #include <UT/UT_Assert.h>
 #include <UT/UT_String.h>
+#include <UT/UT_Set.h>
 #include "ROP_FBXHeaderWrapper.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
@@ -51,7 +52,6 @@ namespace GA_PrimCompat { class TypeMask; }
 class UT_Interrupt;
 class SOP_Node;
 class OP_Node;
-class UT_Set;
 
 /********************************************************************************************************/
 enum ROP_FBXAttributeType
