@@ -86,6 +86,8 @@ static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
 static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
 static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of Export Time");
+static PRM_Name		forceBlendShape("forceblendshape", "Force Blend Shape Export");
+static PRM_Name		forceSkinDeform("forceskindeform", "Force Skin Deform Export");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
@@ -94,6 +96,8 @@ static PRM_Default	detectConstPointObjsDefault(1);
 static PRM_Default	deformsAsVcsDefault(0);
 static PRM_Default	convertSurfacesDefault(0);
 static PRM_Default	conserveMemDefault(0);
+static PRM_Default	forceBlendShapeDefault(0);
+static PRM_Default	forceSkinDeformDefault(0);
 static PRM_Default	polyLODDefault(1.0);
 static PRM_Default	startNodeDefault(0, "/obj");
 static PRM_Default	sopOutputDefault(0, "$HIP/out.fbx");
@@ -121,6 +125,8 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE,  1, &convertSurfacesName, &convertSurfacesDefault, NULL),
     PRM_Template(PRM_STRING,  PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName, 0, &skdVersionsMenu),
     PRM_Template(PRM_TOGGLE,  1, &conserveMem, &conserveMemDefault, NULL),
+    PRM_Template(PRM_TOGGLE,  1, &forceBlendShape, &forceBlendShapeDefault, NULL),
+    PRM_Template(PRM_TOGGLE,  1, &forceSkinDeform, &forceSkinDeformDefault, NULL),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -160,6 +166,8 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_CONVERTSURFACES] = geoTemplates[8];
     theTemplate[ROP_FBX_CONSERVEMEM] = geoTemplates[10];
     theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[5];
+    theTemplate[ROP_FBX_FORCEBLENDSHAPE] = geoTemplates[11];
+    theTemplate[ROP_FBX_FORCESKINDEFORM] = geoTemplates[12];
 
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
     theTemplate[ROP_FBX_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
@@ -283,6 +291,8 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setDetectConstantPointCountObjects(DETECTCONSTOBJS());
     export_options.setExportDeformsAsVC(DEFORMSASVCS());
     export_options.setSaveMemory(CONSERVEMEM());    
+    export_options.setForceBlendShapeExport(FORCEBLENDSHAPE());
+    export_options.setForceSkinDeformExport(FORCESKINDEFORM());
     export_options.setStartNodePath((const char*)str_start_node, true);
     export_options.setConvertSurfaces(CONVERTSURFACES());
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);

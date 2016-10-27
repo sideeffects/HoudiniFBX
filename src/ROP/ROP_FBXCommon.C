@@ -51,6 +51,8 @@ ROP_FBXExportOptions::reset(void)
     myBundleNames = "";
 
     mySaveMemory = false;
+    myForceBlendShapeExport = false;
+    myForceSkinDeformExport = false;
 }
 /********************************************************************************************************/
 void 
@@ -63,6 +65,30 @@ bool
 ROP_FBXExportOptions::getSaveMemory(void)
 {
     return mySaveMemory;
+}
+/********************************************************************************************************/
+void
+ROP_FBXExportOptions::setForceBlendShapeExport(bool value)
+{
+    myForceBlendShapeExport = value;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXExportOptions::getForceBlendShapeExport(void)
+{
+    return myForceBlendShapeExport;
+}
+/********************************************************************************************************/
+void
+ROP_FBXExportOptions::setForceSkinDeformExport(bool value)
+{
+    myForceSkinDeformExport = value;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXExportOptions::getForceSkinDeformExport(void)
+{
+    return myForceSkinDeformExport;
 }
 /********************************************************************************************************/
 bool 

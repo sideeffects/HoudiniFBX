@@ -84,6 +84,10 @@ public:
     void setTraveledInputIndex(int index);
     int getTraveledInputIndex(void);
 
+    void addBlendShapeNode(OP_Node* node);
+    int getBlendShapeNodeCount() const;
+    OP_Node* getBlendShapeNodeAt(const int& index);
+
 private:
 
     OP_Node* myHdNode;
@@ -98,6 +102,8 @@ private:
     int mySourcePrim;
     // Index on myHdNode through which we're visiting. -1 if none.
     int myTraveledInputIndex;
+
+    std::vector<OP_Node*> myBlendShapeNodes;
 };
 
 typedef std::multimap < OP_Node*, ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfos;

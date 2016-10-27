@@ -155,6 +155,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	node_info_in->setVertexCacheMethod(stored_node_info_ptr->getVertexCacheMethod());
 	node_info_in->setIsSurfacesOnly(stored_node_info_ptr->getIsSurfacesOnly());
 	node_info_in->setSourcePrimitive(stored_node_info_ptr->getSourcePrimitive());
+	for(int curr_blend_index = 0; curr_blend_index < stored_node_info_ptr->getBlendShapeNodeCount(); curr_blend_index++)
+	    node_info_in->addBlendShapeNode(stored_node_info_ptr->getBlendShapeNodeAt(curr_blend_index));
 
 	const fpreal t = myParentExporter->getStartTime();
 	if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
@@ -166,7 +168,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	UT_String node_type = node->getOperator()->getName();
 	if(node_type == "geo" || node_type == "instance")
 	{
-	    // For geometry, check if we have a dopimport SOP in the chain.
+	    // For geometry, check if we have a dopimport SOP in the chain...
 	    if(node_info_in->getMaxObjectPoints() > 0)
 	    {
 #ifdef UT_DEBUG
@@ -184,6 +186,22 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		vc_end_time = clock();
 		ROP_FBXdb_vcacheExportTime += (vc_end_time - vc_start_time);
 #endif
+	    }
+
+	    // ... or if we have blend shapes
+	    for (int curr_blend_node_index = 0; curr_blend_node_index < node_info_in->getBlendShapeNodeCount(); curr_blend_node_index++)
+	    {
+		OP_Node* curr_blend_node = node_info_in->getBlendShapeNodeAt(curr_blend_node_index);
+		if (!curr_blend_node)
+		    continue;
+
+		if (exportBlendShapeAnimation(curr_blend_node, fbx_node))
+		    continue;
+
+		TFbxNodeInfoVector blend_fbx_nodes;
+		myNodeManager->findNodeInfos(curr_blend_node, blend_fbx_nodes);
+		for (int info_index = 0; info_index < blend_fbx_nodes.size(); info_index++)
+		    exportBlendShapeAnimation(curr_blend_node, blend_fbx_nodes[info_index]->getFbxNode());
 	    }
 	}
 	else if(ROPfbxIsLightNodeType(node_type))
@@ -222,7 +240,6 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		exportChannel(curr_anim_curve, node, "focal", 0);
 	    }
 	}
-
 
 	// Export visibility channel
 	if (obj_node && obj_node->isDisplayTimeDependent())
@@ -445,16 +462,27 @@ ROP_FBXAnimVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor)
+ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor, const int& param_inst)
 {
     if(!fbx_anim_curve || !source_node || !parm_name)
 	return;
 
     CH_Channel  *ch;
-    PRM_Parm    *parm;
+    PRM_Parm    *parm;    
 
-    // Get parameter.
-    parm = source_node->getParmList()->getParmPtr(parm_name);
+    if (param_inst < 0)
+    {
+	// Get parameter.
+	//PRM_Name* parm_name = new PRM_Name(parm_name);
+	parm = source_node->getParmList()->getParmPtr(parm_name);
+    }	
+    else
+    {
+	// Get the instanced parameter
+	parm = source_node->getParmList()->getParmPtrInst(parm_name, &param_inst, 1);
+    }
+	
+
     if (!parm)
 	return;
 
@@ -524,7 +552,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	PRM_Parm* temp_parm_ptr = NULL;
 	if(use_override)
 	    temp_parm_ptr = parm;
-	outputResampled(fbx_anim_curve, ch, 0, tmp_array.size()-1, tmp_array, false, temp_parm_ptr, parm_idx);
+	outputResampled(fbx_anim_curve, ch, 0, tmp_array.size()-1, tmp_array, false, temp_parm_ptr, parm_idx, scale_factor);
     }
     else
     {
@@ -657,7 +685,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 			int next_frame_idx = curr_frame + 1;
 			if(next_frame_idx >= num_frames)
 			    next_frame_idx = curr_frame;
-			outputResampled(fbx_anim_curve, ch, curr_frame, next_frame_idx, tmp_array, true, parm, parm_idx);
+			outputResampled(fbx_anim_curve, ch, curr_frame, next_frame_idx, tmp_array, true, parm, parm_idx, scale_factor);
 		    }
 		}
     	
@@ -672,7 +700,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx)
+ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx, double scale_factor)
 {
     UT_ASSERT(start_array_idx <= end_array_idx);
     if(end_array_idx < start_array_idx)
@@ -724,6 +752,9 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 		    fbx_key_idx = fbx_curve->KeyInsert(fbx_time, &opt_idx);
 		else
 		    fbx_key_idx = fbx_curve->KeyAdd(fbx_time, &opt_idx);
+
+		key_val *= scale_factor;
+
 		fbx_curve->KeySetInterpolation(fbx_key_idx, FbxAnimCurveDef::eInterpolationLinear);
 		fbx_curve->KeySetValue(fbx_key_idx, key_val);
 	    }
@@ -1385,6 +1416,41 @@ ROP_FBXAnimVisitor::lookupExactPointCount(OP_Node *node, fpreal time, int select
     }
 
     return -1;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXAnimVisitor::exportBlendShapeAnimation(OP_Node* blend_shape_node, FbxNode* fbx_node)
+{
+    if ( !blend_shape_node || !fbx_node)
+	return false;
+
+    if ( blend_shape_node->getOperator()->getName() != "blendshapes" )
+	return false;
+
+    FbxGeometry* fbx_geo = fbx_node->GetGeometry();
+    if ( !fbx_geo )
+	return false;
+
+    int num_deformer = fbx_geo->GetDeformerCount();
+    for ( int current_deformer = 0; current_deformer < num_deformer; current_deformer++ )
+    {
+	// We only handle blend_shape deformer for now.
+	FbxBlendShape* fbx_blend = FbxCast<FbxBlendShape>(fbx_geo->GetDeformer(current_deformer));
+	if (!fbx_blend)
+	    continue;
+
+	// export all the blendshape channel's animation curves.
+	int num_blendshape_channel = fbx_blend->GetBlendShapeChannelCount();
+	for ( int n = 0; n < num_blendshape_channel; n++ )
+	{
+	    FbxAnimCurve* curr_anim_curve = fbx_blend->GetBlendShapeChannel(n)->DeformPercent.GetCurve(myAnimLayer, NULL, true);
+
+	    // FBX uses percent for its BS values, so we need to use a scale factor here.
+	    exportChannel(curr_anim_curve, blend_shape_node, "blend#", 0, 100.0, (n + 1));
+	}
+    }
+
+    return true;
 }
 /********************************************************************************************************/
 // ROP_FBXAnimNodeVisitInfo

@@ -46,6 +46,7 @@ static const char* const ROP_FBXnetworkTypesToIgnore[] = { "geo", "bone", "null"
 static const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
 "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
 "attribpromote", "attribstringedit", "attribute", "cache", 0};
+
 /********************************************************************************************************/
 enum ROP_FBXVertexCacheExportFormatType
 {
@@ -170,6 +171,20 @@ public:
     /// less memory usage, but slower performance.
     bool getSaveMemory(void);
 
+    /// If true, blendshape nodes found in geometry nodes will always be exported, potentially loosing
+    /// informations doing so, as nodes modifying geometry after the blend shapes will be ignored.
+    void setForceBlendShapeExport(bool value);
+    /// If true, blendshape nodes found in geometry nodes will always be exported, potentially loosing
+    /// informations doing so, as nodes modifying geometry after the blend shapes will be ignored.
+    bool getForceBlendShapeExport(void);
+
+    /// If true, deform nodes found in geometry nodes will always be exported, potentially loosing
+    /// informations doing so, as nodes modifying geometry after the deform will be ignored.
+    void setForceSkinDeformExport(bool value);
+    /// If true, deform nodes found in geometry nodes will always be exported, potentially loosing
+    /// informations doing so, as nodes modifying geometry after the deform will be ignored.
+    bool getForceSkinDeformExport(void);
+
 private:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
@@ -225,6 +240,14 @@ private:
     /// If true, vertex cache frame snapshots will not be stored in memory, resulting in
     /// less memory usage, but slower performance.
     bool mySaveMemory;
+
+    /// If true, blendshape nodes found in geometry nodes will always be exported, potentially loosing
+    /// informations doing so, as nodes modifying geometry after the blend shapes will be ignored.
+    bool myForceBlendShapeExport;
+
+    /// If true, deform nodes found in geometry nodes will always be exported, potentially loosing
+    /// informations doing so, as nodes modifying geometry after the deform will be ignored.
+    bool myForceSkinDeformExport;
 };
 /********************************************************************************************************/
 #endif

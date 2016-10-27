@@ -28,6 +28,7 @@
 
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
+#include <SOP/SOP_Blendshapes.h>
 #include <SHOP/SHOP_Node.h>
 #include <SHOP/SHOP_Output.h>
 
@@ -393,14 +394,15 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     res_node_pair_info->setVisitResultType(res_type);
     res_node_pair_info->setSourcePrimitive(constr_info.getHdPrimitiveIndex());
     res_node_pair_info->setTraveledInputIndex(node_info->getTraveledInputIndex());
+    for (int curr_blend_index = 0; curr_blend_index < node_info->getBlendShapeNodeCount(); curr_blend_index++)
+	res_node_pair_info->addBlendShapeNode(node_info->getBlendShapeNodeAt(curr_blend_index));
 
     // Add it to the hierarchy
     if(!node_info->getIsVisitingFromInstance())
     {
 	fbx_parent_node->AddChild(new_node);
 	node_info->setFbxNode(new_node);
-    }	
-
+    }
 }
 /********************************************************************************************************/
 void
@@ -596,7 +598,6 @@ into account.
 
 - For all other objects, we need to break them apart...?
 */
-
 bool
 ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes)
 {
@@ -615,25 +616,27 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     bool temp_bool, found_particles;
     bool is_vertex_cacheable = false;
     OP_Node* skin_deform_node = NULL;
+    OP_Node* blend_shape_node = NULL;
 
     temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles);
     if(myParentExporter->getExportingAnimation() || found_particles)
 	is_vertex_cacheable = temp_bool;
 
-    int max_vc_verts = 0;
-    fpreal start_time = myParentExporter->getStartTime();
-    fpreal end_time = myParentExporter->getEndTime();
+    bool force_skin_deform = myParentExporter->getExportOptions()->getForceSkinDeformExport();
+    bool look_for_skin_deform_node = myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable;
+    if (!look_for_skin_deform_node && force_skin_deform)
+	look_for_skin_deform_node = true;
 
-    // For now, only export skinning if we're not vertex cacheable.
-    fpreal geom_export_time = start_time;
-    fpreal capture_frame = CHgetFrameFromTime(start_time);  
-
-    if(myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable)
+    if(look_for_skin_deform_node)
     {
 	// For now, only export skinning if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
 	const char *const skin_node_types[] = { "deform", 0};
 	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, ROP_FBXallowed_inbetween_node_types, &did_find_allowed_nodes_only);
+
+	// Forcing will ignore the other nodes that deforms the mesh
+	if (skin_deform_node && force_skin_deform)
+	    did_find_allowed_nodes_only = true;
 
 	if(!did_find_allowed_nodes_only && skin_deform_node)
 	{
@@ -644,69 +647,108 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
 	    // TODO: Set a flag here telling the vertex cache not to break up the mesh into individual triangles.
 	}
-	else if(skin_deform_node)
-	{
-	    // We're skinnable.
-	    // Find the capture frame.
-	    const char *const capt_skin_node_types[] = { "capture", 0};
-	    OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, NULL);
-	    if(capture_node)
-	    {
-		if(ROP_FBXUtil::getIntOPParm(capture_node, "usecaptpose") == false)
-		{
-		    capture_frame = ROP_FBXUtil::getFloatOPParm(capture_node, "captframe");
-		}	
-	    }
-
-	    geom_export_time = CHgetManager()->getTime(capture_frame);
-	    is_vertex_cacheable = false;
-	}
     }
 
-    // Check that we don't output skinning and vertex caching at the same time
-    UT_ASSERT( ! (skin_deform_node && is_vertex_cacheable));
+    bool blend_shapes_out_only = false;
+    bool force_blend_shape = myParentExporter->getExportOptions()->getForceBlendShapeExport();
+    bool look_for_blend_shape_node = myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable;//true;
+    if (!look_for_blend_shape_node && force_blend_shape)
+	look_for_blend_shape_node = true;
+
+    if (look_for_blend_shape_node)
+    {
+	// For now, only export blend shapes if we're not vertex cacheable.
+	bool did_find_allowed_nodes_only = false;
+	const char *const blend_node_types[] = { "blendshapes", 0 };
+
+	// We do allow more nodes before blend shapes than ROP_FBXallowed_inbetween_node_types:
+	// capture, captureoverride, deform and merge
+	const char * allowed_inbetween_node_types[] = { "null", "switch", "subnet", "attribcomposite",
+	    "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
+	    "attribpromote", "attribstringedit", "attribute", "cache",
+	    "capture", "captureoverride", "deform", "merge", 0 };
+	    //"fuse", "deformmuscle", 0 };
+
+	blend_shape_node = ROP_FBXUtil::findOpInput(rend_node, blend_node_types, true, allowed_inbetween_node_types, &did_find_allowed_nodes_only);
+	
+	// Forcing will ignore the other nodes that modifies the mesh
+	if ( blend_shape_node && force_blend_shape )
+	    did_find_allowed_nodes_only = true;
+
+	// We've found a blend_shape node, and there is no other nodes that modifies the mesh 
+	// between this node and the blend shape node, so exporting the blend shape is sufficient...
+	if (blend_shape_node &&  did_find_allowed_nodes_only)
+	    blend_shapes_out_only = true;
+    }
+
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
+
+    if (blend_shapes_out_only)
+    {
+	return outputBlendShapesNodesIn(rend_node, node_name, skin_deform_node, did_cancel_out, res_nodes, NULL, node_info);
+    }	
+
+    if (is_vertex_cacheable)
+    {
+	return outputSOPNodeWithVC(sop_node, node_name, node_info, v_cache_out, did_cancel_out, res_nodes);
+    }
+    else
+    {
+	v_cache_out = NULL;
+	return outputSOPNodeWithoutVC(sop_node, node_name, skin_deform_node, did_cancel_out, res_nodes);
+    }
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& node_name, ROP_FBXMainNodeVisitInfo* node_info, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes)
+{
+    if (!sop_node)
+	return false;
+
+    int max_vc_verts = 0;
+    fpreal start_time = myParentExporter->getStartTime();
+    fpreal end_time = myParentExporter->getEndTime();
+    fpreal geom_export_time = start_time;
+    fpreal capture_frame = CHgetFrameFromTime(start_time);
 
     // We need this here so that the number of points in the static geometry
     // matches the number of points in the vertex cache files. Otherwise Maya
     // crashes and burns.
     bool is_pure_surfaces = false;
-    if(is_vertex_cacheable)
-    {
 #ifdef UT_DEBUG
-	double max_vert_cnt_start, max_vert_cnt_end;
-	max_vert_cnt_start = clock();
+    double max_vert_cnt_start, max_vert_cnt_end;
+    max_vert_cnt_start = clock();
 #endif
-	v_cache_out = new ROP_FBXGDPCache();
-	v_cache_out->setSaveMemory(myParentExporter->getExportOptions()->getSaveMemory());
+    v_cache_out = new ROP_FBXGDPCache();
+    v_cache_out->setSaveMemory(myParentExporter->getExportOptions()->getSaveMemory());
 
-	OP_Node* node_to_use;
-	if(node_info->getIsVisitingFromInstance() && node_info->getParentInfo())
-	    node_to_use = node_info->getParentInfo()->getHdNode();
-	else
-	    node_to_use = sop_node;
-
-	max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(node_to_use, geom_export_time, end_time, 
-	    myParentExporter->getExportOptions()->getPolyConvertLOD(),
-	    myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(), 
-	    myParentExporter->getExportOptions()->getConvertSurfaces(),
-	    myBoss, v_cache_out, is_pure_surfaces);
-
-	if(max_vc_verts < 0)
-	{
-	    // The user cancelled.
-	    delete v_cache_out;
-	    did_cancel_out = true;
-	    return false;
-	}
-
-#ifdef UT_DEBUG
-	max_vert_cnt_end = clock();
-	ROP_FBXdb_maxVertsCountingTime += (max_vert_cnt_end - max_vert_cnt_start);
-#endif
-    }
+    OP_Node* node_to_use;
+    if (node_info->getIsVisitingFromInstance() && node_info->getParentInfo())
+	node_to_use = node_info->getParentInfo()->getHdNode();
     else
-	v_cache_out = NULL;
+	node_to_use = sop_node;
 
+    max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(node_to_use, geom_export_time, end_time,
+	myParentExporter->getExportOptions()->getPolyConvertLOD(),
+	myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(),
+	myParentExporter->getExportOptions()->getConvertSurfaces(),
+	myBoss, v_cache_out, is_pure_surfaces);
+
+    if (max_vc_verts < 0)
+    {
+	// The user cancelled.
+	delete v_cache_out;
+	did_cancel_out = true;
+	return false;
+    }
+
+#ifdef UT_DEBUG
+    max_vert_cnt_end = clock();
+    ROP_FBXdb_maxVertsCountingTime += (max_vert_cnt_end - max_vert_cnt_start);
+#endif
 
     GU_DetailHandle gdh;
     OP_Context	    context(geom_export_time);
@@ -715,41 +757,36 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     GU_DetailHandleAutoReadLock	 gdl(gdh);
     const GU_Detail		*gdp = gdl.getGdp();
-    if(!gdp)
+    if (!gdp)
 	return false;
 
     // See what types we have in our GDP
     GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
     FbxNodeAttribute *res_attr = NULL;
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
-
-    if(is_vertex_cacheable && v_cache_out && v_cache_out->getNumFrames() > 0)
+    if (v_cache_out && v_cache_out->getNumFrames() > 0)
     {
 	// We can only cache these:
 	// 1) Pure polygons;
 	// 2) Pure NURBS;
 	// 3) Pure Beziers;
 	// 4) Anything else, converted to polygons.
-	if((prim_type == GEO_PrimTypeCompat::GEOPRIMPOLY || prim_type == GEO_PrimTypeCompat::GEOPRIMMESH || prim_type == (GEO_PrimTypeCompat::GEOPRIMPOLY | GEO_PrimTypeCompat::GEOPRIMMESH)) && v_cache_out->getIsNumPointsConstant())
+	if ((prim_type == GEO_PrimTypeCompat::GEOPRIMPOLY || prim_type == GEO_PrimTypeCompat::GEOPRIMMESH || prim_type == (GEO_PrimTypeCompat::GEOPRIMPOLY | GEO_PrimTypeCompat::GEOPRIMMESH)) && v_cache_out->getIsNumPointsConstant())
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
 	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
-	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
+	    finalizeGeoNode(res_attr, NULL, capture_frame, -1, res_nodes);
 	}
-	else if(prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
+	else if (prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 	{
-	    UT_ASSERT(v_cache_out && is_vertex_cacheable);
-
 	    // Particles.
 	    // We cleverly create a square for each particle, then. Use the cache.
 	    GU_Detail *final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodParticles);
 	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
-	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
+	    finalizeGeoNode(res_attr, NULL, capture_frame, -1, res_nodes);
 	}
-	else if(is_pure_surfaces && v_cache_out->getIsNumPointsConstant())
+	else if (is_pure_surfaces && v_cache_out->getIsNumPointsConstant())
 	{
 	    // NURBS or Bezier surfaces
 	    //GU_Detail *final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
@@ -758,14 +795,14 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
 	    // Note: unfortunately, the order of these is important, and matters to the ROP_FBXAnimVisitor::fillVertexArray().
 	    int prim_cntr = -1;
-	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
-		outputNURBSSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
-	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
-		outputBezierSurfaces(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
-	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
-		outputBezierCurves(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
-	    if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
-		outputNURBSCurves(gdp, (const char*)node_name, skin_deform_node, capture_frame, res_nodes, &prim_cntr);
+	    if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
+		outputNURBSSurfaces(gdp, (const char*)node_name, NULL, capture_frame, res_nodes, &prim_cntr);
+	    if (prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
+		outputBezierSurfaces(gdp, (const char*)node_name, NULL, capture_frame, res_nodes, &prim_cntr);
+	    if (prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
+		outputBezierCurves(gdp, (const char*)node_name, NULL, capture_frame, res_nodes, &prim_cntr);
+	    if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
+		outputNURBSCurves(gdp, (const char*)node_name, NULL, capture_frame, res_nodes, &prim_cntr);
 	}
 	else // Mixed types
 	{
@@ -773,45 +810,86 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    GU_Detail *final_detail;
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
 	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
-	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());	    
-	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
+	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
+	    finalizeGeoNode(res_attr, NULL, capture_frame, -1, res_nodes);
 	}
     }
-    else if(!is_vertex_cacheable)
-    {
-	GU_Detail conv_gdp;
-	const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_type);
-
-	// No vertex caching. Output several separate nodes
-	if( prim_type & GEO_PrimTypeCompat::GEOPRIMPOLY )
-	{
-	    // There are polygons in this gdp. Output them.
-	    res_attr = outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
-	    finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
-
-	    // Try output any polylines, if they exist. Unlike Houdini, they're a separate type in FBX.
-	    // We ignore them in the about polygon function.
-	    outputPolylines(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	}
-	if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
-	    outputNURBSSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	if(prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
-	    outputNURBSCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
-	    outputBezierCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-	if(prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
-	    outputBezierSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
-    }
-
-    if(is_vertex_cacheable && v_cache_out && v_cache_out->getNumFrames() > 0)
+    
+    if ( v_cache_out && v_cache_out->getNumFrames() > 0 )
     {
 	// Cache this number so we don't painfully recompute it again when we get to
 	// vertex caching.
-	if(node_info->getVertexCacheMethod() == ROP_FBXVertexCacheMethodGeometryConstant)
+	if (node_info->getVertexCacheMethod() == ROP_FBXVertexCacheMethodGeometryConstant)
 	    node_info->setMaxObjectPoints(v_cache_out->getNumConstantPoints());
 	else
 	    node_info->setMaxObjectPoints(max_vc_verts);
     }
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String& node_name, OP_Node* skin_deform_node,
+					    bool& did_cancel_out, TFbxNodesVector& res_nodes)
+{
+    if (!sop_node)
+	return false;
+
+    fpreal geom_export_time = myParentExporter->getStartTime(); 
+    fpreal capture_frame = CHgetFrameFromTime(geom_export_time);
+    if (skin_deform_node)
+    {
+	// We're skinnable. Find the capture frame.
+	const char *const capt_skin_node_types[] = { "capture", 0 };
+	OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, NULL);
+	if (capture_node)
+	{
+	    if (ROP_FBXUtil::getIntOPParm(capture_node, "usecaptpose") == false)
+	    {
+		capture_frame = ROP_FBXUtil::getFloatOPParm(capture_node, "captframe");
+	    }
+	}
+
+	geom_export_time = CHgetManager()->getTime(capture_frame);
+    }
+    
+    GU_DetailHandle gdh;
+    OP_Context	    context(geom_export_time);
+    if (!ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
+	return false;
+
+    GU_DetailHandleAutoReadLock	 gdl(gdh);
+    const GU_Detail		*gdp = gdl.getGdp();
+    if (!gdp)
+	return false;
+
+    // See what types we have in our GDP
+    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
+
+    FbxNodeAttribute *res_attr = NULL;
+
+    GU_Detail conv_gdp;
+    const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_type);
+
+    // No vertex caching. Output several separate nodes
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMPOLY)
+    {
+	// There are polygons in this gdp. Output them.
+	res_attr = outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
+	finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
+
+	// Try output any polylines, if they exist. Unlike Houdini, they're a separate type in FBX.
+	// We ignore them in the about polygon function.
+	outputPolylines(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+    }
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
+	outputNURBSSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
+	outputNURBSCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
+	outputBezierCurves(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
+	outputBezierSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
 
     return true;
 }
@@ -3173,5 +3251,279 @@ void
 ROP_FBXMainNodeVisitInfo::setIsVisitingFromInstance(bool value)
 {
     myIsVisitingFromInstance = value;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes, UT_Set<OP_Node*> *already_visited, ROP_FBXMainNodeVisitInfo* node_info)
+{
+    did_cancel_out = false;
+
+    if (!node)
+	return false;
+
+    if(!already_visited)
+	already_visited = new UT_Set<OP_Node*>();
+
+    // Skip pass through nodes, marking as visited along the way
+    const fpreal now = CHgetEvalTime();
+    while (true)
+    {
+	already_visited->insert(node);
+	OP_Node* pass_through = node->getPassThroughNode(now);
+	if (!pass_through)
+	{
+	    if (node->getOperator()->getName() != "cache")
+		break;
+	    pass_through = node->getInput(0);
+	}
+	node = pass_through;
+    }
+
+    UT_String node_type = node->getOperator()->getName();
+    if (node_type == "blendshapes")
+	return outputBlendShapeNode(node, node_name, skin_deform_node, did_cancel_out, res_nodes, node_info);
+
+    // We'll be looking for the blend shape node in the current node's input
+    //bool did_find_allowed_nodes_only = false;
+    const char *const blend_node_types[] = { "blendshapes", 0 };
+    const char * allowed_inbetween_node_types[] = { "null", "switch", "subnet", "attribcomposite",
+	"attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
+	"attribpromote", "attribstringedit", "attribute", "cache", "capture", "captureoverride", "deform", 0 };
+
+    TFbxNodesVector current_res_nodes;
+    UT_Set<OP_Node*> *local_already_visited = new UT_Set<OP_Node *>(*already_visited);
+    for (int i = node->getConnectedInputIndex(-1); i >= 0; i = node->getConnectedInputIndex(i))
+    {
+	OP_Node* current_input = node->getInput(i);
+	if (!current_input)
+	    continue;
+
+	UT_String current_input_name(UT_String::ALWAYS_DEEP, current_input->getName());
+	myNodeManager->makeNameUnique(current_input_name);
+
+	bool found_allowed_only = false;
+	if (ROP_FBXUtil::findOpInput(current_input, blend_node_types, true, allowed_inbetween_node_types, &found_allowed_only, 0, local_already_visited))
+	{
+	    outputBlendShapesNodesIn(current_input, current_input_name, skin_deform_node, did_cancel_out, current_res_nodes, already_visited, node_info);
+	}	    
+	else if(node_type == "merge")
+	{
+	    // Handling merge node
+	    SOP_Node* current_input_sop = dynamic_cast<SOP_Node*>(current_input);
+	    if (!current_input_sop)
+		continue;
+
+	    outputSOPNodeWithoutVC(current_input_sop, current_input_name, skin_deform_node, did_cancel_out, current_res_nodes);
+	}	    
+    }
+
+    if (node_type == "merge")
+    {
+	// we need to merge the results from the inputs into a single FBXNode
+	FbxNode* merge_node = FbxNode::Create(mySDKManager, node_name);
+	for (int curr_node = 0; curr_node < current_res_nodes.size(); curr_node++)
+	{
+	    FbxNode* currentFbxNode = current_res_nodes[curr_node].getFbxNode();
+	    if (!currentFbxNode)
+		continue;
+
+	    merge_node->AddChild(currentFbxNode);
+	}
+
+	ROP_FBXConstructionInfo constr_info(merge_node);
+	res_nodes.push_back(constr_info);
+    }
+    else
+    {
+	//
+	for (int curr_node = 0; curr_node < current_res_nodes.size(); curr_node++)
+	{
+	    res_nodes.push_back(current_res_nodes[curr_node]);
+	}
+    }
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes, ROP_FBXMainNodeVisitInfo* node_info)
+{
+    did_cancel_out = false;
+
+    //SOP_Node* blend_shape_node = dynamic_cast<SOP_Node*>(node);
+    SOP_BlendShapes* blend_shape_node = dynamic_cast<SOP_BlendShapes*>(node);
+    if (!blend_shape_node)
+	return false;
+
+    //if (blend_shape_node->getOperator()->getName() != "blendshapes")
+    //	return false;
+
+    int num_blend_input = blend_shape_node->nInputs();
+    if (num_blend_input < 1)
+	return false;
+            
+    // The first input is the base mesh used for the blend shape
+    OP_Node* current_input_node = blend_shape_node->getInput(0);
+    SOP_Node* current_SOP_Node = dynamic_cast<SOP_Node*>(current_input_node);
+    if (!current_SOP_Node)
+	return false;
+
+    FbxBlendShape* fbx_blend_shape = FbxBlendShape::Create(mySDKManager, blend_shape_node->getName());
+    if (!fbx_blend_shape)
+	return false;
+
+    TFbxNodesVector current_fbx_res;
+    if(!outputSOPNodeWithoutVC(current_SOP_Node, node_name, skin_deform_node, did_cancel_out, current_fbx_res))
+	return false;
+
+    if (current_fbx_res.size() < 1)
+	return false;
+
+    FbxNode* fbx_node = current_fbx_res[0].getFbxNode();
+    if (!fbx_node)
+	return false;
+
+    FbxGeometry* fbx_geo = fbx_node->GetGeometry();
+    if (!fbx_geo)
+	return false;
+
+    // Add the blend shape deformer to input 0
+    fbx_geo->AddDeformer(fbx_blend_shape);
+
+    for (int n = 0; n < current_fbx_res.size(); n++)
+	res_nodes.push_back(current_fbx_res[n]);
+    
+
+    for (int current_input = 1; current_input < num_blend_input; current_input++)
+    {
+	current_input_node = blend_shape_node->getInput(current_input);
+	current_SOP_Node = dynamic_cast<SOP_Node*>(current_input_node);
+	if (!current_SOP_Node)
+	    continue;	
+
+	UT_String node_name(UT_String::ALWAYS_DEEP, current_SOP_Node->getName());
+	myNodeManager->makeNameUnique(node_name);
+
+	// Add a blend shape channel for this input
+	UT_String channel_name(node_name, UT_String::ALWAYS_DEEP);
+	channel_name += "_channel";
+	FbxBlendShapeChannel* blend_shape_channel = FbxBlendShapeChannel::Create(mySDKManager, (const char*)channel_name);
+	if (!blend_shape_channel)
+	    continue;
+	    
+	fbx_blend_shape->AddBlendShapeChannel(blend_shape_channel);
+
+	// Get current value
+	//float blend_value = 1.0f;// blend_shape_node->BLEND(current_input, 0);
+	float blend_value = blend_shape_node->evalFloatInst("blend#", &current_input, 0, 0);
+
+	if (current_SOP_Node->getOperator()->getName() == "sblend")
+	{
+	    // Each sequence blend input will be exported as an in-between
+	    outputSequenceBlendNode(current_SOP_Node, (const char*)node_name, blend_shape_channel, res_nodes);
+	}
+	else
+	{
+	    // Output the deformed meshes to shapes
+	    outputSOPNodeToShape(current_SOP_Node, (const char*)node_name, blend_shape_channel,100.0f, res_nodes);
+	}
+
+	// Setting the current shape value
+	FbxDouble blend_value_percent = blend_value * 100.0;
+	blend_shape_channel->DeformPercent.Set(blend_value_percent);
+    }
+
+    // Adding the blend shape node the construction info
+    if(node_info)
+	node_info->addBlendShapeNode(blend_shape_node);
+
+    // and adding the pair Houdini/FbxNode to the node manager
+    ROP_FBXMainNodeVisitInfo main_node_info(blend_shape_node);
+    myNodeManager->addNodePair(blend_shape_node, fbx_node, main_node_info);
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputSOPNodeToShape(SOP_Node* sop_node, const char* node_name, FbxBlendShapeChannel* fbx_blend_shape_channel, const float& blend_percent, TFbxNodesVector& res_nodes)
+{
+    if (!sop_node || !fbx_blend_shape_channel)
+	return false;
+
+    // Exporting the geometry from the current input node
+    fpreal geom_export_time = myParentExporter->getStartTime();
+
+    GU_DetailHandle gdh;
+    OP_Context	context(geom_export_time);
+    if (!ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
+	return false;
+
+    GU_DetailHandleAutoReadLock gdl(gdh);
+    const GU_Detail* gdp = gdl.getGdp();
+    if (!gdp)
+	return false;
+
+    // See what types we have in our GDP
+    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
+    FbxShape* fbx_shape = FbxShape::Create(mySDKManager, node_name);
+
+    if (!fbx_shape)
+	return false;
+
+    // Get the number of points
+    int num_points = gdp->getNumPoints();
+    fbx_shape->InitControlPoints(num_points);
+    FbxVector4* fbx_control_points = fbx_shape->GetControlPoints();
+
+    {
+	GA_Index curr_point(0);
+	GA_Offset ptoff;
+	GA_FOR_ALL_PTOFF(gdp, ptoff)
+	{
+	    UT_Vector4 pos = gdp->getPos4(ptoff);
+	    fbx_control_points[curr_point].Set(pos[0], pos[1], pos[2], pos[3]);
+	    curr_point++;
+	}
+    }
+
+    // Add the shape to the blend shape channel
+    fbx_blend_shape_channel->AddTargetShape(fbx_shape, blend_percent);
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputSequenceBlendNode(SOP_Node* seq_blend_node, const char* node_name, FbxBlendShapeChannel* fbx_blend_shape_channel, TFbxNodesVector& res_nodes)
+{
+    if (!seq_blend_node)
+	return false;
+
+    if (seq_blend_node->getOperator()->getName() != "sblend")
+	return false;
+
+    if (!fbx_blend_shape_channel)
+	return false;
+
+    OP_Node* current_input_node = NULL;
+    SOP_Node* current_SOP_Node = NULL;
+    int num_input = seq_blend_node->nInputs();
+    if (num_input < 1)
+	return false;
+
+    //UT_String sblend_name(UT_String::ALWAYS_DEEP, seq_blend_node->getName());   
+    for (int current_input = 0; current_input < num_input; current_input++)
+    {
+	current_input_node = seq_blend_node->getInput(current_input);
+	current_SOP_Node = dynamic_cast<SOP_Node*>(current_input_node);
+
+	if (!current_SOP_Node)
+	    continue;
+
+	// Output the deformed meshes to shapes
+	float current_blend_percent = ((float)(current_input + 1)) / (float)num_input * 100.0f;	
+	outputSOPNodeToShape(current_SOP_Node, (const char*)node_name, fbx_blend_shape_channel, current_blend_percent, res_nodes);
+    }
+
+    return true;
 }
 /********************************************************************************************************/

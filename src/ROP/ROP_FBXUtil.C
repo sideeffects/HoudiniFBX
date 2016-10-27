@@ -698,7 +698,7 @@ ROP_FBXUtil::findOpInput(OP_Node *op, const char * const find_op_types[], bool i
 	// for example, where particles are present.
 	if( op->getInput(i)) // && !op->isRefInput(i) )
 	{
-            child_did_find_allowed_types_only = false;
+            child_did_find_allowed_types_only = true;
 	    found = ROP_FBXUtil::findOpInput(op->getInput(i), find_op_types, true, allowed_node_types, &child_did_find_allowed_types_only, rec_level+1, already_visited);
 	    if(found && !child_did_find_allowed_types_only && did_find_allowed_only)
 		*did_find_allowed_only = false;
@@ -1106,7 +1106,7 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)
     mySourcePrim = -1;
     myIsSurfacesOnly = false;
     myTravelledIndex = -1;
-
+    
     myVisitResultType = ROP_FBXVisitorResultOk;
 }
 /********************************************************************************************************/
@@ -1249,6 +1249,25 @@ ROP_FBXNodeInfo::getSourcePrimitive(void)
 {
     return mySourcePrim;
 }
+/********************************************************************************************************/
+void ROP_FBXNodeInfo::addBlendShapeNode(OP_Node* node)
+{
+    myBlendShapeNodes.push_back(node);
+}
+/********************************************************************************************************/
+int ROP_FBXNodeInfo::getBlendShapeNodeCount() const
+{
+    return myBlendShapeNodes.size();
+}
+/********************************************************************************************************/
+OP_Node* ROP_FBXNodeInfo::getBlendShapeNodeAt(const int& index)
+{
+    if ((index >= 0) && (index < myBlendShapeNodes.size()))
+	return myBlendShapeNodes[index];
+
+    return NULL;
+}
+
 /********************************************************************************************************/
 // ROP_FBXGDPCached
 /********************************************************************************************************/

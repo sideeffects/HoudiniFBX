@@ -55,6 +55,8 @@ enum {
     ROP_FBX_CONVERTSURFACES,
     ROP_FBX_CONSERVEMEM,
     ROP_FBX_DEFORMSASVCS,
+    ROP_FBX_FORCEBLENDSHAPE,
+    ROP_FBX_FORCESKINDEFORM,
 
     ROP_FBX_TPRERENDER,
     ROP_FBX_PRERENDER,
@@ -133,6 +135,12 @@ private:
     { INT_PARM("deformsasvcs", 0, 0) }
 
     int CONSERVEMEM(void)
+    { INT_PARM("conservemem", 0, 0) }
+
+    int FORCEBLENDSHAPE(void)
+    { INT_PARM("conservemem", 0, 0) }
+
+    int FORCESKINDEFORM(void)
     { INT_PARM("conservemem", 0, 0) }
 
     int VCFORMAT(void)

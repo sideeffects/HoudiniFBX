@@ -156,6 +156,10 @@ public:
     void setTraveledInputIndex(int idx);
     int getTraveledInputIndex(void);
 
+    void addBlendShapeNode(OP_Node* node);
+    int getBlendShapeNodeCount() const;
+    OP_Node* getBlendShapeNodeAt(const int& index);
+
 private:
     FbxNode* myFbxNode;
 
@@ -174,9 +178,12 @@ private:
     int myTravelledIndex;
 
     int mySourcePrim;
+
+    std::vector<OP_Node*> myBlendShapeNodes;
 };
 typedef std::multimap < OP_Node* , ROP_FBXNodeInfo* > THDToNodeInfoMap;
 typedef std::map < FbxNode* , ROP_FBXNodeInfo* > TFbxToNodeInfoMap;
+typedef std::map < OP_Node*, FbxNode* > THdNodeToFbxNodeMap;
 typedef std::vector < ROP_FBXNodeInfo* > TFbxNodeInfoVector;
 typedef std::set < OP_Node* > THDNodeSet;
 /********************************************************************************************************/

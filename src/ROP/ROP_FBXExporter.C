@@ -424,7 +424,13 @@ ROP_FBXExporter::finishExport(void)
 	    return false;
 
 	// Export the scene.
-	UT_VERIFY(fbx_exporter->Export(myScene)); 
+	bool bSuccess = fbx_exporter->Export(myScene);
+	if (!bSuccess)
+	{
+	    UT_VERIFY(false);
+	    // Issue a warning and quit.
+	    myErrorManager->addError("FbxExporter::Initialize() failed. ", "Error returned: ", fbx_exporter->GetStatus().GetErrorString(), true);
+	}	
 
 	// Destroy the exporter.
 	fbx_exporter->Destroy();

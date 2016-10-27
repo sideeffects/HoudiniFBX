@@ -74,13 +74,15 @@ public:
 protected:
 
     void exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OBJ_Node* source_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info);
-    void exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0);
-    void outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx);
+    void exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_node, const char* parm_name, int parm_idx, double scale_factor = 1.0, const int& param_inst = -1);
+    void outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int start_array_idx, int end_array_idx, UT_FprealArray& time_array, bool do_insert, PRM_Parm* direct_eval_parm, int parm_idx, double scale_factor = 1.0);
 
     bool outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, const char* file_name, ROP_FBXBaseNodeVisitInfo* node_info_in, ROP_FBXNodeInfo* node_pair_info);
     FbxVertexCacheDeformer* addedVertexCacheDeformerToNode(FbxNode* fbx_node, const char* file_name);
     bool fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeVisitInfo* node_info_in, double* vert_array, int num_array_points, ROP_FBXNodeInfo* node_pair_info, fpreal frame_num);
     int lookupExactPointCount(OP_Node *node, fpreal time, int selected_prim_idx);
+
+    bool exportBlendShapeAnimation(OP_Node* blend_shape_node, FbxNode* fbx_node);
 private:
 
     ROP_FBXExporter* myParentExporter;

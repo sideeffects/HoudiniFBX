@@ -170,6 +170,8 @@ protected:
 
     void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
+    bool outputSOPNodeWithVC(SOP_Node* node, const UT_String& node_name, ROP_FBXMainNodeVisitInfo* node_info, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
+    bool outputSOPNodeWithoutVC(SOP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
     bool outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
     bool outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
@@ -212,6 +214,11 @@ protected:
     void setNURBSSurfaceInfo(FbxNurbsSurface *nurbs_surf_attr, const GU_PrimNURBSurf* hd_nurb);
     void setNURBSCurveInfo(FbxNurbsCurve* nurbs_curve_attr, const GU_PrimNURBCurve* hd_nurb);
     void setTrimRegionInfo(GD_TrimRegion* region, FbxTrimNurbsSurface *trim_nurbs_surf_attr, bool& have_fbx_region);
+
+    bool outputBlendShapesNodesIn(OP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes, UT_Set<OP_Node*> *already_visited, ROP_FBXMainNodeVisitInfo* node_info);
+    bool outputBlendShapeNode(OP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes, ROP_FBXMainNodeVisitInfo* node_info);
+    bool outputSOPNodeToShape(SOP_Node* node, const char* node_name, FbxBlendShapeChannel* fbx_blend_shape_channel, const float& blend_percent, TFbxNodesVector& res_nodes);
+    bool outputSequenceBlendNode(SOP_Node* seq_blend_node, const char* node_name, FbxBlendShapeChannel* fbx_blend_shape_channel, TFbxNodesVector& res_nodes);
 
 private:
 

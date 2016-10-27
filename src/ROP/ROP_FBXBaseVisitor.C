@@ -672,3 +672,20 @@ int ROP_FBXBaseNodeVisitInfo::getTraveledInputIndex(void)
     return myTraveledInputIndex;
 }
 /********************************************************************************************************/
+void ROP_FBXBaseNodeVisitInfo::addBlendShapeNode(OP_Node* node)
+{
+    myBlendShapeNodes.push_back(node);
+}
+/********************************************************************************************************/
+int ROP_FBXBaseNodeVisitInfo::getBlendShapeNodeCount() const
+{
+    return myBlendShapeNodes.size();
+}
+/********************************************************************************************************/
+OP_Node* ROP_FBXBaseNodeVisitInfo::getBlendShapeNodeAt(const int& index)
+{
+    if( ( index >= 0 ) && ( index < myBlendShapeNodes.size() ) )
+	return myBlendShapeNodes[index];
+    
+    return NULL;
+}
