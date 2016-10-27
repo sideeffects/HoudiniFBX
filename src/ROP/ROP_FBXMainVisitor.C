@@ -28,7 +28,7 @@
 
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
-#include <SOP/SOP_Blendshapes.h>
+#include <SOP/SOP_BlendShapes.h>
 #include <SHOP/SHOP_Node.h>
 #include <SHOP/SHOP_Output.h>
 
