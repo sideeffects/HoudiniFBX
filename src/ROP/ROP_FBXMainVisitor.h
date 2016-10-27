@@ -49,6 +49,9 @@ class GA_Attribute;
 class GA_ROAttributeRef;
 namespace GA_PrimCompat { class TypeMask; }
 class UT_Interrupt;
+class SOP_Node;
+class OP_Node;
+class UT_Set;
 
 /********************************************************************************************************/
 enum ROP_FBXAttributeType
