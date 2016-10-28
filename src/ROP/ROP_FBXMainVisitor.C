@@ -651,7 +651,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     bool blend_shapes_out_only = false;
     bool force_blend_shape = myParentExporter->getExportOptions()->getForceBlendShapeExport();
-    bool look_for_blend_shape_node = myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable;//true;
+    bool look_for_blend_shape_node = myParentExporter->getExportOptions()->getExportDeformsAsVC() == false;// && !is_vertex_cacheable;
     if (!look_for_blend_shape_node && force_blend_shape)
 	look_for_blend_shape_node = true;
 
