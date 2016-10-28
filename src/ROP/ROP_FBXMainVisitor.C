@@ -3464,7 +3464,6 @@ ROP_FBXMainVisitor::outputSOPNodeToShape(SOP_Node* sop_node, const char* node_na
 	return false;
 
     // See what types we have in our GDP
-    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
     FbxShape* fbx_shape = FbxShape::Create(mySDKManager, node_name);
 
     if (!fbx_shape)
