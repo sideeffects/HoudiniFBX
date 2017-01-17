@@ -48,7 +48,7 @@ ROP_FBXExporterWrapper::initializeExport(const char* output_name, fpreal tstart,
     else
     {
 	if(this->getErrorManager())
-	    this->getErrorManager()->addError("FBX Export is only supported in Houdini and Houdini FX versions.", true);
+	    this->getErrorManager()->addError("FBX Export is only supported in Houdini Core and Houdini FX versions.", true);
 	return false;
     }
 }
