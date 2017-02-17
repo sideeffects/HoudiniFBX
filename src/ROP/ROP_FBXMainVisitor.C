@@ -73,6 +73,26 @@ extern double ROP_FBXdb_maxVertsCountingTime;
 
 using namespace std;
 
+const char *const theBlendShapeNodeTypes[] =
+{
+    "blendshapes",
+    nullptr
+};
+
+#define CAPT_SKIN_NODE_TYPES "bonecapturebiharmonic", "captureproximity", "capture"
+
+// We do allow more nodes before blend shapes than ROP_FBXallowed_inbetween_node_types:
+// capture, captureoverride, deform and merge
+const char * theAllowedInBetweenNodeTypes[] =
+{
+    "null", "switch", "subnet", "attribcomposite",
+    "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
+    "attribpromote", "attribstringedit", "attribute", "cache",
+    CAPT_SKIN_NODE_TYPES, "captureoverride", "deform", "merge",
+    nullptr
+};
+
+
 /********************************************************************************************************/
 ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter) 
 : ROP_FBXBaseVisitor(parent_exporter->getExportOptions()->getInvisibleNodeExportMethod(), parent_exporter->getStartTime())
@@ -659,17 +679,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     {
 	// For now, only export blend shapes if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
-	const char *const blend_node_types[] = { "blendshapes", 0 };
 
-	// We do allow more nodes before blend shapes than ROP_FBXallowed_inbetween_node_types:
-	// capture, captureoverride, deform and merge
-	const char * allowed_inbetween_node_types[] = { "null", "switch", "subnet", "attribcomposite",
-	    "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
-	    "attribpromote", "attribstringedit", "attribute", "cache",
-	    "capture", "captureoverride", "deform", "merge", 0 };
-	    //"fuse", "deformmuscle", 0 };
-
-	blend_shape_node = ROP_FBXUtil::findOpInput(rend_node, blend_node_types, true, allowed_inbetween_node_types, &did_find_allowed_nodes_only);
+	blend_shape_node = ROP_FBXUtil::findOpInput(rend_node, theBlendShapeNodeTypes, true, theAllowedInBetweenNodeTypes, &did_find_allowed_nodes_only);
 	
 	// Forcing will ignore the other nodes that modifies the mesh
 	if ( blend_shape_node && force_blend_shape )
@@ -840,7 +851,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
     if (skin_deform_node)
     {
 	// We're skinnable. Find the capture frame.
-	const char *const capt_skin_node_types[] = { "capture", 0 };
+	const char *const capt_skin_node_types[] = { CAPT_SKIN_NODE_TYPES, nullptr };
 	OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, NULL);
 	if (capture_node)
 	{
@@ -3284,12 +3295,6 @@ ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& nod
 	return outputBlendShapeNode(node, node_name, skin_deform_node, did_cancel_out, res_nodes, node_info);
 
     // We'll be looking for the blend shape node in the current node's input
-    //bool did_find_allowed_nodes_only = false;
-    const char *const blend_node_types[] = { "blendshapes", 0 };
-    const char * allowed_inbetween_node_types[] = { "null", "switch", "subnet", "attribcomposite",
-	"attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
-	"attribpromote", "attribstringedit", "attribute", "cache", "capture", "captureoverride", "deform", 0 };
-
     TFbxNodesVector current_res_nodes;
     UT_Set<OP_Node*> *local_already_visited = new UT_Set<OP_Node *>(*already_visited);
     for (int i = node->getConnectedInputIndex(-1); i >= 0; i = node->getConnectedInputIndex(i))
@@ -3302,7 +3307,7 @@ ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& nod
 	myNodeManager->makeNameUnique(current_input_name);
 
 	bool found_allowed_only = false;
-	if (ROP_FBXUtil::findOpInput(current_input, blend_node_types, true, allowed_inbetween_node_types, &found_allowed_only, 0, local_already_visited))
+	if (ROP_FBXUtil::findOpInput(current_input, theBlendShapeNodeTypes, true, theAllowedInBetweenNodeTypes, &found_allowed_only, 0, local_already_visited))
 	{
 	    outputBlendShapesNodesIn(current_input, current_input_name, skin_deform_node, did_cancel_out, current_res_nodes, already_visited, node_info);
 	}	    
