@@ -783,6 +783,10 @@ ROP_FBXUtil::mapsToFBXTransform(fpreal t, OBJ_Node* node)
     if (!pretransform.isIdentity())
 	return false;
 
+    // Fail if a constraint is turned on.
+    if( node->getEvaluatedConstraints() )
+        return false;
+
     return true;
 }
 /********************************************************************************************************/
