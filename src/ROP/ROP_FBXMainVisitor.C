@@ -88,7 +88,7 @@ const char * theAllowedInBetweenNodeTypes[] =
     "null", "switch", "subnet", "attribcomposite",
     "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
     "attribpromote", "attribstringedit", "attribute", "cache",
-    CAPT_SKIN_NODE_TYPES, "captureoverride", "deform", "merge",
+    CAPT_SKIN_NODE_TYPES, "captureoverride", "deform", "merge", "stash",
     nullptr
 };
 

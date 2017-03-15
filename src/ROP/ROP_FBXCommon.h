@@ -45,7 +45,7 @@ static const char* const ROP_FBXnetworkTypesToIgnore[] = { "geo", "bone", "null"
 // These declare any node that does not modify the mesh, its vertices or points.
 static const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",
 "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient", 
-"attribpromote", "attribstringedit", "attribute", "cache", 0};
+"attribpromote", "attribstringedit", "attribute", "cache", "stash", nullptr};
 
 /********************************************************************************************************/
 enum ROP_FBXVertexCacheExportFormatType
