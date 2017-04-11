@@ -29,6 +29,7 @@
 #include <OBJ/OBJ_Node.h>
 #include <SOP/SOP_Node.h>
 #include <SOP/SOP_BlendShapes.h>
+#include <VOP/VOP_Node.h>
 #include <SHOP/SHOP_Node.h>
 #include <SHOP/SHOP_Output.h>
 
@@ -2959,8 +2960,12 @@ ROP_FBXMainVisitor::getSurfaceNodeFromMaterialNode(OP_Node* material_node)
     if(!material_node)
 	return NULL;
 
+    VOP_Node* material_vop_node = CAST_VOPNODE(material_node);
+    if( material_vop_node )
+	return material_vop_node;
+
     OP_Node* surface_node = NULL;
-    SHOP_Node* material_shop_node = dynamic_cast<SHOP_Node*>(material_node);
+    SHOP_Node* material_shop_node = CAST_SHOPNODE(material_node);
     if(!material_shop_node)
 	return NULL;
     SHOP_Output* output_node = dynamic_cast<SHOP_Output*>(material_shop_node->getOutputNode());
