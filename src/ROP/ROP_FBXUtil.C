@@ -560,11 +560,9 @@ ROP_FBXUtil::findTimeDependentNode(OP_Node *op, const char* const ignored_node_t
 
 	if(!found)
         {
-	    bool is_time_dependent = op->isTimeDependent(op_context);
-
-            // Found a time-dependent node. That's all we need.
-            if (is_time_dependent)
-                return true;
+	    // Ensure op is cooked for accurate timedep state
+	    op->cook(op_context);
+	    return op->isTimeDependent(op_context);
         }
     }
 
