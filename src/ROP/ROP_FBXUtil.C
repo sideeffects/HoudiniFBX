@@ -61,7 +61,7 @@ class ropFBX_AutoCookRender {
 public:
     ropFBX_AutoCookRender(OP_Node *sop)
     {
-	if (myObj = sop->getParent())
+	if ((myObj = sop->getParent()))
 	{
 	    myPrev = myObj->isCookingRender();
 	    myObj->setCookingRender(1);
