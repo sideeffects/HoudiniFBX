@@ -147,9 +147,14 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     TFbxNodesVector res_nodes;
     FbxNode* fbx_parent_node = NULL;
     if(node_info_in && node_info_in->getParentInfo() != NULL)
+    {
 	fbx_parent_node = node_info_in->getParentInfo()->getFbxNode();
+    }
     else
-	fbx_parent_node = myParentExporter->GetFBXRootNode(node);
+    {
+	fbx_parent_node = myParentExporter->getFBXRootNode(node,
+		myParentExporter->getExportOptions()->getCreateSubnetRoot());
+    }
 
     if(!fbx_parent_node)
 	return ROP_FBXVisitorResultSkipSubtreeAndSubnet;

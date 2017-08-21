@@ -109,6 +109,13 @@ public:
     /// network will be exported to the FBX file. Defaults to "/obj".
     const char* getStartNodePath(void);
 
+    /// Create an additional root when exporting subnets. Note that this "/"
+    /// and "/obj" start nodes will never be exported.
+    /// @{
+    void setCreateSubnetRoot(bool f) { myCreateSubnetRoot = f; }
+    bool getCreateSubnetRoot() const { return myCreateSubnetRoot; }
+    /// @}
+
     /// If true, the code will attempt to find those vertex cacheable objects which
     /// have a constant point count throughout the exported animation, and export them
     /// as "normal" vertex caches, without breaking them up and triangulating them.
@@ -213,6 +220,10 @@ private:
     /// The first network the to start exporting from. Everything (recursively) in this
     /// network will be exported to the FBX file. Defaults to "/obj".
     std::string myStartNodePath;
+
+    /// Create an additional root when exporting subnets. Note that this "/"
+    /// and "/obj" start nodes will never be exported.
+    bool myCreateSubnetRoot;
 
     /// Level of detail to use when converting various primitives to polygons.
     float myPolyConvertLOD;

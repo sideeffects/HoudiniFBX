@@ -65,7 +65,7 @@ public:
     bool getExportingAnimation(void);
 
     void queueStringToDeallocate(char* string_ptr);
-    FbxNode* GetFBXRootNode(OP_Node* asking_node);
+    FbxNode* getFBXRootNode(OP_Node* asking_node, bool create_subnet_root);
     UT_Interrupt* GetBoss(void);
 
     static void getVersions(TStringVector& versions_out);

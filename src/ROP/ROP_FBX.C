@@ -77,6 +77,7 @@ CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
 static PRM_Name		startNode("startnode", "Export");
+static PRM_Name		createSubnetRoot("createsubnetroot", "Create Root for Subnet");
 static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
 static PRM_Name		detectConstPointObjs("detectconstpointobjs", "Detect Constant Point Count Dynamic Objects");
 static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches");
@@ -116,6 +117,7 @@ static PRM_Template	 geoTemplates[] = {
 			      0, 0, &PRM_SpareData::fileChooserModeWrite),
     PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, &bundleMenu,
 							    0, 0, &ROPoutFbxBundlesList),
+    PRM_Template(PRM_TOGGLE,  1, &createSubnetRoot, PRMoneDefaults, NULL),
     PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
     PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
     PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
@@ -157,17 +159,18 @@ ROP_FBX::getTemplates()
 //    theTemplate[ROP_FBX_INITSIM] = theRopTemplates[ROP_IFD_INITSIM_TPLATE];
 
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
-    theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[2];
-    theTemplate[ROP_FBX_SDKVERSION] = geoTemplates[9];
-    theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[6];
-    theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[7];
-    theTemplate[ROP_FBX_POLYLOD] = geoTemplates[3];
-    theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = geoTemplates[4];
-    theTemplate[ROP_FBX_CONVERTSURFACES] = geoTemplates[8];
-    theTemplate[ROP_FBX_CONSERVEMEM] = geoTemplates[10];
-    theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[5];
-    theTemplate[ROP_FBX_FORCEBLENDSHAPE] = geoTemplates[11];
-    theTemplate[ROP_FBX_FORCESKINDEFORM] = geoTemplates[12];
+    theTemplate[ROP_FBX_CREATESUBNETROOT] = geoTemplates[2];
+    theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[3];
+    theTemplate[ROP_FBX_SDKVERSION] = geoTemplates[10];
+    theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[7];
+    theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[8];
+    theTemplate[ROP_FBX_POLYLOD] = geoTemplates[4];
+    theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = geoTemplates[5];
+    theTemplate[ROP_FBX_CONVERTSURFACES] = geoTemplates[9];
+    theTemplate[ROP_FBX_CONSERVEMEM] = geoTemplates[11];
+    theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[6];
+    theTemplate[ROP_FBX_FORCEBLENDSHAPE] = geoTemplates[12];
+    theTemplate[ROP_FBX_FORCESKINDEFORM] = geoTemplates[13];
 
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
     theTemplate[ROP_FBX_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
@@ -269,6 +272,7 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 
     OUTPUT(mySavePath, tstart);
     STARTNODE(str_start_node);
+    bool create_subnet_root = CREATESUBNETROOT(tstart);
     SDKVERSION(str_sdk_version);
 
     if(str_start_node.length() <= 0)
@@ -294,6 +298,7 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setForceBlendShapeExport(FORCEBLENDSHAPE());
     export_options.setForceSkinDeformExport(FORCESKINDEFORM());
     export_options.setStartNodePath((const char*)str_start_node, true);
+    export_options.setCreateSubnetRoot(create_subnet_root);
     export_options.setConvertSurfaces(CONVERTSURFACES());
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;

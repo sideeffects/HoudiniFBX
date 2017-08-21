@@ -41,6 +41,7 @@ ROP_FBXExportOptions::reset(void)
     myExportInAscii = false;
     myVertexCacheFormat = ROP_FBXVertexCacheExportFormatMaya;
     myStartNodePath = "/obj";
+    myCreateSubnetRoot = true;
     myDetectConstantPointCountObjects = true;
     myPolyConvertLOD = 1.0;
     myExportDeformsAsVC = false;

@@ -46,6 +46,7 @@ enum {
 //    ROP_FBX_INITSIM,
 
     ROP_FBX_STARTNODE,
+    ROP_FBX_CREATESUBNETROOT,
     ROP_FBX_EXPORTASCII,
     ROP_FBX_SDKVERSION,
     ROP_FBX_VCFORMAT,
@@ -155,6 +156,8 @@ private:
     void SDKVERSION(UT_String& str)
     { STR_PARM("sdkversion",  0, 0); }
     
+    bool CREATESUBNETROOT(fpreal t) const
+    { INT_PARM("createsubnetroot", 0, t); }
 
     // Script commands
     void	PRERENDER(UT_String &str, fpreal t)

@@ -564,7 +564,7 @@ ROP_FBXExporter::deallocateQueuedStrings(void)
 }
 /********************************************************************************************************/
 FbxNode* 
-ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
+ROP_FBXExporter::getFBXRootNode(OP_Node* asking_node, bool create_subnet_root)
 {
     // If we are exporting one of the standard subnets, such as "/" or "/obj", etc., return the
     // fbx scene root. Otherwise, create a null node (if it's not created yet), and return that.
@@ -593,6 +593,9 @@ ROP_FBXExporter::GetFBXRootNode(OP_Node* asking_node)
 
     parent_net->getFullPath(export_path);
     if(export_path == "/")
+	return fbx_scene_root;
+
+    if (!create_subnet_root)
 	return fbx_scene_root;
 
     if(!myDummyRootNullNode)
