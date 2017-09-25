@@ -139,10 +139,10 @@ private:
     { INT_PARM("conservemem", 0, 0) }
 
     int FORCEBLENDSHAPE(void)
-    { INT_PARM("conservemem", 0, 0) }
+    { INT_PARM("forceblendshape", 0, 0) }
 
     int FORCESKINDEFORM(void)
-    { INT_PARM("conservemem", 0, 0) }
+    { INT_PARM("forceskindeform", 0, 0) }
 
     int VCFORMAT(void)
     { INT_PARM("vcformat", 0, 0) }
