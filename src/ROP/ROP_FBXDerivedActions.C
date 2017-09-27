@@ -30,6 +30,7 @@
 #include <OP/OP_Director.h>
 #include <SOP/SOP_Node.h>
 #include <SOP/SOP_Capture.h>
+#include <SOP/SOP_CaptureRegion.h>
 #include <GEO/GEO_CaptureData.h>
 
 using namespace std;
@@ -185,7 +186,12 @@ ROP_FBXSkinningAction::performAction(void)
 
 		if(!fbx_skin)
 		    fbx_skin = FbxSkin::Create(sdk_manager, "");
-		createSkinningInfo(cregion_parent_infos[0]->getFbxNode(), fbx_deformed_node, fbx_skin, cap_data, curr_region, capt_context);
+		createSkinningInfo(
+			cregion_parent_infos[0]->getFbxNode(),
+			fbx_deformed_node, fbx_skin,
+			cap_data, curr_region,
+			dynamic_cast<SOP_CaptureRegion*>(cregion_node),
+			capt_context);
 	    }
 	    else
 	    {
@@ -211,7 +217,10 @@ ROP_FBXSkinningAction::performAction(void)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_deformed_node,  FbxSkin* fbx_skin, GEO_CaptureData& cap_data, int region_idx, OP_Context& capt_context)
+ROP_FBXSkinningAction::createSkinningInfo(
+	FbxNode* fbx_joint_node, FbxNode* fbx_deformed_node,  FbxSkin* fbx_skin,
+	GEO_CaptureData& cap_data, int region_idx, SOP_CaptureRegion *cregion,
+	OP_Context& capt_context)
 {
     FbxManager *sdk_manager = getParentManager().getExporter().getSDKManager();
     FbxCluster *main_cluster = FbxCluster::Create(sdk_manager,"");
@@ -237,16 +246,12 @@ ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_
         }
     }
 
-
-
-    // Set transform matrices:
-    // transform - world matrx of the actual model being deformed?
-    // transformLink - world matrix of the actual cregion?
     ROP_FBXNodeInfo* node_info;
     OP_Node* hd_node;
     ROP_FBXNodeManager& node_manager = getParentManager().getNodeManager();
     UT_Matrix4D world_matrix;
 
+    // Set the world transform of the skin object at capture time
     node_info = node_manager.findNodeInfo(fbx_deformed_node);
     if(node_info)
     {
@@ -258,15 +263,48 @@ ROP_FBXSkinningAction::createSkinningInfo(FbxNode* fbx_joint_node, FbxNode* fbx_
 	xform_matrix = fbx_deformed_node->EvaluateGlobalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot);
     main_cluster->SetTransformMatrix(xform_matrix);
 
-    node_info = node_manager.findNodeInfo(fbx_joint_node);
-    if(node_info)
+    // Get the world transform of the link object at capture time
+    //
+    // In Houdini, skinning is done not just using the bone's world transform,
+    // but also using its cregion primitive transform as well, which is 
+    // different (in general) at capture time vs deform time.
+    // FBX on the other hand, only does skinning using joint transforms. When
+    // we export, we keep the joint transforms the same as the bone transforms
+    // for animation. So what we do here is fake the link's capture transform
+    // to absorb the deform cregion's transform, assuming that its not
+    // animated. If it's animated, then the export won't match exactly but
+    // we're willing to give that up because the deform cregion is rarely
+    // animated.
+    //
+    // In Houdini, we compute at Capture time:
+    //	    CRegionWorld = CRegionXform * CBoneWorld
+    // But then store its inverse within cap_data, ie:
+    //      cap_data.regionXform = CRegionWorld.Inverse
+    //                           = CBoneWorld.Inverse * CRegionXform.Inverse
+    // At Deform time, this is used to determine how much the bone's deform
+    // cregion moved relative to the bone's capture cregion:
+    //      DeltaXform = CRegionWorld.Inverse * DRegionXform * DBoneWorld
+    // On export we, set JointWorld = DBoneWorld, so:
+    //      DeltaXform = CRegionWorld.Inverse * DRegionXform * JointWorld
+    // Thus, we want,
+    //      JointCaptureWorld.Inverse = CRegionWorld.Inverse * DRegionXform
+    //      JointCaptureWorld = (CRegionWorld.Inverse * DRegionXform).Inverse
+    //
+    UT_Matrix4 dregion_xform(1.0); // identity
+    if (cregion)
     {
-	hd_node = node_info->getHdNode();
-	(void) hd_node->getWorldTransform(world_matrix, capt_context);
-	ROP_FBXUtil::convertHdMatrixToFbxMatrix<FbxAMatrix>(world_matrix, xform_matrix);
+	float bcap, tcap;
+	float taperx, taperz;
+	float iweight, oweight;
+	(void) cregion->getCaptureData(
+		    capt_context.getTime(), dregion_xform,
+		    bcap, tcap, taperx, taperz, iweight, oweight,
+		    /*capture*/false, /*depnode*/nullptr);
     }
-    else
-	xform_matrix = fbx_joint_node->EvaluateGlobalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot);
+    UT_Matrix4D joint_xform(cap_data.regionXform(region_idx));
+    joint_xform *= dregion_xform;
+    joint_xform.invert();
+    ROP_FBXUtil::convertHdMatrixToFbxMatrix(joint_xform, xform_matrix);
     main_cluster->SetTransformLinkMatrix(xform_matrix);
 
     // Add it to the cluster
