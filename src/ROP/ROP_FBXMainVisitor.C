@@ -868,6 +868,12 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
 	}
 
 	geom_export_time = CHgetManager()->getTime(capture_frame);
+
+	if (skin_deform_node->getInput(0))
+	{
+	    sop_node = CAST_SOPNODE(skin_deform_node->getInput(0));
+	    UT_ASSERT(sop_node);
+	}
     }
     
     GU_DetailHandle gdh;
