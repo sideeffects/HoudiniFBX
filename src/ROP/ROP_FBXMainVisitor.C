@@ -3214,7 +3214,7 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
     if(!gdp_orig)
 	return NULL;
 
-    const GU_Detail* final_detail;
+    const GU_Detail* final_detail = gdp_orig;
 
     // Convert the types we don't natively export.
     GA_PrimCompat::TypeMask supported_types = GEO_PrimTypeCompat::GEOPRIMPOLY | GEO_PrimTypeCompat::GEOPRIMNURBCURVE | GEO_PrimTypeCompat::GEOPRIMBEZCURVE;
@@ -3237,8 +3237,17 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
 
 	prim_types_in_out = ROP_FBXUtil::getGdpPrimId(final_detail);
     }
-    else
-	final_detail = gdp_orig;
+
+    // Don't export the boneCapture attribute since we regenerate this on import
+    if (final_detail->findPointCaptureAttribute(GEO_Detail::CAPTURE_BONE) != nullptr)
+    {
+	if (final_detail != &conversion_spare)
+	{
+	    conversion_spare.duplicate(*gdp_orig);
+	    final_detail = &conversion_spare;
+	}
+	conversion_spare.destroyPointCaptureAttribute(GEO_Detail::CAPTURE_BONE);
+    }
 
     return final_detail;
 }
