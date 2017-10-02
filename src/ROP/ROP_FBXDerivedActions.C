@@ -185,7 +185,19 @@ ROP_FBXSkinningAction::performAction(void)
 		// the bone. Or do we?
 
 		if(!fbx_skin)
+		{
 		    fbx_skin = FbxSkin::Create(sdk_manager, "");
+		    if (ROP_FBXUtil::getIntOPParm(myDeformNode, "usedqskin") == 0)
+		    {
+			fbx_skin->SetSkinningType(FbxSkin::eLinear);
+		    }
+		    else
+		    {
+			// TODO: Add support for FbxSkin::eBlend which is blend
+			//       of linear and dual quaternion
+			fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
+		    }
+		}
 		createSkinningInfo(
 			cregion_parent_infos[0]->getFbxNode(),
 			fbx_deformed_node, fbx_skin,
