@@ -21,7 +21,6 @@
 #define __ROP_FBXUtil_h__
 
 #include "ROP_FBXHeaderWrapper.h"
-#include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 #include "ROP_FBXMainVisitor.h"
@@ -55,7 +54,7 @@ class UT_String;
 class UT_XformOrder;
 
 /********************************************************************************************************/
-class ROP_API ROP_FBXUtil
+class ROP_FBXUtil
 {
 public:
 

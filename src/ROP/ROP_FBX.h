@@ -20,9 +20,8 @@
 #ifndef __ROP_FBX_h__
 #define __ROP_FBX_h__
 
-#include "ROP_API.h"
 #include <GU/GU_DetailHandle.h>
-#include "ROP_Node.h"
+#include <ROP/ROP_Node.h>
 
 #include "ROP_FBXExporterWrapper.h"
 
@@ -75,7 +74,8 @@ enum {
     ROP_FBX_MAXPARMS
 };
 
-class ROP_API ROP_FBX : public ROP_Node {
+class ROP_FBX : public ROP_Node
+{
 public:
     virtual bool		 updateParmsFlags();
 
@@ -104,6 +104,8 @@ public:
 					OP_NodeInfoParms &iparms);
     virtual void		 fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
 					const OP_NodeInfoTreeParms &parms);
+
+    SOP_Node *			 getSopNode() const;
 
 protected:
 	     ROP_FBX(OP_Network *net, const char *name, OP_Operator *op);

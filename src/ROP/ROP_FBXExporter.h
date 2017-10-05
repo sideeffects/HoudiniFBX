@@ -20,7 +20,6 @@
 #ifndef __ROP_FBXExporter_h__
 #define __ROP_FBXExporter_h__
 
-#include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 
 #include "ROP_FBXErrorManager.h"
@@ -40,7 +39,7 @@ typedef std::vector < char* > TCharPtrVector;
 /********************************************************************************************************/
 // Note: When adding public members, make sure to add an equivalent to dummy exporter for cases when FBX is
 // disabled.
-class ROP_API ROP_FBXExporter
+class ROP_FBXExporter
 {
 public:
     ROP_FBXExporter();

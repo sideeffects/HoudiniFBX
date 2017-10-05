@@ -33,7 +33,7 @@ enum ROP_FBXErrorType
     ROP_FBXErrorLights
 };
 /********************************************************************************************************/
-class ROP_API ROP_FBXError
+class ROP_FBXError
 {
 public:
     ROP_FBXError(const char* pMessage, bool bIsCritical, ROP_FBXErrorType eType);
@@ -50,7 +50,7 @@ private:
 };
 typedef std::vector<ROP_FBXError*> TROPErrorVector;
 /********************************************************************************************************/
-class ROP_API ROP_FBXErrorManager
+class ROP_FBXErrorManager
 {
 public:
     ROP_FBXErrorManager();

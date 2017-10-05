@@ -72,7 +72,7 @@ typedef std::map < std::string , FbxTexture* > THdFbxTextureMap;
 typedef std::vector < FbxLayerElementTexture* > TFbxLayerElemsVector;
 //typedef std::vector < FbxNode* > TFbxNodesVector;
 /********************************************************************************************************/
-class ROP_API ROP_FBXAttributeLayerManager
+class ROP_FBXAttributeLayerManager
 {
 public:
     ROP_FBXAttributeLayerManager(FbxLayerContainer* attr_node) 
@@ -104,7 +104,7 @@ private:
     FbxLayerContainer* myAttrNode;
 };
 /********************************************************************************************************/
-class ROP_API ROP_FBXMainNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
+class ROP_FBXMainNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
 {
 public:
     ROP_FBXMainNodeVisitInfo(OP_Node* hd_node);
@@ -148,7 +148,7 @@ private:
 };
 typedef std::vector < ROP_FBXConstructionInfo > TFbxNodesVector;
 /********************************************************************************************************/
-class ROP_API ROP_FBXMainVisitor : public ROP_FBXBaseVisitor
+class ROP_FBXMainVisitor : public ROP_FBXBaseVisitor
 {
 public:
     ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter);

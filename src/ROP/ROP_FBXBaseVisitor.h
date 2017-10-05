@@ -20,7 +20,6 @@
 #ifndef __ROP_FBXBaseVisitor_h__
 #define __ROP_FBXBaseVisitor_h__
 
-#include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXHeaderWrapper.h"
 
@@ -54,7 +53,7 @@ enum ROP_FBXNetNodesToVisitType
 /********************************************************************************************************/
 /// This is an object which gets pushed onto the stack when a node is entered,
 /// and gets automatically popped (and destroyed) when it is left.
-class ROP_API ROP_FBXBaseNodeVisitInfo
+class ROP_FBXBaseNodeVisitInfo
 {
 public:
     ROP_FBXBaseNodeVisitInfo(OP_Node* hd_node);
@@ -110,7 +109,7 @@ typedef std::multimap < OP_Node*, ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfo
 typedef std::vector < ROP_FBXBaseNodeVisitInfo* > TBaseNodeVisitInfoVector;
 typedef std::vector < OP_Node* > THDNodeVector;
 /********************************************************************************************************/
-class ROP_API ROP_FBXBaseVisitor
+class ROP_FBXBaseVisitor
 {
 public:
     ROP_FBXBaseVisitor(ROP_FBXInvisibleNodeExportType hidden_node_export_mode, fpreal start_time);

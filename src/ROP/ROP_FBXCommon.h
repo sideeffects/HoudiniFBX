@@ -23,7 +23,6 @@
 #include <string>
 #include <vector>
 
-#include "ROP_API.h"
 #include <SYS/SYS_Types.h>
 #include <UT/UT_String.h>
 
@@ -67,7 +66,7 @@ enum ROP_FBXInvisibleNodeExportType
     ROP_FBXInvisibleNodeExportFull
 };
 /********************************************************************************************************/
-class ROP_API ROP_FBXExportOptions
+class ROP_FBXExportOptions
 {
 public:
     ROP_FBXExportOptions();

@@ -37,10 +37,16 @@
 #include <OP/OP_Bundle.h>
 #include <OP/OP_BundleList.h>
 #include <OP/OP_NodeInfoParms.h>
-#include "ROP_Error.h"
-#include "ROP_Templates.h"
+#include <ROP/ROP_Error.h>
+#include <ROP/ROP_Templates.h>
+#include <UT/UT_DSOVersion.h>
 
 using namespace std;
+
+#if !defined(CUSTOM_FBX_TOKEN_PREFIX)
+#define CUSTOM_FBX_TOKEN_PREFIX ""
+#define CUSTOM_FBX_LABEL_PREFIX ""
+#endif
 
 static void
 buildBundleMenu(
@@ -49,6 +55,13 @@ buildBundleMenu(
 {
     OPgetDirector()->getBundles()->buildBundleMenu(menu, max,
 	spare ? spare->getValue("opfilter") : 0);
+}
+
+SOP_Node *
+ROP_FBX::getSopNode() const
+{
+    SOP_Node *sop = CAST_SOPNODE(getInput(0));
+    return sop;
 }
 
 PRM_SpareData		ROPoutFbxBundlesList(PRM_SpareArgs()
@@ -206,10 +219,15 @@ ROP_FBX::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 bool
 ROP_FBX::updateParmsFlags()
 {
+    bool issop = CAST_SOPNODE(getInput(0)) != NULL;
+
     bool	changed = ROP_Node::updateParmsFlags();
 
+    // Disable start_node if the node is a sop
+    changed |= enableParm("startnode", !issop);
+
     changed |= enableParm("deformsasvcs", DORANGE());
-   
+
     return changed;
 }
 
@@ -272,6 +290,11 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 
     OUTPUT(mySavePath, tstart);
     STARTNODE(str_start_node);
+
+    SOP_Node* sopNode = getSopNode();
+    if ( sopNode )
+	sopNode->getFullPath( str_start_node );
+
     bool create_subnet_root = CREATESUBNETROOT(tstart);
     SDKVERSION(str_sdk_version);
 
@@ -286,6 +309,11 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 	export_options.setVertexCacheFormat(ROP_FBXVertexCacheExportFormatMaya);
     else
 	export_options.setVertexCacheFormat(ROP_FBXVertexCacheExportFormat3DStudio);
+
+    UT_String str_take(UT_String::ALWAYS_DEEP);
+    RENDER_TAKE(str_take);
+    if (str_take.length() > 0)
+	export_options.setExportTakeName(str_take);
 
     export_options.setInvisibleNodeExportMethod((ROP_FBXInvisibleNodeExportType)((int)INVISOBJ()));
     export_options.setVersion(str_sdk_version);
@@ -483,3 +511,42 @@ ROP_FBX::fillInfoTreeNodeSpecific(UT_InfoTree &tree,
     branch->addProperties("Writes to", out);
 }
 
+void
+newDriverOperator(OP_OperatorTable *table)
+{
+    // FBX ROP
+    OP_Operator	*fbx_op = new OP_Operator(
+	CUSTOM_FBX_TOKEN_PREFIX "filmboxfbx",		// Internal name
+	CUSTOM_FBX_LABEL_PREFIX "Filmbox FBX",		// GUI name
+	ROP_FBX::myConstructor,
+	ROP_FBX::getTemplates(),
+	ROP_FBX::theChildTableName,
+	0, 9999,
+	ROP_Node::myVariableList,
+	OP_FLAG_UNORDERED | OP_FLAG_GENERATOR);
+    fbx_op->setIconName("ROP_fbx");
+    fbx_op->setObsoleteTemplates(ROP_FBX::getObsolete());
+    table->addOperator(fbx_op);
+
+/*
+    // FBX SOP ROP
+    OP_Operator	*fbx_sop = new OP_Operator(
+	CUSTOM_FBX_TOKEN_PREFIX "rop_fbx",
+	CUSTOM_FBX_LABEL_PREFIX "ROP FBX Output",
+	ROP_FBX::myConstructor,
+	ROP_FBX::getTemplates(),
+	ROP_FBX::theChildTableName,
+	0, 1,
+	ROP_Node::myVariableList,
+	OP_FLAG_GENERATOR | OP_FLAG_MANAGER);
+    fbx_sop->setIconName("ROP_fbx");
+    fbx_sop->setObsoleteTemplates(ROP_FBX::getObsolete());
+
+    // Note:  This is reliant on the order of operator table construction and
+    // may not be safe to do in all cases.
+    OP_OperatorTable	*soptable = OP_Network::getOperatorTable(
+	SOP_TABLE_NAME,
+	SOP_SCRIPT_NAME);
+    soptable->addOperator( fbx_sop );
+*/
+}

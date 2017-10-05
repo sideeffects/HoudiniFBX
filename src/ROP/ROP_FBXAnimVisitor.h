@@ -47,7 +47,7 @@ class UT_XformOrder;
 
 
 /********************************************************************************************************/
-class ROP_API ROP_FBXAnimNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
+class ROP_FBXAnimNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
 {
 public:
     ROP_FBXAnimNodeVisitInfo(OP_Node* hd_node);
@@ -57,7 +57,7 @@ private:
 
 };
 /********************************************************************************************************/
-class ROP_API ROP_FBXAnimVisitor : public ROP_FBXBaseVisitor
+class ROP_FBXAnimVisitor : public ROP_FBXBaseVisitor
 {
 public:
     ROP_FBXAnimVisitor(ROP_FBXExporter* parent_exporter);

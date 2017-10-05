@@ -20,7 +20,6 @@
 #ifndef __ROP_FBXExporterWrapper_h__
 #define __ROP_FBXExporterWrapper_h__
 
-#include "ROP_API.h"
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXErrorManager.h"
 
@@ -28,7 +27,7 @@
 
 class ROP_FBXExporter;
 /********************************************************************************************************/
-class ROP_API ROP_FBXExporterWrapper
+class ROP_FBXExporterWrapper
 {
 public:
     ROP_FBXExporterWrapper();
