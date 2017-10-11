@@ -191,6 +191,12 @@ public:
     /// informations doing so, as nodes modifying geometry after the deform will be ignored.
     bool getForceSkinDeformExport(void);
 
+    /// If true, Indicates that the export is being called from a SOP network
+    bool isSopExport(void);
+
+    /// If true, Indicates that the export is being called from a SOP network
+    void setSopExport(const bool& sopexport);
+
 private:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
@@ -258,6 +264,9 @@ private:
     /// If true, deform nodes found in geometry nodes will always be exported, potentially loosing
     /// informations doing so, as nodes modifying geometry after the deform will be ignored.
     bool myForceSkinDeformExport;
+
+    /// Indicates that the export is being called from a SOP network
+    bool mySopExport;
 };
 /********************************************************************************************************/
 #endif

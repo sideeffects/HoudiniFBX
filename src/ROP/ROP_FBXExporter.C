@@ -147,16 +147,14 @@ ROP_FBXExporter::doExport(void)
     if(myExportOptions.isExportingBundles())
     {
 	// Parse bundle names
-	//UT_String bundle_names(UT_String::ALWAYS_DEEP, myExportOptions.getBundlesString());
-
 	UT_String bundle_names(UT_String::ALWAYS_DEEP, myExportOptions.getBundlesString());
 
 	// Strip any '@' we might have
 	bundle_names.strip("@");
 
 	OP_Node* bundle_node;
-	OP_Bundle	    *bundle;
-	OP_BundleList   *bundles = OPgetDirector()->getBundles();
+	OP_Bundle *bundle;
+	OP_BundleList *bundles = OPgetDirector()->getBundles();
 	int bundle_idx, node_idx;
 
 	OP_Node* obj_net = OPgetDirector()->findNode("/obj");
@@ -168,7 +166,7 @@ ROP_FBXExporter::doExport(void)
 	    UT_ASSERT(bundle);
 	    if (!bundle)
 		continue;
-	    UT_String	     bundle_name(bundle->getName());
+	    UT_String bundle_name(bundle->getName());
 
 	    if (!bundle_name.multiMatch(bundle_names))
 		continue;

@@ -54,6 +54,7 @@ ROP_FBXExportOptions::reset(void)
     mySaveMemory = false;
     myForceBlendShapeExport = false;
     myForceSkinDeformExport = false;
+    mySopExport = false;
 }
 /********************************************************************************************************/
 void 
@@ -286,3 +287,15 @@ ROP_FBXExportOptions::isExportingBundles(void)
 	return false;
 }
 /********************************************************************************************************/
+bool
+ROP_FBXExportOptions::isSopExport(void)
+{
+    return mySopExport;
+}
+/********************************************************************************************************/
+void
+ROP_FBXExportOptions::setSopExport(const bool& sopexport)
+{
+    mySopExport = sopexport;
+}
+

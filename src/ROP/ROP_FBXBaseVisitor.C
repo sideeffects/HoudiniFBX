@@ -262,9 +262,11 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 
 	bool skip = false;
 	// Skip if it does not have object children and either not an object or
-	// an object that's been visited before
-	skip |= (test_net && test_net->getChildTypeID() != OBJ_OPTYPE_ID
-		 && (!test_net->castToOBJNode() || myAllVisitInfos.count(node) > 0));
+	// an object that's been visited before, unless its as SOP node..
+	skip |= !CAST_SOPNODE(node) &&
+	    ( test_net && test_net->getChildTypeID() != OBJ_OPTYPE_ID 
+		&& ( !test_net->castToOBJNode() || myAllVisitInfos.count(node) > 0 ) );
+
 	// Skip if it's an hidden node that's not visible and has no connections
 	skip |= (!node->getExpose() && !node->getVisible() && node->nConnectedInputs() == 0 && !node->hasAnyOutputNodes());
 
