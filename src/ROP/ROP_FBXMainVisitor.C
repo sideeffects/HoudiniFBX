@@ -163,16 +163,20 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXMainNodeVisitInfo *parent_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info_in->getParentInfo());
 
     // Determine which type of Houdini node this is
+    bool is_sop_export = myParentExporter->getExportOptions()->isSopExport();
+
     string lookat_parm_name("lookatpath");
     UT_String node_type = node->getOperator()->getName();
+    if (is_sop_export)
+	node_type = "geo";
 
     bool is_visible;
     fpreal start_time = myParentExporter->getStartTime();
     OBJ_Node *obj_node = node->castToOBJNode();
     if (obj_node)
 	is_visible = obj_node->getObjectDisplay(start_time);
-    else
-	is_visible = node->getVisible();
+    else 
+	is_visible = is_sop_export ? true : node->getVisible();
 
     bool force_exporting_as_null = false;
     if(myParentExporter->getExportOptions()->isExportingBundles() &&
@@ -193,8 +197,8 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    bool did_cancel;
 	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
 
-	    // We don't need to dive into the geo node
-	    res_type = ROP_FBXVisitorResultSkipSubnet;
+	    // We don't need to dive into the geo node, and if we're a SOP ROP, we dont need to keep exporting after this node
+	    res_type = is_sop_export ? ROP_FBXVisitorResultSkipSubtreeAndSubnet : ROP_FBXVisitorResultSkipSubnet;
 
 	    if(did_cancel)
 	    {
@@ -632,7 +636,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     OP_Network* op_net = dynamic_cast<OP_Network*>(node);
     if(!op_net)
 	return false;
-    OP_Node *rend_node = op_net->getRenderNodePtr();
+    OP_Node *rend_node = myParentExporter->getExportOptions()->isSopExport() ? node : op_net->getRenderNodePtr();
     if(!rend_node)
 	return false;
     SOP_Node* sop_node = dynamic_cast<SOP_Node*>(rend_node);
@@ -2579,6 +2583,10 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     SOP_Node* sop_node = NULL;
     if(net_disp_node)
 	sop_node = dynamic_cast<SOP_Node*>(net_disp_node);
+
+    if ( myParentExporter->getExportOptions()->isSopExport() )
+	sop_node = dynamic_cast<SOP_Node*>(source_node);
+
     if(sop_node)
     {
 	GU_DetailHandle gdh;

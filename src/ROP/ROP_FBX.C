@@ -223,9 +223,8 @@ ROP_FBX::updateParmsFlags()
 
     bool	changed = ROP_Node::updateParmsFlags();
 
-    // Disable start_node if the node is a sop
-    changed |= enableParm("startnode", !issop);
-
+    // Hide start_node if the node is a sop
+    changed |= setVisibleState("startnode", !issop);
     changed |= enableParm("deformsasvcs", DORANGE());
 
     return changed;
@@ -328,6 +327,10 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setStartNodePath((const char*)str_start_node, true);
     export_options.setCreateSubnetRoot(create_subnet_root);
     export_options.setConvertSurfaces(CONVERTSURFACES());
+
+    if (sopNode)
+	export_options.setSopExport(true);
+
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
 
@@ -528,7 +531,6 @@ newDriverOperator(OP_OperatorTable *table)
     fbx_op->setObsoleteTemplates(ROP_FBX::getObsolete());
     table->addOperator(fbx_op);
 
-/*
     // FBX SOP ROP
     OP_Operator	*fbx_sop = new OP_Operator(
 	CUSTOM_FBX_TOKEN_PREFIX "rop_fbx",
@@ -548,5 +550,4 @@ newDriverOperator(OP_OperatorTable *table)
 	SOP_TABLE_NAME,
 	SOP_SCRIPT_NAME);
     soptable->addOperator( fbx_sop );
-*/
 }
