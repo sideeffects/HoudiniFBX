@@ -648,7 +648,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     OP_Node* skin_deform_node = NULL;
     OP_Node* blend_shape_node = NULL;
 
-    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles);
+    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles, myParentExporter->getExportOptions()->isSopExport() );
     if(myParentExporter->getExportingAnimation() || found_particles)
 	is_vertex_cacheable = temp_bool;
 

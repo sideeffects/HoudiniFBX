@@ -136,6 +136,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXNodeInfo* stored_node_info_ptr;
     TFbxNodeInfoVector fbx_nodes;
 
+    bool is_sop_export = myParentExporter->getExportOptions()->isSopExport();
+
     myNodeManager->findNodeInfos(node, fbx_nodes);
     int curr_fbx_node, num_fbx_nodes = fbx_nodes.size();
     for(curr_fbx_node = 0; curr_fbx_node < num_fbx_nodes; curr_fbx_node++)
@@ -146,8 +148,8 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	res_type = stored_node_info_ptr->getVisitResultType();
 
 	// Skip non-objects, because we can't get transforms for them anyways
-	OBJ_Node* obj_node = node->castToOBJNode();
-	if (!obj_node)
+	OBJ_Node* obj_node = is_sop_export ? node->getCreator()->castToOBJNode() : node->castToOBJNode();
+	if ( !obj_node )
 	    continue;
 
 	FbxNode *fbx_node = stored_node_info_ptr->getFbxNode();
@@ -160,12 +162,15 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 	const fpreal t = myParentExporter->getStartTime();
 	if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
-	    exportTRSAnimation(obj_node, myAnimLayer, fbx_node);
+	    exportTRSAnimation(node, myAnimLayer, fbx_node);
 	else
-	    exportResampledAnimation(myAnimLayer, obj_node, fbx_node, node_info_in);
+	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in);
 
 	FbxAnimCurve* curr_anim_curve;
 	UT_String node_type = node->getOperator()->getName();
+	if ( is_sop_export )
+	    node_type = "geo";
+
 	if(node_type == "geo" || node_type == "instance")
 	{
 	    // For geometry, check if we have a dopimport SOP in the chain...
@@ -180,7 +185,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		if(node_type == "instance")
 		    vc_node = node;
 		else
-		    vc_node = geo_net->getRenderNodePtr();
+		    vc_node = is_sop_export ? node : geo_net->getRenderNodePtr();
 		outputVertexCache(fbx_node, vc_node, myOutputFileName.c_str(), node_info_in, stored_node_info_ptr);
 #ifdef UT_DEBUG
 		vc_end_time = clock();
@@ -262,7 +267,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportTRSAnimation(OBJ_Node* node, FbxAnimLayer* fbx_anim_layer, FbxNode* fbx_node)
+ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, FbxAnimLayer* fbx_anim_layer, FbxNode* fbx_node)
 {
     if(!node || !fbx_anim_layer)
 	return;
@@ -863,6 +868,9 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(FbxNode* fbx_node, const char
 bool 
 ROP_FBXAnimVisitor::outputVertexCache(FbxNode* fbx_node, OP_Node* geo_node, const char* file_name, ROP_FBXBaseNodeVisitInfo* node_info_in, ROP_FBXNodeInfo* node_pair_info)
 {
+    if ( !geo_node )
+	return false;
+
 //    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(geo_node);
 //    if(!sop_node)
 //	return false;
@@ -1198,7 +1206,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OBJ_Node* source_node, 
+ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, 
 					     FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
 {
     // Skip if it's not time dependent by cooking it. If there's errors, then just bail.
@@ -1218,7 +1226,15 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     // ROP_FBXUtil::setStandardTransforms() has already set the
     // transform order in an identical fashion.
     UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
-    xform_order.rotOrder(OP_Node::getRotOrder(source_node->XYZ(start_time)));
+
+    OBJ_Node* obj = CAST_OBJNODE(source_node);
+    if (!obj)
+	obj = CAST_OBJNODE(source_node->getCreator());
+
+    if (!obj)
+	return;
+
+    xform_order.rotOrder(OP_Node::getRotOrder(obj->XYZ(start_time)));
 
     // Get fbx curves
     const int num_trs_channels = 3;
