@@ -148,7 +148,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	res_type = stored_node_info_ptr->getVisitResultType();
 
 	// Skip non-objects, because we can't get transforms for them anyways
-	OBJ_Node* obj_node = is_sop_export ? node->getCreator()->castToOBJNode() : node->castToOBJNode();
+	OBJ_Node* obj_node = is_sop_export ? node->getParent()->castToOBJNode() : node->castToOBJNode();
 	if ( !obj_node )
 	    continue;
 
@@ -1229,7 +1229,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
 
     OBJ_Node* obj = CAST_OBJNODE(source_node);
     if (!obj)
-	obj = CAST_OBJNODE(source_node->getCreator());
+	obj = CAST_OBJNODE(source_node->getParent());
 
     if (!obj)
 	return;

@@ -198,7 +198,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
 
 	    // We don't need to dive into the geo node, and if we're a SOP ROP, we dont need to keep exporting after this node
-	    res_type = is_sop_export ? ROP_FBXVisitorResultSkipSubtreeAndSubnet : ROP_FBXVisitorResultSkipSubnet;
+	    res_type = ROP_FBXVisitorResultSkipSubnet;
 
 	    if(did_cancel)
 	    {
