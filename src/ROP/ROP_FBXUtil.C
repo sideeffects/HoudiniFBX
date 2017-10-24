@@ -277,9 +277,10 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fpreal ftime, bool& found_particles)
+ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fpreal ftime, bool& found_particles, bool is_sop_export)
 {
     OP_Node* dyn_node, *part_node;
+    OP_Node* render_node = is_sop_export ? op_net : op_net->getRenderNodePtr();
 
     const char *const dynamics_node_types[] = { "dopimport", "channel", 0};
     const char *const dynamics_node_types_with_deforms[] = { "dopimport", "channel", "file", "deform", 0};
@@ -288,7 +289,7 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fp
     found_particles = false;
 
     // First, look for particles
-    part_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), particle_node_types, true, NULL, NULL);
+    part_node = ROP_FBXUtil::findOpInput(render_node, particle_node_types, true, NULL, NULL);
     if(part_node)
     {
 	found_particles = true;
@@ -300,14 +301,14 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fp
 
     // Look for any time-dependent nodes in general.
     const char *const deform_node[] = { "deform", 0 };
-    if(ROP_FBXUtil::findTimeDependentNode(op_net->getRenderNodePtr(), ROP_FBXallowed_inbetween_node_types, ( include_deform_nodes ? NULL : deform_node ), ftime, true))
+    if(ROP_FBXUtil::findTimeDependentNode(render_node, ROP_FBXallowed_inbetween_node_types, ( include_deform_nodes ? NULL : deform_node ), ftime, true))
 	return true;
     
     // Then, if not found, look for other dynamic nodes
     if(include_deform_nodes)
-	dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types_with_deforms, true, NULL, NULL);
+	dyn_node = ROP_FBXUtil::findOpInput(render_node, dynamics_node_types_with_deforms, true, NULL, NULL);
     else
-	dyn_node = ROP_FBXUtil::findOpInput(op_net->getRenderNodePtr(), dynamics_node_types, true, NULL, NULL);
+	dyn_node = ROP_FBXUtil::findOpInput(render_node, dynamics_node_types, true, NULL, NULL);
 
     if(dyn_node)
 	return true;

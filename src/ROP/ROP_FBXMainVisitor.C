@@ -198,7 +198,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
 
 	    // We don't need to dive into the geo node, and if we're a SOP ROP, we dont need to keep exporting after this node
-	    res_type = is_sop_export ? ROP_FBXVisitorResultSkipSubtreeAndSubnet : ROP_FBXVisitorResultSkipSubnet;
+	    res_type = ROP_FBXVisitorResultSkipSubnet;
 
 	    if(did_cancel)
 	    {
@@ -648,7 +648,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     OP_Node* skin_deform_node = NULL;
     OP_Node* blend_shape_node = NULL;
 
-    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles);
+    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles, myParentExporter->getExportOptions()->isSopExport() );
     if(myParentExporter->getExportingAnimation() || found_particles)
 	is_vertex_cacheable = temp_bool;
 
