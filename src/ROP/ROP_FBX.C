@@ -169,7 +169,6 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_TAKE] = theRopTemplates[ROP_TAKENAME_TPLATE];
     theTemplate[ROP_FBX_SOPOUTPUT] = geoTemplates[0];
     theTemplate[ROP_FBX_MKPATH] = theRopTemplates[ROP_MKPATH_TPLATE];
-//    theTemplate[ROP_FBX_INITSIM] = theRopTemplates[ROP_IFD_INITSIM_TPLATE];
 
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
     theTemplate[ROP_FBX_CREATESUBNETROOT] = geoTemplates[2];
@@ -272,7 +271,6 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 {
     int			 rcode = 1;
 
-//    if (INITSIM())
     {
         initSimulationOPs();
 	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(1);
@@ -385,8 +383,7 @@ ROP_FBX::endRender()
 {
     myFBXExporter.finishExport();
 
-//    if (INITSIM())
-	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
+    OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
 
     if (error() < UT_ERROR_ABORT)
     {
