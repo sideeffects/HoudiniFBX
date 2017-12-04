@@ -57,6 +57,8 @@ class OP_Node;
 enum ROP_FBXAttributeType
 {
     ROP_FBXAttributeNormal = 0,
+    ROP_FBXAttributeTangent,
+    ROP_FBXAttributeBinormal,
     ROP_FBXAttributeUV,
     ROP_FBXAttributeVertexColor,
     ROP_FBXAttributeUser,

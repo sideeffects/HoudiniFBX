@@ -1590,6 +1590,10 @@ ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_nam
     // Now compare the base name against known standard names 
     if (GA_Names::N == base_name)
 	curr_type = ROP_FBXAttributeNormal;
+    else if (base_name == "tangentu")
+        curr_type = ROP_FBXAttributeTangent;
+    else if (base_name == "tangentv")
+        curr_type = ROP_FBXAttributeBinormal;
     else if (GA_Names::uv == base_name)
 	curr_type = ROP_FBXAttributeUV;
     else if (GA_Names::Cd == base_name)
@@ -1742,17 +1746,43 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttrib
 	ref_mode = FbxLayerElement::eDirect;
     
     FbxLayerElement* new_elem = NULL;
-    if(attr_type == ROP_FBXAttributeNormal)
+    if (attr_type == ROP_FBXAttributeNormal ||
+        attr_type == ROP_FBXAttributeTangent ||
+        attr_type == ROP_FBXAttributeBinormal)
     {
 	// Normals always have to be direct. Also for Maya.
 	ref_mode = FbxLayerElement::eDirect;
 
-	FbxLayerElementNormal* temp_layer = FbxLayerElementNormal::Create(layer_container, "");
-	//FbxLayerElementNormal* temp_layer = mySDKManager->CreateFbxLayerElementNormal("");
-	temp_layer->SetMappingMode(mapping_mode);
-	temp_layer->SetReferenceMode(ref_mode);
-	attr_layer->SetNormals(temp_layer);
-	new_elem = temp_layer;
+        FbxLayerElementTemplate<FbxVector4> *temp_layer;
+        if (attr_type == ROP_FBXAttributeNormal)
+        {
+            FbxLayerElementNormal* nml_layer = FbxLayerElementNormal::Create(layer_container, "");
+            //FbxLayerElementNormal* nml_layer = mySDKManager->CreateFbxLayerElementNormal("");
+            nml_layer->SetMappingMode(mapping_mode);
+            nml_layer->SetReferenceMode(ref_mode);
+            attr_layer->SetNormals(nml_layer);
+            temp_layer = nml_layer;
+        }
+        else if (attr_type == ROP_FBXAttributeTangent)
+        {
+            FbxLayerElementTangent* tan_layer = FbxLayerElementTangent::Create(layer_container, "");
+            //FbxLayerElementTangent* tan_layer = mySDKManager->CreateFbxLayerElementTangent("");
+            tan_layer->SetMappingMode(mapping_mode);
+            tan_layer->SetReferenceMode(ref_mode);
+            attr_layer->SetTangents(tan_layer);
+            temp_layer = tan_layer;
+        }
+        else
+        {
+            UT_ASSERT(attr_type == ROP_FBXAttributeBinormal);
+            FbxLayerElementBinormal* bin_layer = FbxLayerElementBinormal::Create(layer_container, "");
+            //FbxLayerElementBinormal* bin_layer = mySDKManager->CreateFbxLayerElementBinormal("");
+            bin_layer->SetMappingMode(mapping_mode);
+            bin_layer->SetReferenceMode(ref_mode);
+            attr_layer->SetBinormals(bin_layer);
+            temp_layer = bin_layer;
+        }
+        new_elem = temp_layer;
 
         GA_ROHandleV3 attrib(attr_offset);
         GA_ROHandleF extra_attrib(extra_attr_offset);
