@@ -250,6 +250,9 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
     }
 
     bool allow_visiting_children = (!is_network_visitable) || (needed_subnet_idx == NEEDED_INDEX_UNDEFINED) || (needed_subnet_idx == input_idx_on_this_node) || (needed_input_empty) || (input_idx_on_this_node < 0 && needed_subnet_idx == NEEDED_INDEX_IS_INTERNAL_NODE);
+    
+    if (CAST_SOPNODE(node))
+        allow_visiting_children = false;
 
 
     // If this is a subnet we got to through another node, don't create it here.
