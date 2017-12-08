@@ -527,7 +527,11 @@ newDriverOperator(OP_OperatorTable *table)
     fbx_op->setIconName("ROP_fbx");
     fbx_op->setObsoleteTemplates(ROP_FBX::getObsolete());
     table->addOperator(fbx_op);
+}
 
+void
+newSopOperator(OP_OperatorTable *table)
+{
     // FBX SOP ROP
     OP_Operator	*fbx_sop = new OP_Operator(
 	CUSTOM_FBX_TOKEN_PREFIX "rop_fbx",
@@ -540,11 +544,5 @@ newDriverOperator(OP_OperatorTable *table)
 	OP_FLAG_GENERATOR | OP_FLAG_MANAGER);
     fbx_sop->setIconName("ROP_fbx");
     fbx_sop->setObsoleteTemplates(ROP_FBX::getObsolete());
-
-    // Note:  This is reliant on the order of operator table construction and
-    // may not be safe to do in all cases.
-    OP_OperatorTable	*soptable = OP_Network::getOperatorTable(
-	SOP_TABLE_NAME,
-	SOP_SCRIPT_NAME);
-    soptable->addOperator( fbx_sop );
+    table->addOperator( fbx_sop );
 }
