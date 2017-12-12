@@ -316,6 +316,7 @@ ROP_FBXSkinningAction::createSkinningInfo(
     UT_Matrix4D joint_xform(cap_data.regionXform(region_idx));
     joint_xform *= dregion_xform;
     joint_xform.invert();
+    joint_xform *= world_matrix;
     ROP_FBXUtil::convertHdMatrixToFbxMatrix(joint_xform, xform_matrix);
     main_cluster->SetTransformLinkMatrix(xform_matrix);
 

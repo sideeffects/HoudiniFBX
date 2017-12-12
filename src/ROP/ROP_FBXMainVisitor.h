@@ -207,6 +207,8 @@ protected:
     FbxLayerElement* getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
 	const GU_Detail* gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset,  FbxLayerElement::EMappingMode mapping_mode, FbxLayerContainer* layer_container);
 
+    void setFbxNodeVisibility(FbxNode &node, OP_Node *hd_node, bool visible);
+
     void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, FbxNode* fbx_parent_node, 
 	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
 	ROP_FBXGDPCache *v_cache, bool is_visible);

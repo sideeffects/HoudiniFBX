@@ -336,6 +336,70 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 }
 /********************************************************************************************************/
 void
+ROP_FBXMainVisitor::setFbxNodeVisibility(
+	FbxNode &node, OP_Node *hd_node, bool visible)
+{
+    // As is often, we have 3 different models that we're trying to match here
+    // and none of them overlap completely. We do the best we can here by
+    // exporting as conservatively as possible.
+    //
+    // FBX:
+    // - Animatible Visibility property that is 0-1 float values
+    // - VisibilityInheritance property that says whether its Visibility flag
+    //   is ANDed with its parent node's effective visibility state
+    // - Non-animatible Show property that in practice is ANDed with its
+    //   effective visibility state after Visibility/VisibilityInheritance is
+    //   taken into account. In the documentation, they suggest that the latter
+    //   should take precedence if both properties exist. However, that's not
+    //   the case for FBX files output from Maya.
+    //
+    // Houdini:
+    // - Display flag on object, ANDed with an optional animatible display parm
+    // - Display state is further filtered by visibility masks on its parent
+    // - Ideally, we just map the effective visiblity state (possibly animated)
+    //   into the FBX Visiblity property and always turn off inheritance.
+    //
+    // Maya:
+    // - Both transform and shape nodes have their own Visibility attribute
+    //   and are animatible
+    // - Visibility inheritance ALWAYs occurs
+    // - Except, the transform nodes are parents of shape nodes as well and
+    //   shape nodes have no children.
+    // - Transform node Visibility attribute values are mapped onto the
+    //   FBX Visibility property with possible animation. Shape node Visibility
+    //   attribute is mapped to the FBX Show property because FBX doesn't have
+    //   the concept of child shape nodes. However, FBX forbids the Show
+    //   property from being animated (attempts to create channels on it will
+    //   fail). From testing, Maya is unable to export FBX files with animated
+    //   Visibility attributes on shape nodes.
+
+    // Turn off visibility inheritance as Houdini has no concept of this
+    node.VisibilityInheritance.Set(false);
+
+    // Map Houdini's effective visibility state to the FBX Show property as
+    // this is the only way in Maya to selectively toggle visibility of nodes
+    // in the scene graph without affecting child nodes (because Maya shape
+    // nodes (typically?) don't have children). This will usually be just the
+    // display flag. If the display state is animated, then we will export it
+    // into the Visibility property even though we know Maya will ignore it.
+    // Houdini will pick it up though. Note that the defaults for all three
+    // properties is 1.0/true.
+    OBJ_Node *obj_node = CAST_OBJNODE(hd_node);
+    if (obj_node && obj_node->isDisplayTimeDependent())
+    {
+	node.SetVisibility(visible);
+	myErrorManager->addError(
+	    "Exported time dependent display."
+	    " Will be ignored in Maya and Houdini with Create Nulls as Subnets. Node: ",
+	    node.GetName(), nullptr);
+    }
+    else
+    {
+	node.Show.Set(visible);
+    }
+}
+/********************************************************************************************************/
+void
 ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, FbxNode* fbx_parent_node, 
 		UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type,
 		ROP_FBXGDPCache *v_cache, bool is_visible)
@@ -361,8 +425,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     }
     else
     {
-	new_node->SetVisibility(is_visible);
-	new_node->VisibilityInheritance.Set(false);
+	setFbxNodeVisibility(*new_node, hd_node, is_visible);
 
 	OBJ_Node *obj_node = hd_node->castToOBJNode();
 	if (ROP_FBXUtil::mapsToFBXTransform(myStartTime, obj_node))
@@ -572,8 +635,7 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 	res_node->SetNodeAttribute(res_attr);
 	res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);
 
-	res_node->SetVisibility(last_node->getVisible());
-	res_node->VisibilityInheritance.Set(false);
+	setFbxNodeVisibility(*res_node, nullptr, last_node->getVisible());
 
 	// Pass in the bone-length here so that it gets placed at the end of the bone
 	ROP_FBXUtil::setStandardTransforms(NULL, res_node, last_node_info, cast_info->getBoneLength(), myStartTime);
