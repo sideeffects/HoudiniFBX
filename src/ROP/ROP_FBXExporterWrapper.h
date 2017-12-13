@@ -54,7 +54,6 @@ public:
     ROP_FBXErrorManager* getErrorManager(void);
 
     /// Returns true if FBX is supported in the current Houdini build, false otherwise.
-    static bool isSupported(void);
     static void getVersions(TStringVector& versions_out);
 
 private:
@@ -92,8 +91,6 @@ public:
     /// Retrieves the error manager for this wrapper.
     ROP_FBXErrorManager* getErrorManager(void) { return NULL; }
 
-    /// Returns true if FBX is supported in the current Houdini build, false otherwise.
-    static bool isSupported(void) { return false; }
     static void getVersions(TStringVector& versions_out) { }
 };
 
