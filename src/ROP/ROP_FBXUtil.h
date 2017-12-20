@@ -89,6 +89,8 @@ public:
     static bool isDummyBone(OP_Node* bone_node);
     static bool isJointNullNode(OP_Node* null_node);
 
+    static bool isLODGroupNullNode(OP_Node* null_node);
+
     template < class FBX_MATRIX >
     static void convertHdMatrixToFbxMatrix(const UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
     {

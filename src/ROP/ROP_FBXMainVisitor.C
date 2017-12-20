@@ -237,6 +237,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // Null node
 	    bool is_joint_null_node = ROP_FBXUtil::isJointNullNode(node);
 	    bool is_last_joint_node = (parent_info && parent_info->getBoneLength() > 0.0);
+	    bool is_lod_group_node = ROP_FBXUtil::isLODGroupNullNode(node);
 	    if(is_joint_null_node || is_last_joint_node)
 	    {
 		// This is really a joint. Export it as such.
@@ -245,6 +246,12 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 		if(!is_joint_null_node && is_last_joint_node)
 		    node_info->setBoneLength(0.0);
+	    }
+	    else if (is_lod_group_node)
+	    {
+		// This null is actually an LODGroup. Export it as such
+		outputLODGroupNode(node, node_info, fbx_parent_node, res_nodes);
+		res_type = ROP_FBXVisitorResultSkipSubnet;
 	    }
 	    else
 	    {
@@ -667,7 +674,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 	res_attr->SetSkeletonType(FbxSkeleton::eRoot);
     else
 	res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);
-   
+
     // Get the bone's length
     fpreal bone_length = 0.0;
     if(is_a_null)
@@ -2422,11 +2429,93 @@ ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     myNodeManager->makeNameUnique(node_name);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
+
     FbxNull *res_attr = FbxNull::Create(mySDKManager, (const char*)node_name);
     res_attr->Look.Set(as_cross ? FbxNull::eCross : FbxNull::eNone);
     res_node->SetNodeAttribute(res_attr);
 
     res_nodes.push_back(res_node);
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputLODGroupNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes)
+{
+    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
+    myNodeManager->makeNameUnique(node_name);
+
+    // Create a new node and add an LOD Group attribute to it
+    FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
+    FbxLODGroup *res_attr = FbxLODGroup::Create(mySDKManager, (const char*)node_name);
+
+    // All the LODGroup's info should have been stored as spare parameters by the importer
+    PRM_Parm *parm;
+    if (node->getParameterOrProperty("fbx_lod_min_max", 0, node, parm, true, NULL))
+    {
+	int32 value = -1;
+	parm->getValue(0, value, 0, SYSgetSTID());
+	res_attr->MinMaxDistance.Set(value ? true : false);
+    }
+
+    if (node->getParameterOrProperty("fbx_lod_min", 0, node, parm, true, NULL))
+    {
+	fpreal value;
+	parm->getValue(0, value, 0, SYSgetSTID());
+	res_attr->MinDistance.Set(value);
+    }
+
+    if (node->getParameterOrProperty("fbx_lod_max", 0, node, parm, true, NULL))
+    {
+	fpreal value;
+	parm->getValue(0, value, 0, SYSgetSTID());
+	res_attr->MaxDistance.Set(value);
+    }
+
+    if (node->getParameterOrProperty("fbx_lod_world_space", 0, node, parm, true, NULL))
+    {
+	int32 value = -1;
+	parm->getValue(0, value, 0, SYSgetSTID());
+	res_attr->WorldSpace.Set(value ? true : false);
+    }
+
+    int32 num_diplay_levels = -1;
+    if (node->getParameterOrProperty("fbx_lod_num_display_levels", 0, node, parm, true, NULL))
+	parm->getValue(0, num_diplay_levels, 0, SYSgetSTID());
+
+    if (node->getParameterOrProperty("fbx_lod_display_levels", 0, node, parm, true, NULL))
+    {
+	for (int n = 0; n < num_diplay_levels; n++)
+	{
+	    int value;
+	    parm->getValue(0, value, n, SYSgetSTID());
+
+	    if (value == 1)
+		res_attr->AddDisplayLevel(FbxLODGroup::EDisplayLevel::eShow);
+	    else if (value == 2)
+		res_attr->AddDisplayLevel(FbxLODGroup::EDisplayLevel::eHide);
+	    else
+		res_attr->AddDisplayLevel(FbxLODGroup::EDisplayLevel::eUseLOD);
+	}
+    }
+
+    int32 num_thresholds = -1;
+    if (node->getParameterOrProperty("fbx_lod_num_thresholds", 0, node, parm, true, NULL))
+	parm->getValue(0, num_thresholds, 0, SYSgetSTID());
+
+    if (node->getParameterOrProperty("fbx_lod_thresholds", 0, node, parm, true, NULL))
+    {
+	for (int n = 0; n < num_thresholds; n++)
+	{
+	    fpreal value;
+	    parm->getValue(0, value, n, SYSgetSTID());
+
+	    res_attr->AddThreshold(value);
+	}
+    }
+
+    res_node->SetNodeAttribute(res_attr);
+    res_nodes.push_back(res_node);
+
     return true;
 }
 /********************************************************************************************************/
