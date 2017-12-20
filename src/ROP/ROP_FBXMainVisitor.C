@@ -673,7 +673,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     if(is_root)
 	res_attr->SetSkeletonType(FbxSkeleton::eRoot);
     else
-	res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);
+	res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);//eLimb);
 
     // Get the bone's length
     fpreal bone_length = 0.0;
@@ -2514,12 +2514,15 @@ ROP_FBXMainVisitor::outputLODGroupNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* 
 	}
     }
 
-    if (node->getParameterOrProperty("fbx_lod_threshold_used_as_percentage", 0, node, parm, true, NULL))
+    /* 
+    // deactivated temporarily as the linux fbxsdk as issue with this...
+    if (node->getParameterOrProperty("fbx_threshold_used_as_percentage", 0, node, parm, true, NULL))
     {
 	int32 value = -1;
 	parm->getValue(0, value, 0, SYSgetSTID());
 	res_attr->ThresholdsUsedAsPercentage.Set(value ? true : false);
     }
+    */
     
     res_node->SetNodeAttribute(res_attr);
     res_nodes.push_back(res_node);
