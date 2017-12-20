@@ -943,6 +943,29 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
     return true;
 }
 /********************************************************************************************************/
+bool
+ROP_FBXUtil::isLODGroupNullNode(OP_Node* null_node)
+{
+    if (!null_node)
+	return false;
+
+    UT_String node_type = null_node->getOperator()->getName();
+    if (node_type != "null")
+	return false;
+
+    // See if we stored the node type as a spare parameter
+    PRM_Parm *parm;
+    UT_String strref = "";
+    if (null_node->getParameterOrProperty("fbx_node_attribute", 0, null_node, parm, true, NULL))
+	parm->getValue(0, strref, 0, false, SYSgetSTID());
+
+    if (strref.length() > 0)
+	if (strref.equal("LODGroup", false))
+	    return true;
+
+    return false;
+}
+/********************************************************************************************************/
 OP_Node* 
 ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
 {
