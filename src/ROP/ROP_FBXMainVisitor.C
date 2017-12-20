@@ -2509,10 +2509,18 @@ ROP_FBXMainVisitor::outputLODGroupNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* 
 	    fpreal value;
 	    parm->getValue(0, value, n, SYSgetSTID());
 
-	    res_attr->AddThreshold(value);
+	    FbxDistance value_as_distance((float)value, "");
+	    res_attr->AddThreshold(value_as_distance);
 	}
     }
 
+    if (node->getParameterOrProperty("fbx_lod_threshold_used_as_percentage", 0, node, parm, true, NULL))
+    {
+	int32 value = -1;
+	parm->getValue(0, value, 0, SYSgetSTID());
+	res_attr->ThresholdsUsedAsPercentage.Set(value ? true : false);
+    }
+    
     res_node->SetNodeAttribute(res_attr);
     res_nodes.push_back(res_node);
 
