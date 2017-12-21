@@ -216,6 +216,13 @@ ROP_FBXBaseVisitor::whichInputIs(OP_Node* source_node, int counter, OP_Node* tar
 
     return -1;
 }
+
+static int
+compareNodeName( const OP_Node * const *p1, const OP_Node* const * p2)
+{
+    return UT_String::compareNumberedString((*p1)->getName(), (*p2)->getName());
+};
+
 /********************************************************************************************************/
 ROP_FBXInternalVisitorResultType
 ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo* parent_info, int input_idx_on_this_node, int connection_count)
@@ -334,6 +341,23 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 	int input_idx_on_target_node, temp_counter;
 	OP_OutputIterator node_outputs(*node);
 	THdNodeIntMap node_inp_counters;
+
+	// If we're exporting LODs, we might want to order our children by name if they follow a naming convention,
+	// to ensure that the LODs are exported in the proper order
+	bool need_to_sort_children_node_for_lods = ROP_FBXUtil::isLODGroupNullNode(node);
+	if ( need_to_sort_children_node_for_lods )
+	{
+	    // If our children are called LODXXXX we  want to sort them by name
+	    // If one name doesnt follow the convention, do not sort
+	    for (auto &&child : OP_OutputIterator(*node))
+	    {
+		if (!child->getName().startsWith("LOD", false))
+		    need_to_sort_children_node_for_lods = false;
+	    }
+	}
+
+	if ( need_to_sort_children_node_for_lods )
+	    node_outputs.sort((OP_NodeList::Comparator)&compareNodeName);
 
 	ROP_FBXBaseNodeVisitInfo* parent_info_ptr = NULL;
 

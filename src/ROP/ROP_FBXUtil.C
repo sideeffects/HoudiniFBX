@@ -963,6 +963,10 @@ ROP_FBXUtil::isLODGroupNullNode(OP_Node* null_node)
 	if (strref.equal("LODGroup", false))
 	    return true;
 
+    // Also consider nodes named LODGroup
+    if ( null_node->getName().startsWith("LODGroup", false) )
+	return true;
+
     return false;
 }
 /********************************************************************************************************/
