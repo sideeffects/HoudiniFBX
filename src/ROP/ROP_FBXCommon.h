@@ -197,6 +197,12 @@ public:
     /// If true, Indicates that the export is being called from a SOP network
     void setSopExport(const bool& sopexport);
 
+    /// Indicates weither or not we want to export bones end effectors
+    bool getExportBonesEndEffectors(void);
+
+    /// Indicates weither or not we want to export bones end effectors
+    void setExportBonesEndEffectors(const bool& export_end_effectors);
+
 private:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
@@ -267,6 +273,9 @@ private:
 
     /// Indicates that the export is being called from a SOP network
     bool mySopExport;
+
+    /// Indicates weither or not we want to export bones end effectors
+    bool myExportBonesEndEffectors;
 };
 /********************************************************************************************************/
 #endif
