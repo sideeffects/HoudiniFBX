@@ -189,14 +189,17 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
 
     // HDA dont have a "geo" node_type, see if the node is a OBJ_Geo instead
+    bool consider_as_geo = false;
     OBJ_Geometry* geo_node = obj_node->castToOBJGeometry();
+    if (geo_node && (geo_node->getObjectType() == OBJ_GEOMETRY))
+	consider_as_geo = true;
 
     if(!force_exporting_as_null)
     if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
 	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient" )
     {
-	if(node_type == "geo" || geo_node)
+	if(node_type == "geo" || consider_as_geo)
 	{
 	    bool did_cancel;
 	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
