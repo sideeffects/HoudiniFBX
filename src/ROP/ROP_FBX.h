@@ -57,7 +57,6 @@ enum {
     ROP_FBX_DEFORMSASVCS,
     ROP_FBX_FORCEBLENDSHAPE,
     ROP_FBX_FORCESKINDEFORM,
-    ROP_FBX_EXPORTENDEFFECTORS,
 
     ROP_FBX_TPRERENDER,
     ROP_FBX_PRERENDER,
@@ -146,9 +145,6 @@ private:
 
     int FORCESKINDEFORM(void)
     { INT_PARM("forceskindeform", 0, 0) }
-
-    int EXPORTENDEFFECTORS(void)
-    { INT_PARM("exportendeffectors", 0, 0) }
 
     int VCFORMAT(void)
     { INT_PARM("vcformat", 0, 0) }

@@ -102,7 +102,6 @@ static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of Export Time");
 static PRM_Name		forceBlendShape("forceblendshape", "Force Blend Shape Export");
 static PRM_Name		forceSkinDeform("forceskindeform", "Force Skin Deform Export");
-static PRM_Name		exportEndEffectors("exportendeffectors", "Export End Effectors");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
@@ -116,7 +115,6 @@ static PRM_Default	forceSkinDeformDefault(0);
 static PRM_Default	polyLODDefault(1.0);
 static PRM_Default	startNodeDefault(0, "/obj");
 static PRM_Default	sopOutputDefault(0, "$HIP/out.fbx");
-static PRM_Default	exportEndEffectorsDefault(1);
 static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 					 &ROP_FBX::buildGeoSaveMenu);
 
@@ -144,7 +142,6 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE,  1, &conserveMem, &conserveMemDefault, NULL),
     PRM_Template(PRM_TOGGLE,  1, &forceBlendShape, &forceBlendShapeDefault, NULL),
     PRM_Template(PRM_TOGGLE,  1, &forceSkinDeform, &forceSkinDeformDefault, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &exportEndEffectors, &exportEndEffectorsDefault, NULL),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -186,7 +183,6 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[6];
     theTemplate[ROP_FBX_FORCEBLENDSHAPE] = geoTemplates[12];
     theTemplate[ROP_FBX_FORCESKINDEFORM] = geoTemplates[13];
-    theTemplate[ROP_FBX_EXPORTENDEFFECTORS] = geoTemplates[14];
 
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
     theTemplate[ROP_FBX_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
@@ -329,7 +325,6 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setStartNodePath((const char*)str_start_node, true);
     export_options.setCreateSubnetRoot(create_subnet_root);
     export_options.setConvertSurfaces(CONVERTSURFACES());
-    export_options.setExportBonesEndEffectors(EXPORTENDEFFECTORS());
 
     if (sopNode)
 	export_options.setSopExport(true);

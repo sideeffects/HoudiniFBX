@@ -91,8 +91,6 @@ public:
 
     static bool isLODGroupNullNode(OP_Node* null_node);
 
-    static bool outputCustomProperties(OP_Node* node, FbxNode* fbx_node);
-
     template < class FBX_MATRIX >
     static void convertHdMatrixToFbxMatrix(const UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
     {

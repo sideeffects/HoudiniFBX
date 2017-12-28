@@ -55,7 +55,6 @@ ROP_FBXExportOptions::reset(void)
     myForceBlendShapeExport = false;
     myForceSkinDeformExport = false;
     mySopExport = false;
-    myExportBonesEndEffectors = true;
 }
 /********************************************************************************************************/
 void 
@@ -299,16 +298,4 @@ ROP_FBXExportOptions::setSopExport(const bool& sopexport)
 {
     mySopExport = sopexport;
 }
-/********************************************************************************************************/
-bool
-ROP_FBXExportOptions::getExportBonesEndEffectors(void)
-{
-    return myExportBonesEndEffectors;
-}
-/********************************************************************************************************/
-void
-ROP_FBXExportOptions::setExportBonesEndEffectors(const bool& export_end_effectors)
-{
-    myExportBonesEndEffectors = export_end_effectors;
-}
-/********************************************************************************************************/
+

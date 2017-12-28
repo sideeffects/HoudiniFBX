@@ -27,7 +27,6 @@
 #include "ROP_FBXUtil.h"
 
 #include <OBJ/OBJ_Node.h>
-#include <OBJ/OBJ_Geometry.h>
 #include <SOP/SOP_Node.h>
 #include <SOP/SOP_BlendShapes.h>
 #include <VOP/VOP_Node.h>
@@ -188,18 +187,12 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     bool force_ignore_node = false;
     UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
 
-    // HDA dont have a "geo" node_type, see if the node is a OBJ_Geo instead
-    bool consider_as_geo = false;
-    OBJ_Geometry* geo_node = obj_node->castToOBJGeometry();
-    if (geo_node && (geo_node->getObjectType() == OBJ_GEOMETRY))
-	consider_as_geo = true;
-
     if(!force_exporting_as_null)
     if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
 	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient" )
     {
-	if(node_type == "geo" || consider_as_geo)
+	if(node_type == "geo")
 	{
 	    bool did_cancel;
 	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
@@ -510,9 +503,6 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	fbx_parent_node->AddChild(new_node);
 	node_info->setFbxNode(new_node);
     }
-
-    // Add custom FBX properties to the node
-    ROP_FBXUtil::outputCustomProperties(hd_node, new_node);
 }
 /********************************************************************************************************/
 void
@@ -637,13 +627,10 @@ ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNod
 void 
 ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info)
 {
-    // We have to check if our previous bone length is not zero. 
-    // If it isn't, that means we have an end effector to create.
+    // We have to check if our previous bone length is not zero. If it isn't, that means we
+    // have an end effector to create.
     ROP_FBXMainNodeVisitInfo* cast_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(last_node_info);
-    if (cast_info && cast_info->getBoneLength() > 0.0
-	&& ROP_FBXUtil::isDummyBone(last_node) == false
-	&& ROP_FBXUtil::isJointNullNode(last_node) == false
-	&& myParentExporter->getExportOptions()->getExportBonesEndEffectors())
+    if(cast_info && cast_info->getBoneLength() > 0.0 && ROP_FBXUtil::isDummyBone(last_node) == false && ROP_FBXUtil::isJointNullNode(last_node) == false)
     {
 	// Create the end effector
 	UT_String node_name(UT_String::ALWAYS_DEEP, last_node->getName());
