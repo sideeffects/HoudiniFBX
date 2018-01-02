@@ -189,10 +189,13 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
 
     // HDA dont have a "geo" node_type, see if the node is a OBJ_Geo instead
-    bool consider_as_geo = false;
-    OBJ_Geometry* geo_node = obj_node->castToOBJGeometry();
-    if (geo_node && (geo_node->getObjectType() == OBJ_GEOMETRY))
-	consider_as_geo = true;
+    bool consider_as_geo = is_sop_export;
+    if (obj_node != nullptr)
+    {
+	OBJ_Geometry* geo_node = obj_node->castToOBJGeometry();
+	if (geo_node && (geo_node->getObjectType() == OBJ_GEOMETRY))
+	    consider_as_geo = true;
+    }
 
     if(!force_exporting_as_null)
     if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
