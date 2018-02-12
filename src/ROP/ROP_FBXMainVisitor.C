@@ -1674,11 +1674,15 @@ ROP_FBXMainVisitor::getAttrTypeByName(const GU_Detail* gdp, const char* attr_nam
 
     // Now compare the base name against known standard names 
     if (GA_Names::N == base_name)
-	curr_type = ROP_FBXAttributeNormal;
+        curr_type = ROP_FBXAttributeNormal;
+    else if (base_name == "tangentu")
+        curr_type = ROP_FBXAttributeTangent;
+    else if (base_name == "tangentv")
+        curr_type = ROP_FBXAttributeBinormal;
     else if (GA_Names::uv == base_name)
-	curr_type = ROP_FBXAttributeUV;
+        curr_type = ROP_FBXAttributeUV;
     else if (GA_Names::Cd == base_name)
-	curr_type = ROP_FBXAttributeVertexColor;
+        curr_type = ROP_FBXAttributeVertexColor;
 
     return curr_type;
 }
@@ -1822,78 +1826,102 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttrib
 
     // These are brutal hacks so that Maya's importer does not crash.
     if(mapping_mode == FbxLayerElement::eByPolygonVertex)
-	ref_mode = FbxLayerElement::eIndexToDirect;
+        ref_mode = FbxLayerElement::eIndexToDirect;
     else
-	ref_mode = FbxLayerElement::eDirect;
-    
-    FbxLayerElement* new_elem = NULL;
-    if(attr_type == ROP_FBXAttributeNormal)
-    {
-	// Normals always have to be direct. Also for Maya.
-	ref_mode = FbxLayerElement::eDirect;
+        ref_mode = FbxLayerElement::eDirect;
 
-	FbxLayerElementNormal* temp_layer = FbxLayerElementNormal::Create(layer_container, "");
-	//FbxLayerElementNormal* temp_layer = mySDKManager->CreateFbxLayerElementNormal("");
-	temp_layer->SetMappingMode(mapping_mode);
-	temp_layer->SetReferenceMode(ref_mode);
-	attr_layer->SetNormals(temp_layer);
-	new_elem = temp_layer;
+    FbxLayerElement* new_elem = NULL;
+    if (attr_type == ROP_FBXAttributeNormal ||
+        attr_type == ROP_FBXAttributeTangent ||
+        attr_type == ROP_FBXAttributeBinormal)
+    {
+        // Normals always have to be direct. Also for Maya.
+        ref_mode = FbxLayerElement::eDirect;
+
+        FbxLayerElementTemplate<FbxVector4> *temp_layer;
+        if (attr_type == ROP_FBXAttributeNormal)
+        {
+            FbxLayerElementNormal* nml_layer = FbxLayerElementNormal::Create(layer_container, "");
+            //FbxLayerElementNormal* nml_layer = mySDKManager->CreateFbxLayerElementNormal("");
+            nml_layer->SetMappingMode(mapping_mode);
+            nml_layer->SetReferenceMode(ref_mode);
+            attr_layer->SetNormals(nml_layer);
+            temp_layer = nml_layer;
+        }
+        else if (attr_type == ROP_FBXAttributeTangent)
+        {
+            FbxLayerElementTangent* tan_layer = FbxLayerElementTangent::Create(layer_container, "");
+            //FbxLayerElementTangent* tan_layer = mySDKManager->CreateFbxLayerElementTangent("");
+            tan_layer->SetMappingMode(mapping_mode);
+            tan_layer->SetReferenceMode(ref_mode);
+            attr_layer->SetTangents(tan_layer);
+            temp_layer = tan_layer;
+        }
+        else
+        {
+            UT_ASSERT(attr_type == ROP_FBXAttributeBinormal);
+            FbxLayerElementBinormal* bin_layer = FbxLayerElementBinormal::Create(layer_container, "");
+            //FbxLayerElementBinormal* bin_layer = mySDKManager->CreateFbxLayerElementBinormal("");
+            bin_layer->SetMappingMode(mapping_mode);
+            bin_layer->SetReferenceMode(ref_mode);
+            attr_layer->SetBinormals(bin_layer);
+            temp_layer = bin_layer;
+        }
+        new_elem = temp_layer;
 
         GA_ROHandleV3 attrib(attr_offset);
         GA_ROHandleF extra_attrib(extra_attr_offset);
 
-	if(mapping_mode == FbxLayerElement::eByControlPoint)
-	    exportPointAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
-	    exportVertexAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygon)
-	    exportPrimitiveAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eAllSame)
-	    exportDetailAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
+        if(mapping_mode == FbxLayerElement::eByControlPoint)
+            exportPointAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
+            exportVertexAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eByPolygon)
+            exportPrimitiveAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eAllSame)
+            exportDetailAttribute<UT_Vector3, FbxVector4>(gdp, attrib, extra_attrib, temp_layer);
     }
     else if(attr_type == ROP_FBXAttributeUV)
     {
-	//FbxLayerElementUV* temp_layer = mySDKManager->CreateFbxLayerElementUV("");
-	FbxLayerElementUV* temp_layer = FbxLayerElementUV::Create(layer_container, "");
-	temp_layer->SetMappingMode(mapping_mode);
-	temp_layer->SetReferenceMode(ref_mode);
-	attr_layer->SetUVs(temp_layer);
-	new_elem = temp_layer;
+        //FbxLayerElementUV* temp_layer = mySDKManager->CreateFbxLayerElementUV("");
+        FbxLayerElementUV* temp_layer = FbxLayerElementUV::Create(layer_container, "");
+        temp_layer->SetMappingMode(mapping_mode);
+        temp_layer->SetReferenceMode(ref_mode);
+        attr_layer->SetUVs(temp_layer);
+        new_elem = temp_layer;
 
         GA_ROHandleV3 attrib(attr_offset);
         GA_ROHandleF extra_attrib(extra_attr_offset);
 
-	if(mapping_mode == FbxLayerElement::eByControlPoint)
-	    exportPointAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
-	    exportVertexAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygon)
-	    exportPrimitiveAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eAllSame)
-	    exportDetailAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-
+        if(mapping_mode == FbxLayerElement::eByControlPoint)
+            exportPointAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
+            exportVertexAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eByPolygon)
+            exportPrimitiveAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eAllSame)
+            exportDetailAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
     }
     else if(attr_type == ROP_FBXAttributeVertexColor)
     {
-	//FbxLayerElementVertexColor* temp_layer = mySDKManager->CreateFbxLayerElementVertexColor("");
-	FbxLayerElementVertexColor* temp_layer = FbxLayerElementVertexColor::Create(layer_container, "");
-	temp_layer->SetMappingMode(mapping_mode);
-	temp_layer->SetReferenceMode(ref_mode);
-	attr_layer->SetVertexColors(temp_layer);
-	new_elem = temp_layer;
+        //FbxLayerElementVertexColor* temp_layer = mySDKManager->CreateFbxLayerElementVertexColor("");
+        FbxLayerElementVertexColor* temp_layer = FbxLayerElementVertexColor::Create(layer_container, "");
+        temp_layer->SetMappingMode(mapping_mode);
+        temp_layer->SetReferenceMode(ref_mode);
+        attr_layer->SetVertexColors(temp_layer);
+        new_elem = temp_layer;
 
         GA_ROHandleV3 attrib(attr_offset);
         GA_ROHandleF extra_attrib(extra_attr_offset);
 
-	if(mapping_mode == FbxLayerElement::eByControlPoint)
-	    exportPointAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib,  temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
-	    exportVertexAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygon)
-	    exportPrimitiveAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eAllSame)
-	    exportDetailAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib, temp_layer);
-
+        if(mapping_mode == FbxLayerElement::eByControlPoint)
+            exportPointAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib,  temp_layer);
+        else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
+            exportVertexAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eByPolygon)
+            exportPrimitiveAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib, temp_layer);
+        else if(mapping_mode == FbxLayerElement::eAllSame)
+            exportDetailAttribute<UT_Vector3, FbxColor>(gdp, attrib, extra_attrib, temp_layer);
     }
 
     return new_elem;
@@ -2263,8 +2291,6 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     GA_ROAttributeRef attr_offset, extra_attr_offset;
     FbxLayerElement* res_elem;
     THDAttributeVector user_attribs;
-
-
 
     // Go through point attributes first.
     if(gdp->getNumPoints() > 0)
