@@ -1,15 +1,28 @@
 /*
- * PROPRIETARY INFORMATION.  This software is proprietary to
- * Side Effects Software Inc., and is not to be reproduced,
- * transmitted, or disclosed in any way without written permission.
+ * Copyright (c) 2017
+ *	Side Effects Software Inc.  All rights reserved.
  *
- * Produced by:
- *	Oleg Samus
- *	Side Effects
-  *	123 Front Street West
- *	Toronto, Ontario
- *	Canada   M5V 3E7
- *	416-504-9876
+ * Redistribution and use of Houdini Development Kit samples in source and
+ * binary forms, with or without modification, are permitted provided that the
+ * following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. The name of Side Effects Software may not be used to endorse or
+ *    promote products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY SIDE EFFECTS SOFTWARE `AS IS' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
+ * NO EVENT SHALL SIDE EFFECTS SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * NAME:	ROP library (C++)
  *
@@ -420,6 +433,14 @@ ROP_FBXExporter::finishExport(void)
 	// Initialize the exporter by providing a filename.
 	if(fbx_exporter->Initialize(myOutputFile.c_str(), out_file_format, mySDKManager->GetIOSettings()) == false)
 	    return false;
+
+	// TODO: Handle export AXIS system here!
+	bool convertToZup = true;
+	if ( convertToZup )//(!options || options->getConvertToYUp())
+	{
+	    FbxAxisSystem hd_axis_system(FbxAxisSystem::eYAxis, FbxAxisSystem::eParityOdd, FbxAxisSystem::eRightHanded);
+	    hd_axis_system.ConvertScene( myScene);
+	}
 
 	// Export the scene.
 	bool bSuccess = fbx_exporter->Export(myScene);
