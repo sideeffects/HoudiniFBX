@@ -1,15 +1,28 @@
 /*
- * PROPRIETARY INFORMATION.  This software is proprietary to
- * Side Effects Software Inc., and is not to be reproduced,
- * transmitted, or disclosed in any way without written permission.
+ * Copyright (c) 2017
+ *	Side Effects Software Inc.  All rights reserved.
  *
- * Produced by:
- *	Oleg Samus
- *	Side Effects
- *	123 Front Street West
- *	Toronto, Ontario
- *	Canada   M5V 3E7
- *	416-504-9876
+ * Redistribution and use of Houdini Development Kit samples in source and
+ * binary forms, with or without modification, are permitted provided that the
+ * following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. The name of Side Effects Software may not be used to endorse or
+ *    promote products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY SIDE EFFECTS SOFTWARE `AS IS' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
+ * NO EVENT SHALL SIDE EFFECTS SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * NAME:	ROP library (C++)
  *
@@ -202,21 +215,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
 	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient" )
     {
-	if(node_type == "geo" || consider_as_geo)
-	{
-	    bool did_cancel;
-	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
-
-	    // We don't need to dive into the geo node, and if we're a SOP ROP, we dont need to keep exporting after this node
-	    res_type = ROP_FBXVisitorResultSkipSubnet;
-
-	    if(did_cancel)
-	    {
-		UT_ASSERT(res_nodes.size() == 0);
-		return ROP_FBXVisitorResultAbort;
-	    }
-	}
-	else if(node_type == "instance")
+	if(node_type == "instance")
 	{
 	    // We need to create a node (in case we have children),
 	    // *but* we need to attach the instance attribute later, as a post-action,
@@ -317,6 +316,20 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		myAmbientColor.addRGB(this_amb_color);
 	    }
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
+	}
+	else if (node_type == "geo" || consider_as_geo)
+	{
+	    bool did_cancel;
+	    outputGeoNode(node, node_info, fbx_parent_node, v_cache, did_cancel, res_nodes);
+
+	    // We don't need to dive into the geo node, and if we're a SOP ROP, we dont need to keep exporting after this node
+	    res_type = ROP_FBXVisitorResultSkipSubnet;
+
+	    if (did_cancel)
+	    {
+		UT_ASSERT(res_nodes.size() == 0);
+		return ROP_FBXVisitorResultAbort;
+	    }
 	}
     }
 
