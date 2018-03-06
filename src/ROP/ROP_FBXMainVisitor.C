@@ -123,6 +123,7 @@ ROP_FBXMainVisitor::ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter)
 
     myAmbientColor.setRGB(0,0,0);
     myMaterialsMap.clear();
+    myStringMaterialMap.clear();
     myTexturesMap.clear();
 
     myDefaultMaterial = NULL;
@@ -2794,6 +2795,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     fpreal start_time = myStartTime;
     int curr_prim, num_prims = 0;
     OP_Node **per_face_mats = NULL;
+    UT_StringArray per_face_math_paths;
 
     const GEO_Primitive *prim;
     OP_Network* src_net = dynamic_cast<OP_Network*>(source_node);
@@ -2832,6 +2834,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 		    num_prims = final_detail->getNumPrimitives();
 		    per_face_mats = new OP_Node* [num_prims];
 		    memset(per_face_mats, 0, sizeof(OP_Node*)*num_prims);
+		    per_face_math_paths.setSize(num_prims);
 
 		    int curr_prim_idx = 0;
 		    GA_FOR_ALL_PRIMITIVES(final_detail, prim)
@@ -2842,21 +2845,26 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 			{
 			    per_face_mats[curr_prim_idx] = source_node->findNode(loc_mat_path);
 			}
+			per_face_math_paths[curr_prim_idx] = loc_mat_path;
 			curr_prim_idx++;
 		    }
 		}
 	    }
 	}
     }
-
-    // If we have per-face materials, fill in the gaps with our regular material
-    if(!per_face_mats && !main_mat_node)
+    
+    // No materials found
+    if(!per_face_mats && ( per_face_math_paths.entries() < 0 ) && !main_mat_node)
 	return;
     
-    for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+    // If we have per-face materials, fill in the gaps with our regular material
+    if ( main_mat_node )
     {
-	if(!per_face_mats[curr_prim])
-	    per_face_mats[curr_prim] = main_mat_node;
+	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+	{
+	    if(!per_face_mats[curr_prim])
+		per_face_mats[curr_prim] = main_mat_node;
+	}
     }
 
     // We're guaranteed not have materials on layers yet.
@@ -2893,8 +2901,15 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
 	{
 	    fbx_material = generateFbxMaterial(per_face_mats[curr_prim], myMaterialsMap);
-	    if(!fbx_material)
-		fbx_material = getDefaultMaterial(myMaterialsMap);
+	    if (!fbx_material)
+	    {
+		// couldnt find in the main map, look for the material in the backup map (named material)
+		fbx_material = generateFbxMaterial(per_face_math_paths[curr_prim], myStringMaterialMap);
+		
+		// If not found, use the default material
+		if (!fbx_material)
+		    fbx_material = getDefaultMaterial(myMaterialsMap);
+	    }
 
 	    // See if it's in the map
 	    mi = mat_idx_map.find(per_face_mats[curr_prim]);
@@ -2917,16 +2932,6 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	    // Set the indirect index
 	    temp_layer_elem->GetIndexArray().Add(curr_fbx_mat_idx);
 	}
-/*
-	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
-	{
-	    fbx_material = generateFbxMaterial(per_face_mats[curr_prim], myMaterialsMap);
-	    if(!fbx_material)
-		fbx_material = getDefaultMaterial(myMaterialsMap);
-	    temp_layer_elem->GetDirectArray().Add(fbx_material);
-	}
-*/
-//	    lNode->AddMaterial(lMaterial);
     }
     else
     {
@@ -2945,145 +2950,6 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	mat_layer->SetMaterials(temp_layer_elem);
 	temp_layer_elem->GetIndexArray().Add(mat_index);
     }
-
-    // Do textures
-/*
-    FbxLayer* tex_layer;
-    FbxTexture* fbx_texture, *fbx_default_texture;
-    int curr_texture, num_textures;
-    int last_layer_idx;
-    FbxLayerElementTexture* temp_layer_elem;
-
-    // See if we have any textures to deal with
-
-    OP_Node* surf_node = getSurfaceNodeFromMaterialNode(main_mat_node);
-    num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
-
-    if(!per_face_mats && fbx_material)
-    {
-	fbx_texture = generateFbxTexture(main_mat_node, 0, myTexturesMap);
-	FbxProperty diffuse_prop = fbx_material->FindProperty( FbxSurfaceMaterial::sDiffuse );
-	if( diffuse_prop.IsValid() && fbx_texture)
-	    diffuse_prop.ConnectSrcObject( fbx_texture );
-
-    }
-*/
-    /* // To be deleted...
-    if(per_face_mats)
-    {
-	THdNodeSet loc_materials;
-	THdNodeSet::iterator si;
-	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
-	{
-	    // See if it's in the map
-	    si = loc_materials.find(per_face_mats[curr_prim]);
-	    if(si == loc_materials.end())
-	    {
-		// Add it to the set and export
-		loc_materials.insert(per_face_mats[curr_prim]);
-		createTexturesForMaterial(per_face_mats[curr_prim], temp_layer_elem->GetDirectArray()[curr_prim], myTexturesMap);
-	    }
-	}
-
-    }
-    else
-    {
-	createTexturesForMaterial(main_mat_node, fbx_material, myTexturesMap);
-    }
-    */
-
-
-/*
-    if(per_face_mats)
-    {
-	int curr_layer_idx;
-	TFbxLayerElemsVector fbx_layer_elems;
-	int curr_max_layers = 0;
-
-	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
-	{
-	    OP_Node* surf_node = getSurfaceNodeFromMaterialNode(per_face_mats[curr_prim]);
-	    num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
-	    if(curr_max_layers < num_textures)
-		curr_max_layers = num_textures;
-	}
-
-	// Create all the layers that we'll need
-	for(curr_layer_idx = 0; curr_layer_idx < curr_max_layers; curr_layer_idx++)
-	{
-	    tex_layer = node_attr->GetLayer(curr_layer_idx);
-	    if(!tex_layer)
-	    {
-		last_layer_idx = node_attr->CreateLayer();
-		tex_layer = node_attr->GetLayer(last_layer_idx);
-	    }
-	    //temp_layer_elem = mySDKManager->CreateFbxLayerElementTexture("");
-	    temp_layer_elem = FbxLayerElementTexture::Create(node_attr, "");
-	    temp_layer_elem->SetMappingMode(FbxLayerElement::eBY_POLYGON);
-	    temp_layer_elem->SetReferenceMode(FbxLayerElement::eDIRECT);
-	    temp_layer_elem->SetAlpha(1.0);
-	    temp_layer_elem->SetBlendMode(FbxLayerElementTexture::eTRANSLUCENT);
-	    tex_layer->SetDiffuseTextures(temp_layer_elem);
-
-	    fbx_layer_elems.push_back(temp_layer_elem);
-	}
-
-	fbx_default_texture = getDefaultTexture(myTexturesMap);
-	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
-	{
-	    OP_Node* surf_node = getSurfaceNodeFromMaterialNode(per_face_mats[curr_prim]);
-	    num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
-	    for(curr_texture = 0; curr_texture < num_textures; curr_texture++)
-	    {
-		fbx_texture = generateFbxTexture(per_face_mats[curr_prim], curr_texture, myTexturesMap);
-		if(!fbx_texture)
-		    fbx_texture = fbx_default_texture;
-
-		for(curr_layer_idx = 0; curr_layer_idx < curr_max_layers; curr_layer_idx++)
-		{
-		    // Set the value for all layers   
-		    if(curr_layer_idx == curr_texture)
-			temp_layer_elem->GetDirectArray().Add(fbx_texture);
-		    else
-			temp_layer_elem->GetDirectArray().Add(fbx_default_texture);
-		}
-	    }
-	}
-    }
-    else
-    {
-	OP_Node* surf_node = getSurfaceNodeFromMaterialNode(main_mat_node);
-	num_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
-	last_layer_idx = 0;
-
-	for(curr_texture = 0; curr_texture < num_textures; curr_texture++)
-	{
-	    fbx_texture = generateFbxTexture(main_mat_node, curr_texture, myTexturesMap);
-	    if(!fbx_texture)
-		continue;
-
-	    // Get the layer
-	    tex_layer = node_attr->GetLayer(last_layer_idx);
-	    if(!tex_layer)
-	    {
-		last_layer_idx = node_attr->CreateLayer();
-		tex_layer = node_attr->GetLayer(last_layer_idx);
-	    }
-	    last_layer_idx++;
-
-	    //temp_layer_elem = mySDKManager->CreateFbxLayerElementTexture("");
-	    temp_layer_elem = FbxLayerElementTexture::Create(node_attr, "");
-	    temp_layer_elem->SetMappingMode(FbxLayerElement::eALL_SAME);
-	    temp_layer_elem->SetReferenceMode(FbxLayerElement::eDIRECT);
-	    temp_layer_elem->SetAlpha(1.0);
-	    temp_layer_elem->SetBlendMode(FbxLayerElementTexture::eTRANSLUCENT);
-	    tex_layer->SetDiffuseTextures(temp_layer_elem);
-
-	    // Set the value   
-	    temp_layer_elem->GetDirectArray().Add(fbx_texture);
-	}
-    }
-*/
 
     if(per_face_mats)
 	delete[] per_face_mats;
@@ -3285,6 +3151,49 @@ ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFb
     tex_map[full_name] = new_tex;
     return new_tex;
 }
+/********************************************************************************************************/
+FbxSurfaceMaterial*
+ROP_FBXMainVisitor::generateFbxMaterial(const char * mat_string, THdFbxStringMaterialMap& mat_map)
+{
+    if (!mat_string)
+	return NULL;
+
+    // Find the material if it is already created
+    THdFbxStringMaterialMap::iterator mi = mat_map.find(mat_string);
+    if (mi != mat_map.end())
+	return mi->second;
+
+    // Create a new "default" material with the needed name
+    float temp_col[3] = { 193.0f / 255.0f,193.0f / 255.0f,193.0f / 255.0f };
+
+    FbxSurfaceLambert* lamb_new_mat = FbxSurfaceLambert::Create(mySDKManager, mat_string);
+
+    FbxDouble3 temp_fbx_col;
+    temp_fbx_col[0] = temp_col[0];
+    temp_fbx_col[1] = temp_col[1];
+    temp_fbx_col[2] = temp_col[2];
+    lamb_new_mat->Diffuse.Set(temp_fbx_col);
+    lamb_new_mat->DiffuseFactor.Set(1.0);
+
+    temp_col[0] = 0.0;
+    temp_col[1] = 0.0;
+    temp_col[2] = 0.0;
+
+    temp_fbx_col[0] = temp_col[0];
+    temp_fbx_col[1] = temp_col[1];
+    temp_fbx_col[2] = temp_col[2];
+
+    lamb_new_mat->Ambient.Set(temp_fbx_col);
+    lamb_new_mat->AmbientFactor.Set(1.0);
+
+    lamb_new_mat->Emissive.Set(temp_fbx_col);
+    lamb_new_mat->EmissiveFactor.Set(1.0);
+
+    // Add the new material to our map
+    mat_map[mat_string] = lamb_new_mat;
+    return lamb_new_mat;
+}
+
 /********************************************************************************************************/
 FbxSurfaceMaterial* 
 ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& mat_map)
