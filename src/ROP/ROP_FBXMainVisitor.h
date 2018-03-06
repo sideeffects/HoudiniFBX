@@ -80,6 +80,7 @@ enum ROP_FBXAttributeType
 /********************************************************************************************************/
 typedef std::vector < const GA_Attribute* > THDAttributeVector;
 typedef std::map < OP_Node* , FbxSurfaceMaterial* > THdFbxMaterialMap;
+typedef std::map < std::string, FbxSurfaceMaterial* > THdFbxStringMaterialMap;
 typedef std::map < OP_Node* , int > THdNodeIntMap;
 //typedef set < OP_Node* > THdNodeSet;
 typedef std::map < std::string , FbxTexture* > THdFbxTextureMap;
@@ -212,6 +213,7 @@ protected:
     void exportMaterials(OP_Node* source_node, FbxNode* fbx_node);
 
     FbxSurfaceMaterial* generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& mat_map);
+    FbxSurfaceMaterial* generateFbxMaterial(const char * mat_string, THdFbxStringMaterialMap& mat_map);
     FbxSurfaceMaterial* getDefaultMaterial(THdFbxMaterialMap& mat_map);
     FbxTexture* getDefaultTexture(THdFbxTextureMap& tex_map);
     OP_Node* getSurfaceNodeFromMaterialNode(OP_Node* material_node);
@@ -251,6 +253,7 @@ private:
     ROP_FBXActionManager* myActionManager; 
 
     THdFbxMaterialMap myMaterialsMap;
+    THdFbxStringMaterialMap myStringMaterialMap;
     THdFbxTextureMap myTexturesMap;
     FbxSurfaceMaterial* myDefaultMaterial;
     FbxTexture* myDefaultTexture;
