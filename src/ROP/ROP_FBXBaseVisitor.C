@@ -418,7 +418,7 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 void 
 ROP_FBXBaseVisitor::addNonVisitableNetworkType(const char *net_type)
 {
-    myNetworkTypesNotToVisit.push_back(net_type);
+    myNetworkTypesNotToVisit.append(net_type);
 }
 /********************************************************************************************************/
 void 
@@ -451,12 +451,11 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
 
     // Check if the network type is black-listed.
     // Excluded types: dopnet, ropnet, chopnet, popnet, shopnet, vopnet
-    UT_String type_name = node->getOperator()->getName();
-    string string_type(type_name);
+    const UT_StringHolder &type_name = node->getOperator()->getName();
     int curr_id, num_ids = myNetworkTypesNotToVisit.size();
     for(curr_id = 0; curr_id < num_ids; curr_id++)
     {
-	if(string_type == myNetworkTypesNotToVisit[curr_id])
+	if(type_name == myNetworkTypesNotToVisit[curr_id])
 	    return false;
     }
 

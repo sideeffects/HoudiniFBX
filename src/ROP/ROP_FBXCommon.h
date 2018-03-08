@@ -36,7 +36,7 @@
 #include <vector>
 
 #include <SYS/SYS_Types.h>
-#include <UT/UT_String.h>
+#include <UT/UT_StringHolder.h>
 
 
 typedef std::vector  < std::string > TStringVector;
@@ -44,7 +44,7 @@ typedef std::vector  < std::string > TStringVector;
 static const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
 
 static inline bool
-ROPfbxIsLightNodeType(const UT_String &node_type)
+ROPfbxIsLightNodeType(const UT_StringRef &node_type)
 {
     return (node_type == "hlight" || node_type == "hlight::2.0");
 }

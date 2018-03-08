@@ -62,6 +62,7 @@ class GA_Attribute;
 class GA_ROAttributeRef;
 namespace GA_PrimCompat { class TypeMask; }
 class UT_Interrupt;
+class UT_StringRef;
 class SOP_Node;
 class OP_Node;
 
@@ -227,7 +228,7 @@ protected:
     void setFbxNodeVisibility(FbxNode &node, OP_Node *hd_node, bool visible);
 
     void finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, FbxNode* fbx_parent_node, 
-	UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
+	const UT_StringRef& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type, 
 	ROP_FBXGDPCache *v_cache, bool is_visible);
     void finalizeGeoNode(FbxNodeAttribute *res_attr, OP_Node* skin_deform_node, int capture_frame, int opt_prim_cnt, TFbxNodesVector& res_nodes);
 

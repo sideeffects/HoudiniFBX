@@ -63,6 +63,7 @@ class OP_Network;
 class OP_Node;
 
 class UT_String;
+class UT_StringRef;
 class UT_XformOrder;
 
 /********************************************************************************************************/
@@ -88,7 +89,7 @@ public:
 	const UT_XformOrder& xform_order, UT_Vector3D& t_out, UT_Vector3D& r_out, UT_Vector3D& s_out,
 	UT_Vector3D* prev_frame_rotations);
 
-    static bool getPostRotateAdjust(const UT_String &node_type, FbxVector4 &post_rotate);
+    static bool getPostRotateAdjust(const UT_StringRef &node_type, FbxVector4 &post_rotate);
     static void doPostRotateAdjust(FbxVector4 &post_rotate, const FbxVector4 &adjustment);
 
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0, UT_Set<OP_Node*> *already_visited=NULL);

@@ -51,6 +51,7 @@
 #include <UT/UT_CrackMatrix.h>
 #include <UT/UT_FSATable.h>
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_StringHolder.h>
 #include <UT/UT_Thread.h>
 #include <UT/UT_XformOrder.h>
 
@@ -500,7 +501,7 @@ ROP_FBXUtil::getFinalTransforms(
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::getPostRotateAdjust(const UT_String &node_type, FbxVector4 &post_rotate)
+ROP_FBXUtil::getPostRotateAdjust(const UT_StringRef &node_type, FbxVector4 &post_rotate)
 {
     // For lights/cameras, they have a look at axis that is different from Houdini/Maya that use
     // the -Z axis. To compensate, we multiply in a post rotation so that we go from Houdini's -Z
@@ -853,7 +854,7 @@ ROP_FBXUtil::isJointNullNode(OP_Node* null_node)
     if(!null_node)
 	return false;
 
-    UT_String node_type = null_node->getOperator()->getName();
+    UT_StringRef node_type = null_node->getOperator()->getName();
     if(node_type != "null")
 	return false;
 
@@ -887,7 +888,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
     if(!bone_node)
 	return false;
 
-    UT_String node_type = bone_node->getOperator()->getName();
+    UT_StringRef node_type = bone_node->getOperator()->getName();
     if(node_type != "bone")
 	return false;
 
@@ -961,7 +962,7 @@ ROP_FBXUtil::isLODGroupNullNode(OP_Node* null_node)
     if (!null_node)
 	return false;
 
-    UT_String node_type = null_node->getOperator()->getName();
+    UT_StringRef node_type = null_node->getOperator()->getName();
     if (node_type != "null")
 	return false;
 

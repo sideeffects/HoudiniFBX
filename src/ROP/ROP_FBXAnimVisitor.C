@@ -65,6 +65,7 @@
 #include <UT/UT_FloatArray.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_StringHolder.h>
 #include <UT/UT_Thread.h>
 #include <SYS/SYS_SequentialThreadIndex.h>
 #include <SYS/SYS_StaticAssert.h>
@@ -179,7 +180,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in);
 
 	FbxAnimCurve* curr_anim_curve;
-	UT_String node_type = node->getOperator()->getName();
+	UT_StringRef node_type = node->getOperator()->getName();
 	if ( is_sop_export )
 	    node_type = "geo";
 
@@ -334,7 +335,7 @@ ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, FbxAnimLayer* fbx_anim_lay
 	FBXSDK_CURVENODE_COMPONENT_Z
     };
 
-    UT_String node_type = node->getOperator()->getName();
+    UT_StringRef node_type = node->getOperator()->getName();
     const char *UNIFORM_SCALE = "scale";
     if(node_type == "instance")
     {

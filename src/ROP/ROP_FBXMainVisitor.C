@@ -79,6 +79,7 @@
 #include <UT/UT_CrackMatrix.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_StringHolder.h>
 
 
 #ifdef UT_DEBUG
@@ -180,7 +181,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     bool is_sop_export = myParentExporter->getExportOptions()->isSopExport();
 
     string lookat_parm_name("lookatpath");
-    UT_String node_type = node->getOperator()->getName();
+    UT_StringRef node_type = node->getOperator()->getName();
     if (is_sop_export)
 	node_type = "geo";
 
@@ -199,7 +200,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
     ROP_FBXGDPCache *v_cache = NULL;
     bool force_ignore_node = false;
-    UT_String override_node_type(UT_String::ALWAYS_DEEP, "");
+    UT_StringRef override_node_type;
 
     // HDA dont have a "geo" node_type, see if the node is a OBJ_Geo instead
     bool consider_as_geo = is_sop_export;
@@ -234,7 +235,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    OP_Node* inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(node);
 	    if(inst_target)
 	    {
-		UT_String inst_target_node_type = inst_target->getOperator()->getName();
+		const UT_StringHolder& inst_target_node_type = inst_target->getOperator()->getName();
 		if(inst_target_node_type == "cam" || ROPfbxIsLightNodeType(inst_target_node_type))
 		    override_node_type = inst_target_node_type;
 	    }
@@ -431,7 +432,7 @@ ROP_FBXMainVisitor::setFbxNodeVisibility(
 /********************************************************************************************************/
 void
 ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Node* hd_node, ROP_FBXMainNodeVisitInfo *node_info, FbxNode* fbx_parent_node, 
-		UT_String& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type,
+		const UT_StringRef& override_node_type, const char* lookat_parm_name, ROP_FBXVisitorResultType res_type,
 		ROP_FBXGDPCache *v_cache, bool is_visible)
 {
     UT_ASSERT(lookat_parm_name);
@@ -484,13 +485,12 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	    // the -Z axis. To compensate, we multiply in a post rotation so that we go from Houdini's -Z
 	    // to either the +X (for cameras) or -Y (for lights).
 
-	    UT_String node_type = hd_node->getOperator()->getName();
-	    UT_String* node_type_ptr = &node_type;
+	    UT_StringRef node_type = hd_node->getOperator()->getName();
 	    if(override_node_type.isstring())
-		node_type_ptr = &override_node_type;
+		node_type = override_node_type;
 
 	    FbxVector4 adjustment;
-	    if (ROP_FBXUtil::getPostRotateAdjust(*node_type_ptr, adjustment))
+	    if (ROP_FBXUtil::getPostRotateAdjust(node_type, adjustment))
 	    {
 		// We assume here that either exportFBXTransform() or setStandardTransforms() has already
 		// enabled the Rotation Active flag. It needs to be enabled in order for the post rotate
@@ -577,7 +577,7 @@ ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNod
     SYS_STATIC_ASSERT(SYScountof(hd_names) == ROP_FBX_N);
     SYS_STATIC_ASSERT(SYScountof(hd_names) == SYScountof(props));
 
-    UT_String node_type = hd_node->getOperator()->getName();
+    const UT_StringHolder &node_type = hd_node->getOperator()->getName();
     const char* UNIFORM_SCALE = "scale";
     if(node_type == "instance")
     {
@@ -3452,7 +3452,7 @@ ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& nod
 	node = pass_through;
     }
 
-    UT_String node_type = node->getOperator()->getName();
+    const UT_StringHolder &node_type = node->getOperator()->getName();
     if (node_type == "blendshapes")
 	return outputBlendShapeNode(node, node_name, skin_deform_node, did_cancel_out, res_nodes, node_info);
 

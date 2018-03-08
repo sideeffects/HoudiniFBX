@@ -34,6 +34,7 @@
 
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXHeaderWrapper.h"
+#include <UT/UT_StringArray.h>
 
 #include <map>
 #include <string>
@@ -162,7 +163,7 @@ private:
     void findVisitInfos(OP_Node* hd_node, TBaseNodeVisitInfoVector &res_infos);
 
 private:
-    TStringVector myNetworkTypesNotToVisit;
+    UT_StringArray myNetworkTypesNotToVisit;
     ROP_FBXInvisibleNodeExportType myHiddenNodeExportMode;
 
     bool myDidCancel;
