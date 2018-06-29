@@ -221,8 +221,9 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // We need to create a node (in case we have children),
 	    // *but* we need to attach the instance attribute later, as a post-action,
 	    // in case it's not created at this point.
-	    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-	    myNodeManager->makeNameUnique(node_name);
+	    UT_String node_name;
+	    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+
 	    temp_new_node = FbxNode::Create(mySDKManager, (const char*)node_name);
 	    res_nodes.push_back(temp_new_node);
 
@@ -662,8 +663,8 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
 	&& myParentExporter->getExportOptions()->getExportBonesEndEffectors())
     {
 	// Create the end effector
-	UT_String node_name(UT_String::ALWAYS_DEEP, last_node->getName());
-	myNodeManager->makeNameUnique(node_name);
+        UT_String node_name;
+        ROP_FBXUtil::getNodeName(last_node, node_name, myNodeManager);
 	node_name += "_end_effector";
 
 	FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
@@ -685,8 +686,8 @@ bool
 ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, bool is_a_null, TFbxNodesVector& res_nodes)
 {
     // NOTE: This may get called on a null nodes, as well, if they are being exported as joints.
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
+    UT_String node_name;
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxSkeleton *res_attr = FbxSkeleton::Create(mySDKManager, (const char*)node_name);
@@ -800,8 +801,8 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	    blend_shapes_out_only = true;
     }
 
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
+    UT_String node_name;
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
 
     if (blend_shapes_out_only)
     {
@@ -2484,8 +2485,8 @@ ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 	as_cross = !gdp || (gdp->getNumPoints() > 0);
     }
 
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
+    UT_String node_name;
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
 
@@ -2500,8 +2501,8 @@ ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 bool
 ROP_FBXMainVisitor::outputLODGroupNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
+    UT_String node_name;
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
 
     // Create a new node and add an LOD Group attribute to it
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
@@ -2596,8 +2597,8 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     int int_param;
     UT_String string_param;
     FbxDouble3 fbx_col;
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
+    UT_String node_name;
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxLight *res_attr = FbxLight::Create(mySDKManager, (const char*)node_name);
@@ -2680,8 +2681,9 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     UT_String string_param;
     fpreal float_parm[3];
     FbxVector4 fbx_vec4;
-    UT_String node_name(UT_String::ALWAYS_DEEP, node->getName());
-    myNodeManager->makeNameUnique(node_name);
+
+    UT_String node_name;
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxCamera *res_attr = FbxCamera::Create(mySDKManager, (const char*)node_name);
@@ -3254,16 +3256,16 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	return NULL;
 
     bool did_find;
-    UT_String mat_name(UT_String::ALWAYS_DEEP, mat_node->getName());
-    myNodeManager->makeNameUnique(mat_name);
     fpreal temp_col[3];
     bool is_specular = false;
     FbxDouble3 temp_fbx_col;
 
+    UT_String mat_name;
+    ROP_FBXUtil::getNodeName(mat_node, mat_name, myNodeManager);
+
     ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 0, 0.0, &did_find);
     if(did_find)
-	is_specular = true;
-    
+	is_specular = true;    
 
     // We got the surface SHOP node. Get its OGL properties.
     FbxSurfacePhong* new_mat = NULL; 
@@ -3507,8 +3509,8 @@ ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& nod
 	if (!current_input)
 	    continue;
 
-	UT_String current_input_name(UT_String::ALWAYS_DEEP, current_input->getName());
-	myNodeManager->makeNameUnique(current_input_name);
+	UT_String current_input_name;
+	ROP_FBXUtil::getNodeName(current_input, current_input_name, myNodeManager);
 
 	bool found_allowed_only = false;
 	if (ROP_FBXUtil::findOpInput(current_input, theBlendShapeNodeTypes, true, theAllowedInBetweenNodeTypes, &found_allowed_only, 0, local_already_visited))
@@ -3610,8 +3612,8 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 	if (!current_SOP_Node)
 	    continue;	
 
-	UT_String node_name(UT_String::ALWAYS_DEEP, current_SOP_Node->getName());
-	myNodeManager->makeNameUnique(node_name);
+	UT_String node_name;
+	ROP_FBXUtil::getNodeName(current_SOP_Node, node_name, myNodeManager);
 
 	// Add a blend shape channel for this input
 	UT_String channel_name(node_name, UT_String::ALWAYS_DEEP);

@@ -106,6 +106,8 @@ public:
 
     static bool outputCustomProperties(OP_Node* node, FbxNode* fbx_node);
 
+    static void getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager = nullptr);
+
     template < class FBX_MATRIX >
     static void convertHdMatrixToFbxMatrix(const UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)
     {
