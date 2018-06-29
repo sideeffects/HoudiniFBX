@@ -83,6 +83,7 @@ typedef std::vector < const GA_Attribute* > THDAttributeVector;
 typedef std::map < OP_Node* , FbxSurfaceMaterial* > THdFbxMaterialMap;
 typedef std::map < std::string, FbxSurfaceMaterial* > THdFbxStringMaterialMap;
 typedef std::map < OP_Node* , int > THdNodeIntMap;
+typedef std::map < std::string, int > THdFbxStringIntMap;
 //typedef set < OP_Node* > THdNodeSet;
 typedef std::map < std::string , FbxTexture* > THdFbxTextureMap;
 typedef std::vector < FbxLayerElementTexture* > TFbxLayerElemsVector;

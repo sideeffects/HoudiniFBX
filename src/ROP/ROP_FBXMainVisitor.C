@@ -2795,7 +2795,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     fpreal start_time = myStartTime;
     int curr_prim, num_prims = 0;
     OP_Node **per_face_mats = NULL;
-    UT_StringArray per_face_math_paths;
+    UT_StringArray per_face_mats_paths;
 
     const GEO_Primitive *prim;
     OP_Network* src_net = dynamic_cast<OP_Network*>(source_node);
@@ -2834,7 +2834,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 		    num_prims = final_detail->getNumPrimitives();
 		    per_face_mats = new OP_Node* [num_prims];
 		    memset(per_face_mats, 0, sizeof(OP_Node*)*num_prims);
-		    per_face_math_paths.setSize(num_prims);
+		    per_face_mats_paths.setSize(num_prims);
 
 		    int curr_prim_idx = 0;
 		    GA_FOR_ALL_PRIMITIVES(final_detail, prim)
@@ -2845,7 +2845,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 			{
 			    per_face_mats[curr_prim_idx] = source_node->findNode(loc_mat_path);
 			}
-			per_face_math_paths[curr_prim_idx] = loc_mat_path;
+			per_face_mats_paths[curr_prim_idx] = loc_mat_path;
 			curr_prim_idx++;
 		    }
 		}
@@ -2854,7 +2854,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     }
     
     // No materials found
-    if(!per_face_mats && ( per_face_math_paths.entries() < 0 ) && !main_mat_node)
+    if(!per_face_mats && ( per_face_mats_paths.entries() < 0 ) && !main_mat_node)
 	return;
     
     // If we have per-face materials, fill in the gaps with our regular material
@@ -2895,38 +2895,78 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	temp_layer_elem->SetReferenceMode(FbxLayerElement::eIndexToDirect);
 	mat_layer->SetMaterials(temp_layer_elem);
 
+	// We need two material maps
+	// One for existing material nodes...
 	THdNodeIntMap mat_idx_map;
 	THdNodeIntMap::iterator mi;
+
+	// ... and one for material paths/names
+	THdFbxStringIntMap mat_path_idx_map;
+	THdFbxStringIntMap::iterator mpathi;
+
 	int curr_fbx_mat_idx, curr_added_mats = 0;
 	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
 	{
+	    bool material_found_in_path_map = false;
 	    fbx_material = generateFbxMaterial(per_face_mats[curr_prim], myMaterialsMap);
 	    if (!fbx_material)
 	    {
 		// couldnt find in the main map, look for the material in the backup map (named material)
-		fbx_material = generateFbxMaterial(per_face_math_paths[curr_prim], myStringMaterialMap);
-		
-		// If not found, use the default material
-		if (!fbx_material)
+		fbx_material = generateFbxMaterial(per_face_mats_paths[curr_prim], myStringMaterialMap);
+
+		if (fbx_material)
+		{
+		    // The material was found in the path/name map
+		    material_found_in_path_map = true;
+		}
+		else
+		{
+		    // If not found, use the default material
 		    fbx_material = getDefaultMaterial(myMaterialsMap);
+		}
 	    }
 
-	    // See if it's in the map
-	    mi = mat_idx_map.find(per_face_mats[curr_prim]);
-	    if(mi == mat_idx_map.end())
+	    if (!material_found_in_path_map)
 	    {
-		// Add it to the map
-		mat_idx_map[per_face_mats[curr_prim]] = curr_added_mats;
-		fbx_node->AddMaterial(fbx_material);
-		curr_fbx_mat_idx = curr_added_mats;
-		curr_added_mats++;
+		// See if the material is already in the main map (existing material nodes)
+		mi = mat_idx_map.find(per_face_mats[curr_prim]);
+		if (mi == mat_idx_map.end())
+		{
+		    // Add it to the map
+		    mat_idx_map[per_face_mats[curr_prim]] = curr_added_mats;
+		    fbx_node->AddMaterial(fbx_material);
+		    curr_fbx_mat_idx = curr_added_mats;
+		    curr_added_mats++;
 
-		createTexturesForMaterial(per_face_mats[curr_prim], fbx_material, myTexturesMap);
+		    createTexturesForMaterial(per_face_mats[curr_prim],
+					      fbx_material, myTexturesMap);
+		}
+		else
+		{
+		    // Get its index
+		    curr_fbx_mat_idx = mi->second;
+		}
 	    }
 	    else
 	    {
-		// Get its count
-		curr_fbx_mat_idx = mi->second;
+		// See if the material is already in the secondary map (path/names)
+		mpathi = mat_path_idx_map.find(per_face_mats_paths[curr_prim].buffer());
+		if (mpathi == mat_path_idx_map.end())
+		{
+		    // Add it to the map
+		    mat_path_idx_map[per_face_mats_paths[curr_prim].buffer()] = curr_added_mats;
+		    fbx_node->AddMaterial(fbx_material);
+		    curr_fbx_mat_idx = curr_added_mats;
+		    curr_added_mats++;
+
+		    /*createTexturesForMaterial(per_face_mats[curr_prim],
+					      fbx_material, myTexturesMap);*/
+		}
+		else
+		{
+		    // Get its index
+		    curr_fbx_mat_idx = mpathi->second;
+		}
 	    }
 
 	    // Set the indirect index
@@ -2938,6 +2978,8 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	// One material for the entire object
 	// Set the value
 	fbx_material = generateFbxMaterial(main_mat_node, myMaterialsMap);
+	if(!fbx_material)
+	    fbx_material = generateFbxMaterial(main_mat_path.buffer(), myStringMaterialMap);
 	if(!fbx_material)
 	    fbx_material = getDefaultMaterial(myMaterialsMap);
 	
