@@ -1153,6 +1153,23 @@ ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
 
     return curr_node;
 }
+
+void
+ROP_FBXUtil::getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager)
+{
+    // First, see if we have a "fbx_node_name" param value on the node
+    ROP_FBXUtil::getStringOPParm(node, "fbx_node_name", node_name);
+    if (node_name.length() > 0)
+	return;
+
+    // No param, read the node name and make it unique
+    node_name = UT_String(UT_String::ALWAYS_DEEP, node->getName());
+
+    // Optional, this will only do anything for "Scene"
+    if ( node_manager )
+	node_manager->makeNameUnique( node_name );
+}
+
 /********************************************************************************************************/
 GA_PrimCompat::TypeMask
 ROP_FBXUtil::getGdpPrimId(const GU_Detail* gdp)
