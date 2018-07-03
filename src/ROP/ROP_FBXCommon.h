@@ -75,7 +75,8 @@ enum ROP_FBXVertexCacheMethodType
 enum ROP_FBXInvisibleNodeExportType
 {
     ROP_FBXInvisibleNodeExportAsNulls = 0,
-    ROP_FBXInvisibleNodeExportFull
+    ROP_FBXInvisibleNodeExportFull,
+    ROP_FBXInvisibleNodeExportAsVisible
 };
 /********************************************************************************************************/
 class ROP_FBXExportOptions

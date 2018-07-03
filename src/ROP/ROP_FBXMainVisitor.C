@@ -193,6 +193,10 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     else 
 	is_visible = is_sop_export ? true : node->getVisible();
 
+    // Consider all nodes visible
+    if ( myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsVisible )
+	is_visible = true;
+
     bool force_exporting_as_null = false;
     if(myParentExporter->getExportOptions()->isExportingBundles() &&
 	myParentExporter->getNodeManager()->isNodeBundled(node) == false)
@@ -212,8 +216,9 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     }
 
     if(!force_exporting_as_null)
-    if( (is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls) 
+    if( ( is_visible && myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsNulls ) 
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
+	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsVisible
 	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient" )
     {
 	if(node_type == "instance")

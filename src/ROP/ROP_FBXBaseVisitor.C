@@ -470,6 +470,10 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
     if (!is_visible && node->isManager())
 	is_visible = true;
 
+    // Consider all node as visible
+    if (myHiddenNodeExportMode == ROP_FBXInvisibleNodeExportAsVisible)
+	is_visible = true;
+
     if(!is_visible && myHiddenNodeExportMode == ROP_FBXInvisibleNodeExportAsNulls)
     {
 	// Note: we also have to check if, when the network is hidden, the transforms of
