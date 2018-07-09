@@ -1779,10 +1779,33 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
 	    }
 	    else
 		ROP_FBXassignValues(hd_type, fbx_type, NULL);
+
+	    if (is_indexed)
+	    {
+		int foundIdx = layer_elem->GetDirectArray().Find( fbx_type );
+		if ( foundIdx < 0 )
+		{
+		    // Add a new element
+		    layer_elem->GetDirectArray().Add(fbx_type);
+		    layer_elem->GetIndexArray().Add(curr_arr_cntr++);
+		}
+		else
+		{
+		    // Add the found IDx
+		    layer_elem->GetIndexArray().Add(foundIdx);
+		}
+	    }
+	    else
+	    {
+		layer_elem->GetDirectArray().Add(fbx_type);
+	    }
+	    /*
 	    layer_elem->GetDirectArray().Add(fbx_type);
 	    if (is_indexed)
 		layer_elem->GetIndexArray().Add(curr_arr_cntr);
+
 	    curr_arr_cntr++;
+	    */
 	}
     }
 }
