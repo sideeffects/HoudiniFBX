@@ -1763,49 +1763,67 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
     float extra_attr_type;
 
     bool is_indexed = (layer_elem->GetReferenceMode() != FbxLayerElement::eDirect);
-    
-    int curr_arr_cntr = 0;
-    GA_FOR_ALL_PRIMITIVES(gdp, prim)
+    if (is_indexed)
     {
-	GA_Size num_verts = prim->getVertexCount();
-	for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0 ; curr_vert--)
+	int curr_arr_cntr = 0;
+	UT_Map<HD_TYPE, int> hd_type_map;
+	GA_FOR_ALL_PRIMITIVES(gdp, prim)
 	{
-            GA_Offset vertexoffset = prim->getVertexOffset(curr_vert);
-	    hd_type = attrib.get(vertexoffset);
-	    if (extra_attrib.isValid())
+	    GA_Size num_verts = prim->getVertexCount();
+	    for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0; curr_vert--)
 	    {
-		extra_attr_type = extra_attrib.get(vertexoffset);
-		ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
-	    }
-	    else
-		ROP_FBXassignValues(hd_type, fbx_type, NULL);
+		GA_Offset vertexoffset = prim->getVertexOffset(curr_vert);
+		hd_type = attrib.get(vertexoffset);
 
-	    if (is_indexed)
-	    {
-		int foundIdx = layer_elem->GetDirectArray().Find( fbx_type );
-		if ( foundIdx < 0 )
+		auto found = hd_type_map.find(hd_type);
+		if ( found != hd_type_map.end() )
 		{
-		    // Add a new element
-		    layer_elem->GetDirectArray().Add(fbx_type);
-		    layer_elem->GetIndexArray().Add(curr_arr_cntr++);
+		    // Add the found IDx
+		    layer_elem->GetIndexArray().Add( found->second );
 		}
 		else
 		{
-		    // Add the found IDx
-		    layer_elem->GetIndexArray().Add(foundIdx);
+		    // Add a new element to the indexed array
+		    // Convert the houdini type to an fbx type
+		    if (extra_attrib.isValid())
+		    {
+			extra_attr_type = extra_attrib.get(vertexoffset);
+			ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
+		    }
+		    else
+			ROP_FBXassignValues(hd_type, fbx_type, NULL);
+
+		    // Add it to the direct and index arrays
+		    layer_elem->GetDirectArray().Add(fbx_type);
+		    layer_elem->GetIndexArray().Add(curr_arr_cntr);
+
+		    // Also add it to the map
+		    hd_type_map[hd_type] = curr_arr_cntr;
+		    curr_arr_cntr++;
 		}
 	    }
-	    else
+	}
+    }
+    else
+    {
+	// Elements aren't indexed, so we can just simply add them to the direct array
+	GA_FOR_ALL_PRIMITIVES(gdp, prim)
+	{
+	    GA_Size num_verts = prim->getVertexCount();
+	    for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0; curr_vert--)
 	    {
+		GA_Offset vertexoffset = prim->getVertexOffset(curr_vert);
+		hd_type = attrib.get(vertexoffset);
+		if (extra_attrib.isValid())
+		{
+		    extra_attr_type = extra_attrib.get(vertexoffset);
+		    ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
+		}
+		else
+		    ROP_FBXassignValues(hd_type, fbx_type, NULL);
+
 		layer_elem->GetDirectArray().Add(fbx_type);
 	    }
-	    /*
-	    layer_elem->GetDirectArray().Add(fbx_type);
-	    if (is_indexed)
-		layer_elem->GetIndexArray().Add(curr_arr_cntr);
-
-	    curr_arr_cntr++;
-	    */
 	}
     }
 }
