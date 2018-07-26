@@ -296,7 +296,7 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fp
     OP_Node* render_node = is_sop_export ? op_net : op_net->getRenderNodePtr();
 
     const char *const dynamics_node_types[] = { "dopimport", "channel", 0};
-    const char *const dynamics_node_types_with_deforms[] = { "dopimport", "channel", "file", "deform", 0};
+    const char *const dynamics_node_types_with_deforms[] = { "dopimport", "channel", "file", "bonedeform", "deform", 0};
     const char *const particle_node_types[] = { "popnet", 0};
 
     found_particles = false;
@@ -313,7 +313,7 @@ ROP_FBXUtil::isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fp
     // we can ignore them.
 
     // Look for any time-dependent nodes in general.
-    const char *const deform_node[] = { "deform", 0 };
+    const char *const deform_node[] = { "bonedeform", "deform", 0 };
     if(ROP_FBXUtil::findTimeDependentNode(render_node, ROP_FBXallowed_inbetween_node_types, ( include_deform_nodes ? NULL : deform_node ), ftime, true))
 	return true;
     

@@ -103,7 +103,8 @@ const char * theAllowedInBetweenNodeTypes[] =
     "null", "switch", "subnet", "attribcomposite",
     "attribcopy", "attribcreate", "attribmirror", "attribpromote", "attribreorient",
     "attribpromote", "attribstringedit", "attribute", "cache",
-    CAPT_SKIN_NODE_TYPES, "captureoverride", "deform", "merge", "stash",
+    CAPT_SKIN_NODE_TYPES, "captureoverride", "bonedeform", "deform", "merge",
+    "stash",
     nullptr
 };
 
@@ -765,7 +766,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     {
 	// For now, only export skinning if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
-	const char *const skin_node_types[] = { "deform", 0};
+	const char *const skin_node_types[] = { "bonedeform", "deform", 0};
 	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, ROP_FBXallowed_inbetween_node_types, &did_find_allowed_nodes_only);
 
 	// Forcing will ignore the other nodes that deforms the mesh

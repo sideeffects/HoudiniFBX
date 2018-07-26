@@ -36,14 +36,15 @@
 #include "ROP_FBXMainVisitor.h"
 #include "ROP_FBXExporter.h"
 #include "ROP_FBXErrorManager.h"
-#include <UT/UT_Matrix4.h>
 #include <OBJ/OBJ_Node.h>
-#include <OP/OP_Node.h>
-#include <OP/OP_Director.h>
-#include <SOP/SOP_Node.h>
 #include <SOP/SOP_Capture.h>
 #include <SOP/SOP_CaptureRegion.h>
+#include <SOP/SOP_Node.h>
 #include <GEO/GEO_CaptureData.h>
+#include <OP/OP_Director.h>
+#include <OP/OP_Node.h>
+#include <UT/UT_Assert.h>
+#include <UT/UT_Matrix4.h>
 
 using namespace std;
 
@@ -199,15 +200,36 @@ ROP_FBXSkinningAction::performAction(void)
 		if(!fbx_skin)
 		{
 		    fbx_skin = FbxSkin::Create(sdk_manager, "");
-		    if (ROP_FBXUtil::getIntOPParm(myDeformNode, "usedqskin") == 0)
+		    if (myDeformNode->getOperator()->getName() == "deform")
 		    {
-			fbx_skin->SetSkinningType(FbxSkin::eLinear);
+			if (ROP_FBXUtil::getIntOPParm(myDeformNode, "usedqskin") == 0)
+			{
+			    fbx_skin->SetSkinningType(FbxSkin::eLinear);
+			}
+			else
+			{
+			    // TODO: Add support for FbxSkin::eBlend which is blend
+			    //       of linear and dual quaternion
+			    fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
+			}
+		    }
+		    else if (myDeformNode->getOperator()->getName() == "bonedeform")
+		    {
+			const int method = ROP_FBXUtil::getIntOPParm(myDeformNode, "method");
+			if (method == 0)
+			{
+			    fbx_skin->SetSkinningType(FbxSkin::eLinear);
+			}
+			else
+			{
+			    // TODO: Add support for FbxSkin::eBlend which is blend
+			    //       of linear and dual quaternion
+			    fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
+			}
 		    }
 		    else
 		    {
-			// TODO: Add support for FbxSkin::eBlend which is blend
-			//       of linear and dual quaternion
-			fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
+			UT_ASSERT(!"Failed to determine deform node type");
 		    }
 		}
 		createSkinningInfo(
