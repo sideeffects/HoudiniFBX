@@ -116,7 +116,7 @@ ROP_FBXUtil::getGeometryHandle(SOP_Node* sop_node, OP_Context &context, GU_Detai
 }
 /********************************************************************************************************/
 void				
-ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand, fpreal ftime)
+ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, fpreal ftime)
 {
     PRM_Parm	 *parm;
     strref = "";
@@ -125,11 +125,11 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 	return;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
-	parm->getValue(ftime, strref, 0, do_expand, SYSgetSTID());
+	parm->getValue(ftime, strref, 0, true, SYSgetSTID());
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, fpreal ftime)
+ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, fpreal ftime, int index)
 {
     if(!node)
 	return 0;
@@ -144,7 +144,7 @@ ROP_FBXUtil::getIntOPParm(OP_Node *node, const char* parmName, int index, fpreal
 }
 /********************************************************************************************************/
 fpreal 
-ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, int index, fpreal ftime, bool *did_find)
+ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, fpreal ftime, int index, bool *did_find)
 {
     if(did_find)
 	*did_find = false;
@@ -849,7 +849,7 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXUtil::isJointNullNode(OP_Node* null_node)
+ROP_FBXUtil::isJointNullNode(OP_Node* null_node, fpreal ftime)
 {
     if(!null_node)
 	return false;
@@ -872,11 +872,11 @@ ROP_FBXUtil::isJointNullNode(OP_Node* null_node)
     if(!child_bone)	
 	return false;
 
-    return isDummyBone(child_bone);
+    return isDummyBone(child_bone, ftime);
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
+ROP_FBXUtil::isDummyBone(OP_Node* bone_node, fpreal ftime)
 {
     // A bone is a dummy bone iff:
     // 1) It is a child of a null node
@@ -898,7 +898,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
 
     OP_Node* look_at_node = NULL;
     UT_String look_at_path;
-    ROP_FBXUtil::getStringOPParm(bone_node, "lookatpath", look_at_path, true);
+    ROP_FBXUtil::getStringOPParm(bone_node, "lookatpath", look_at_path, ftime);
     if(look_at_path.isstring() == false)
 	return false;
 
@@ -908,7 +908,7 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node)
 
     // Check if bone length is an expression
     UT_String bone_length_str;
-    ROP_FBXUtil::getStringOPParm(bone_node, "length", bone_length_str, true);
+    ROP_FBXUtil::getStringOPParm(bone_node, "length", bone_length_str, ftime);
     if (!bone_length_str.isFloat())
 	return false;
 
@@ -1134,7 +1134,7 @@ ROP_FBXUtil::outputCustomProperties(OP_Node* node, FbxNode* fbx_node)
 }
 /********************************************************************************************************/
 OP_Node* 
-ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
+ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr, fpreal ftime)
 {
     if(!instance_ptr)
 	return NULL;
@@ -1148,7 +1148,7 @@ ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
 	if(node_type != "instance")
 	    break;
 
-	ROP_FBXUtil::getStringOPParm(curr_node, "instancepath", target_obj_path, true);
+	ROP_FBXUtil::getStringOPParm(curr_node, "instancepath", target_obj_path, ftime);
 	curr_node = curr_node->findNode(target_obj_path);
     }
 
@@ -1156,10 +1156,10 @@ ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr)
 }
 
 void
-ROP_FBXUtil::getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager)
+ROP_FBXUtil::getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager, fpreal ftime)
 {
     // First, see if we have a "fbx_node_name" param value on the node
-    ROP_FBXUtil::getStringOPParm(node, "fbx_node_name", node_name);
+    ROP_FBXUtil::getStringOPParm(node, "fbx_node_name", node_name, ftime);
     if (node_name.length() > 0)
 	return;
 

@@ -462,9 +462,9 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
     // If not, check if it is hidden and if we're set to export hidden nodes
     // as nulls.
     bool is_visible = node->getDisplay();
-    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", 0, myStartTime);
+    int use_display_parm = ROP_FBXUtil::getIntOPParm(node, "tdisplay", myStartTime);
     if(use_display_parm)
-	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", 0, myStartTime));
+	is_visible &= (bool)(ROP_FBXUtil::getIntOPParm(node, "display", myStartTime));
 
     // Exception for the obj manager node
     if (!is_visible && node->isManager())
@@ -481,7 +481,7 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
 	// 1) Have children.
 	// 2) Have the output transform set to any node inside of it.
 	UT_String output_transf_name(UT_String::ALWAYS_DEEP);
-	ROP_FBXUtil::getStringOPParm(node, "outputobj", output_transf_name, true, myStartTime);
+	ROP_FBXUtil::getStringOPParm(node, "outputobj", output_transf_name, myStartTime);
 	if(output_transf_name == OBJ_Node::input1ObjectToken || 
 	    output_transf_name == OBJ_Node::input2ObjectToken ||
 	    output_transf_name == OBJ_Node::input3ObjectToken ||
@@ -545,7 +545,7 @@ ROP_FBXBaseVisitor::findParentInfoForChildren(OP_Node* op_parent, TBaseNodeVisit
 
     // Look at the desired output for this network.
     UT_String output_transf_name;
-    ROP_FBXUtil::getStringOPParm(op_net, "outputobj", output_transf_name, true, myStartTime);
+    ROP_FBXUtil::getStringOPParm(op_net, "outputobj", output_transf_name, myStartTime);
 
     TBaseNodeVisitInfoVector res_infos;
     this->findVisitInfos(op_parent, res_infos);

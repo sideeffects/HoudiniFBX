@@ -202,7 +202,7 @@ ROP_FBXSkinningAction::performAction(void)
 		    fbx_skin = FbxSkin::Create(sdk_manager, "");
 		    if (myDeformNode->getOperator()->getName() == "deform")
 		    {
-			if (ROP_FBXUtil::getIntOPParm(myDeformNode, "usedqskin") == 0)
+			if (ROP_FBXUtil::getIntOPParm(myDeformNode, "usedqskin", start_time) == 0)
 			{
 			    fbx_skin->SetSkinningType(FbxSkin::eLinear);
 			}
@@ -215,7 +215,7 @@ ROP_FBXSkinningAction::performAction(void)
 		    }
 		    else if (myDeformNode->getOperator()->getName() == "bonedeform")
 		    {
-			const int method = ROP_FBXUtil::getIntOPParm(myDeformNode, "method");
+			const int method = ROP_FBXUtil::getIntOPParm(myDeformNode, "method", start_time);
 			if (method == 0)
 			{
 			    fbx_skin->SetSkinningType(FbxSkin::eLinear);
@@ -519,6 +519,7 @@ ROP_FBXCreateInstancesAction::performAction(void)
 
     ROP_FBXNodeInfo *this_node_info;
 
+    fpreal start_time = getParentManager().getExporter().getStartTime();
     ROP_FBXMainVisitor geom_visitor(&getParentManager().getExporter());
     ROP_FBXMainNodeVisitInfo visit_info(NULL);
     ROP_FBXMainNodeVisitInfo *target_node_info;
@@ -541,7 +542,7 @@ ROP_FBXCreateInstancesAction::performAction(void)
 
 	    // Get the pointed-to HD node
 	    hd_inst = myItems[curr_inst_idx].myHdNode;
-	    hd_inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(hd_inst);
+	    hd_inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(hd_inst, start_time);
 	    if(!hd_inst_target)
 		continue;
 
