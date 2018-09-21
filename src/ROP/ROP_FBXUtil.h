@@ -72,9 +72,9 @@ class ROP_FBXUtil
 public:
 
     static bool getGeometryHandle(SOP_Node* sop_node, OP_Context &context, GU_DetailHandle &gdh);
-    static void getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, bool do_expand = false, fpreal ftime = 0.0);
-    static int getIntOPParm(OP_Node *node, const char* parmName, int index = 0, fpreal ftime = 0.0);
-    static fpreal getFloatOPParm(OP_Node *node, const char* parmName, int index = 0, fpreal ftime = 0.0, bool *did_find = NULL);
+    static void getStringOPParm(OP_Node *node, const char* parmName, UT_String &strref, fpreal ftime);
+    static int getIntOPParm(OP_Node *node, const char* parmName, fpreal ftime, int index = 0);
+    static fpreal getFloatOPParm(OP_Node *node, const char* parmName, fpreal ftime, int index = 0, bool *did_find = NULL);
 
     static int getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpreal end_time, float lod, bool allow_constant_point_detection, 
 	bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces);
@@ -95,18 +95,18 @@ public:
     static OP_Node* findOpInput(OP_Node *op, const char * const find_op_types[], bool include_me, const char* const  allowed_node_types[], bool *did_find_allowed_only, int rec_level = 0, UT_Set<OP_Node*> *already_visited=NULL);
     static bool findTimeDependentNode(OP_Node *op, const char * const ignored_node_types[], const char * const opt_more_types[], fpreal ftime, bool include_me, UT_Set<OP_Node*> *already_visited=NULL);
     static void setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info, fpreal bone_length, fpreal ftime, bool use_world_transform = false);
-    static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr);
+    static OP_Node* findNonInstanceTargetFromInstance(OP_Node* instance_ptr, fpreal ftime);
 
     static GA_PrimCompat::TypeMask getGdpPrimId(const GU_Detail* gdp);
 
-    static bool isDummyBone(OP_Node* bone_node);
-    static bool isJointNullNode(OP_Node* null_node);
+    static bool isDummyBone(OP_Node* bone_node, fpreal ftime);
+    static bool isJointNullNode(OP_Node* null_node, fpreal ftime);
 
     static bool isLODGroupNullNode(OP_Node* null_node);
 
     static bool outputCustomProperties(OP_Node* node, FbxNode* fbx_node);
 
-    static void getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager = nullptr);
+    static void getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager, fpreal ftime);
 
     template < class FBX_MATRIX >
     static void convertHdMatrixToFbxMatrix(const UT_DMatrix4& hd_matrix, FBX_MATRIX& fbx_matrix)

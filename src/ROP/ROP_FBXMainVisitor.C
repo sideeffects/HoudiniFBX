@@ -228,7 +228,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    // *but* we need to attach the instance attribute later, as a post-action,
 	    // in case it's not created at this point.
 	    UT_String node_name;
-	    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+	    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
 	    temp_new_node = FbxNode::Create(mySDKManager, (const char*)node_name);
 	    res_nodes.push_back(temp_new_node);
@@ -239,7 +239,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
 	    // See if we're an instance of a light or a camera, in which case
 	    // we need to apply special transforms to this node.
-	    OP_Node* inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(node);
+	    OP_Node* inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(node, myStartTime);
 	    if(inst_target)
 	    {
 		const UT_StringHolder& inst_target_node_type = inst_target->getOperator()->getName();
@@ -252,7 +252,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	else if(node_type == "null")
 	{
 	    // Null node
-	    bool is_joint_null_node = ROP_FBXUtil::isJointNullNode(node);
+	    bool is_joint_null_node = ROP_FBXUtil::isJointNullNode(node, myStartTime);
 	    bool is_last_joint_node = (parent_info && parent_info->getBoneLength() > 0.0);
 	    bool is_lod_group_node = ROP_FBXUtil::isLODGroupNullNode(node);
 	    if(is_joint_null_node || is_last_joint_node)
@@ -296,7 +296,7 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	else if(node_type == "bone")
 	{
 	    // Export bones - only if this isn't a dummy bone for display only.
-	    if(ROP_FBXUtil::isDummyBone(node) == false)
+	    if(ROP_FBXUtil::isDummyBone(node, myStartTime) == false)
 	    {
 		outputBoneNode(node, node_info, fbx_parent_node, false, res_nodes);
 		res_type = ROP_FBXVisitorResultSkipSubnet;
@@ -309,15 +309,15 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	}
 	else if(node_type == "ambient")
 	{
-	    int is_enabled = ROP_FBXUtil::getIntOPParm(node, "light_enable",0, myStartTime);
+	    int is_enabled = ROP_FBXUtil::getIntOPParm(node, "light_enable", myStartTime);
 	    if(is_enabled)
 	    {
 		fpreal amb_intensity;
 		fpreal amb_light_col[3];
-		amb_intensity = ROP_FBXUtil::getFloatOPParm(node, "light_intensity", 0, myStartTime);
-		amb_light_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0, myStartTime);
-		amb_light_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1, myStartTime);
-		amb_light_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2, myStartTime);
+		amb_intensity = ROP_FBXUtil::getFloatOPParm(node, "light_intensity", myStartTime);
+		amb_light_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", myStartTime, 0);
+		amb_light_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", myStartTime, 1);
+		amb_light_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", myStartTime, 2);
 
 		UT_Color this_amb_color;
 		this_amb_color.setRGB(amb_light_col[0] * amb_intensity, amb_light_col[1] * amb_intensity, amb_light_col[2] * amb_intensity);
@@ -445,7 +445,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     UT_ASSERT(lookat_parm_name);
 
     UT_String lookatobjectpath;
-    ROP_FBXUtil::getStringOPParm(hd_node, lookat_parm_name, lookatobjectpath, true, myStartTime);
+    ROP_FBXUtil::getStringOPParm(hd_node, lookat_parm_name, lookatobjectpath, myStartTime);
 
     FbxNode* new_node = constr_info.getFbxNode();
 
@@ -664,13 +664,13 @@ ROP_FBXMainVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBase
     // If it isn't, that means we have an end effector to create.
     ROP_FBXMainNodeVisitInfo* cast_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(last_node_info);
     if (cast_info && cast_info->getBoneLength() > 0.0
-	&& ROP_FBXUtil::isDummyBone(last_node) == false
-	&& ROP_FBXUtil::isJointNullNode(last_node) == false
+	&& ROP_FBXUtil::isDummyBone(last_node, myStartTime) == false
+	&& ROP_FBXUtil::isJointNullNode(last_node, myStartTime) == false
 	&& myParentExporter->getExportOptions()->getExportBonesEndEffectors())
     {
 	// Create the end effector
         UT_String node_name;
-        ROP_FBXUtil::getNodeName(last_node, node_name, myNodeManager);
+        ROP_FBXUtil::getNodeName(last_node, node_name, myNodeManager, myStartTime);
 	node_name += "_end_effector";
 
 	FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
@@ -693,7 +693,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 {
     // NOTE: This may get called on a null nodes, as well, if they are being exported as joints.
     UT_String node_name;
-    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxSkeleton *res_attr = FbxSkeleton::Create(mySDKManager, (const char*)node_name);
@@ -716,7 +716,7 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     if(is_a_null)
 	bone_length = 1.0; // Some dummy value so the next joint knows it's not a root.
     else
-	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length", 0, myStartTime);
+	bone_length = ROP_FBXUtil::getFloatOPParm(node, "length", myStartTime);
     node_info->setBoneLength(bone_length);
 
     res_nodes.push_back(res_node);
@@ -808,7 +808,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     }
 
     UT_String node_name;
-    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
     if (blend_shapes_out_only)
     {
@@ -970,9 +970,9 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
 	OP_Node *capture_node = ROP_FBXUtil::findOpInput(skin_deform_node, capt_skin_node_types, true, NULL, NULL);
 	if (capture_node)
 	{
-	    if (ROP_FBXUtil::getIntOPParm(capture_node, "usecaptpose") == false)
+	    if (ROP_FBXUtil::getIntOPParm(capture_node, "usecaptpose", myStartTime) == false)
 	    {
-		capture_frame = ROP_FBXUtil::getFloatOPParm(capture_node, "captframe");
+		capture_frame = ROP_FBXUtil::getFloatOPParm(capture_node, "captframe", myStartTime);
 	    }
 	}
 
@@ -2535,7 +2535,7 @@ ROP_FBXMainVisitor::outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
     }
 
     UT_String node_name;
-    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
 
@@ -2551,7 +2551,7 @@ bool
 ROP_FBXMainVisitor::outputLODGroupNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes)
 {
     UT_String node_name;
-    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
     // Create a new node and add an LOD Group attribute to it
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
@@ -2647,7 +2647,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     UT_String string_param;
     FbxDouble3 fbx_col;
     UT_String node_name;
-    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxLight *res_attr = FbxLight::Create(mySDKManager, (const char*)node_name);
@@ -2655,7 +2655,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
 
     // Set params
     FbxLight::EType light_type;
-    ROP_FBXUtil::getStringOPParm(node, "light_type", string_param, true);
+    ROP_FBXUtil::getStringOPParm(node, "light_type", string_param, myStartTime);
     if(string_param == "point")
     {
 	// Point light
@@ -2677,33 +2677,33 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     res_attr->LightType.Set(light_type);
 
     // Enable/disable flag
-    int_param = ROP_FBXUtil::getIntOPParm(node, "light_enable");
+    int_param = ROP_FBXUtil::getIntOPParm(node, "light_enable", myStartTime);
     res_attr->CastLight.Set((bool)int_param);
 
     // Cast shadows flag
-    ROP_FBXUtil::getStringOPParm(node, "shadow_type", string_param, true);
+    ROP_FBXUtil::getStringOPParm(node, "shadow_type", string_param, myStartTime);
     res_attr->CastShadows.Set(string_param != "off");
 
     // Color
-    fbx_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 0);
-    fbx_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 1);
-    fbx_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", 2);
+    fbx_col[0] = ROP_FBXUtil::getFloatOPParm(node, "light_color", myStartTime, 0);
+    fbx_col[1] = ROP_FBXUtil::getFloatOPParm(node, "light_color", myStartTime, 1);
+    fbx_col[2] = ROP_FBXUtil::getFloatOPParm(node, "light_color", myStartTime, 2);
 //    fbx_col.Set(float_parm[0], float_parm[1], float_parm[2]);
 //    res_attr->SetDefaultColor(fbx_col);
     res_attr->Color.Set(fbx_col);
 
     // Intensity
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "light_intensity");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "light_intensity", myStartTime);
     //res_attr->SetDefaultIntensity(float_parm[0]*100.0);
     res_attr->Intensity.Set(float_parm[0]*100.0);
 
     // Cone angle
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "coneangle");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "coneangle", myStartTime);
     //res_attr->SetDefaultConeAngle(float_parm[0]);
     res_attr->OuterAngle.Set(float_parm[0]);
 
     // Attenuation
-    ROP_FBXUtil::getStringOPParm(node, "atten_type", string_param, true);
+    ROP_FBXUtil::getStringOPParm(node, "atten_type", string_param, myStartTime);
     FbxLight::EDecayType decay_type = FbxLight::eNone;
     if(string_param == "quadratic")
 	decay_type = FbxLight::eQuadratic;
@@ -2716,7 +2716,7 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
     }
     res_attr->DecayType.Set(decay_type);
 
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "atten_dist");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "atten_dist", myStartTime);
     res_attr->DecayStart.Set(float_parm[0]*0.5);
 
     res_nodes.push_back(res_node);
@@ -2732,14 +2732,14 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     FbxVector4 fbx_vec4;
 
     UT_String node_name;
-    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(node, node_name, myNodeManager, myStartTime);
 
     FbxNode* res_node = FbxNode::Create(mySDKManager, (const char*)node_name);
     FbxCamera *res_attr = FbxCamera::Create(mySDKManager, (const char*)node_name);
     res_node->SetNodeAttribute(res_attr);
 
     // Projection type
-    ROP_FBXUtil::getStringOPParm(node, "projection", string_param, true);
+    ROP_FBXUtil::getStringOPParm(node, "projection", string_param, myStartTime);
     FbxCamera::EProjectionType project_type;
     if(string_param == "ortho")
 	project_type = FbxCamera::eOrthogonal;
@@ -2755,7 +2755,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     // Focal length
     // Get the units, as well
     double length_mult = 1.0;
-    ROP_FBXUtil::getStringOPParm(node, "focalunits", string_param, true);
+    ROP_FBXUtil::getStringOPParm(node, "focalunits", string_param, myStartTime);
     if(string_param == "m")
 	length_mult = 1000.0;
     else if(string_param == "nm")
@@ -2765,19 +2765,19 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     else if(string_param == "ft")
 	length_mult = 304.8;
 
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focal");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focal", myStartTime);
     //double foc_len = float_parm[0];
     res_attr->SetApertureMode(FbxCamera::eFocalLength);
     res_attr->FocalLength.Set(float_parm[0]*length_mult);
 
     // Pixel ratio
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aspect");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aspect", myStartTime);
     res_attr->SetPixelRatio(float_parm[0]);
 
     // Up vector
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "up",0);
-    float_parm[1] = ROP_FBXUtil::getFloatOPParm(node, "up",1);
-    float_parm[2] = ROP_FBXUtil::getFloatOPParm(node, "up",2);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "up", myStartTime, 0);
+    float_parm[1] = ROP_FBXUtil::getFloatOPParm(node, "up", myStartTime, 1);
+    float_parm[2] = ROP_FBXUtil::getFloatOPParm(node, "up", myStartTime, 2);
     fbx_vec4.Set(float_parm[0], float_parm[1], float_parm[2]);
     res_attr->UpVector.Set(fbx_vec4);
 
@@ -2785,12 +2785,12 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     // aperture mode is set to FbxCamera::eFOCAL_LENGTH, we have to
     // convert our aperture into aperture width and height, in inches,
     // that the FBX SDK expects.
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aperture");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aperture", myStartTime);
     //double fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len*length_mult) ) * 2.0;
 
     // Get the x/y resolution of the camera to get aperture ratios.
-    fpreal xres = ROP_FBXUtil::getFloatOPParm(node, "res",0);
-    fpreal yres = ROP_FBXUtil::getFloatOPParm(node, "res",1);
+    fpreal xres = ROP_FBXUtil::getFloatOPParm(node, "res", myStartTime, 0);
+    fpreal yres = ROP_FBXUtil::getFloatOPParm(node, "res", myStartTime, 1);
 
     // Record the camera resolution
     res_attr->SetAspect(FbxCamera::eFixedResolution, xres, yres);
@@ -2806,18 +2806,18 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     res_attr->SetApertureWidth((float_parm[0] / 10.0) / 2.54);
 
     // Near and far clip planes
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "near");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "near", myStartTime);
     res_attr->SetNearPlane(float_parm[0]);
 
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "far");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "far", myStartTime);
     res_attr->SetFarPlane(float_parm[0]);
 
     // Ortho zoom
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "orthowidth");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "orthowidth", myStartTime);
     res_attr->OrthoZoom.Set(float_parm[0]);
 
     // Focus distance
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focus");
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focus", myStartTime);
     res_attr->FocusSource.Set(FbxCamera::eFocusSpecificDistance);
     res_attr->FocusDistance.Set(float_parm[0]);
 
@@ -2837,7 +2837,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 //    OP_Director* op_director = OPgetDirector();
 
     UT_String main_mat_path;
-    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL, main_mat_path, true);
+    ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL, main_mat_path, myStartTime);
     OP_Node* main_mat_node = NULL;
     if(main_mat_path.isstring())
 	main_mat_node = source_node->findNode(main_mat_path);
@@ -3056,7 +3056,7 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 
     // See how many layers of textures are there
     OP_Node* surf_node = getSurfaceNodeFromMaterialNode(mat_node);
-    int curr_texture, num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex");
+    int curr_texture, num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex", myStartTime);
     int num_textures = 0;
     FbxTexture* fbx_texture;
 
@@ -3206,7 +3206,7 @@ ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, int texture_idx, UT_Stri
     UT_String text_parm_name(UT_String::ALWAYS_DEEP);
     UT_String texture_path, texture_name(UT_String::ALWAYS_DEEP);
     text_parm_name.sprintf("ogl_tex%d", texture_idx+1);
-    ROP_FBXUtil::getStringOPParm(surface_node, (const char *)text_parm_name, texture_path, true);
+    ROP_FBXUtil::getStringOPParm(surface_node, (const char *)text_parm_name, texture_path, myStartTime);
 
     if(texture_path.isstring() == false || texture_path.length() == 0)
 	return false;
@@ -3310,9 +3310,9 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     FbxDouble3 temp_fbx_col;
 
     UT_String mat_name;
-    ROP_FBXUtil::getNodeName(mat_node, mat_name, myNodeManager);
+    ROP_FBXUtil::getNodeName(mat_node, mat_name, myNodeManager, myStartTime);
 
-    ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 0, 0.0, &did_find);
+    ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 0, &did_find);
     if(did_find)
 	is_specular = true;    
 
@@ -3328,9 +3328,9 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	lamb_new_mat = FbxSurfaceLambert::Create(mySDKManager, (const char*)mat_name);
 
     // Diffuse
-    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", 0);
-    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", 1);
-    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", 2);
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", myStartTime, 0);
+    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", myStartTime, 1);
+    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", myStartTime, 2);
     temp_fbx_col[0] = temp_col[0];
     temp_fbx_col[1] = temp_col[1];
     temp_fbx_col[2] = temp_col[2];
@@ -3338,9 +3338,9 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     lamb_new_mat->DiffuseFactor.Set(1.0);
 
     // Ambient
-    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", 0);
-    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", 1);
-    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", 2);
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", myStartTime, 0);
+    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", myStartTime, 1);
+    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", myStartTime, 2);
     temp_fbx_col[0] = temp_col[0];
     temp_fbx_col[1] = temp_col[1];
     temp_fbx_col[2] = temp_col[2];
@@ -3348,9 +3348,9 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     lamb_new_mat->AmbientFactor.Set(1.0);
 
     // Emissive
-    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", 0);
-    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", 1);
-    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", 2);
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", myStartTime, 0);
+    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", myStartTime, 1);
+    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", myStartTime, 2);
     temp_fbx_col[0] = temp_col[0];
     temp_fbx_col[1] = temp_col[1];
     temp_fbx_col[2] = temp_col[2];
@@ -3360,9 +3360,9 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     if(new_mat)
     {
 	// Specular
-	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 0);
-	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 1);
-	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", 2);
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 0);
+	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 1);
+	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 2);
 	temp_fbx_col[0] = temp_col[0];
 	temp_fbx_col[1] = temp_col[1];
 	temp_fbx_col[2] = temp_col[2];
@@ -3370,12 +3370,12 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	new_mat->SpecularFactor.Set(1.0);
 
 	// Shininess
-	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "shininess", 0, 0.0, &did_find);
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "shininess", myStartTime, 0, &did_find);
 	if(did_find)
 	    temp_col[0] /= 100.0;
 	else
 	{
-	    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_rough", 0, 0.0, &did_find);
+	    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_rough", myStartTime, 0, &did_find);
 	    if(!did_find)
 		temp_col[0] = 1.0;
 	}
@@ -3383,7 +3383,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     }
 
     // Alpha
-    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", 0, 0.0, &did_find);
+    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", myStartTime, 0, &did_find);
     if(!did_find)
 	temp_col[0] = 1.0;
     lamb_new_mat->TransparencyFactor.Set(1.0 - temp_col[0]);
@@ -3559,7 +3559,7 @@ ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& nod
 	    continue;
 
 	UT_String current_input_name;
-	ROP_FBXUtil::getNodeName(current_input, current_input_name, myNodeManager);
+	ROP_FBXUtil::getNodeName(current_input, current_input_name, myNodeManager, myStartTime);
 
 	bool found_allowed_only = false;
 	if (ROP_FBXUtil::findOpInput(current_input, theBlendShapeNodeTypes, true, theAllowedInBetweenNodeTypes, &found_allowed_only, 0, local_already_visited))
@@ -3662,7 +3662,7 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 	    continue;	
 
 	UT_String node_name;
-	ROP_FBXUtil::getNodeName(current_SOP_Node, node_name, myNodeManager);
+	ROP_FBXUtil::getNodeName(current_SOP_Node, node_name, myNodeManager, myStartTime);
 
 	// Add a blend shape channel for this input
 	UT_String channel_name(node_name, UT_String::ALWAYS_DEEP);
