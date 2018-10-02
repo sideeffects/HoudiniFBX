@@ -1769,7 +1769,7 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
 	int curr_arr_cntr = 0;
 	UT_Map<HD_TYPE, int> hd_type_map;
 	GA_FOR_ALL_PRIMITIVES(gdp, prim)
-	{	    
+	{
 	    GA_Size num_verts = prim->getVertexCount();
 	    for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0; curr_vert--)
 	    {
@@ -1827,8 +1827,6 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
 	    }
 	}
     }
-
-
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
@@ -2622,16 +2620,16 @@ ROP_FBXMainVisitor::outputLODGroupNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* 
 	    res_attr->AddThreshold(value_as_distance);
 	}
     }
-
-    /* 
-    // deactivated temporarily as the linux fbxsdk as issue with this...
+    
+#ifndef LINUX
+    // Deactivated on linux as the linux fbxsdk as issue with this...
     if (node->getParameterOrProperty("fbx_threshold_used_as_percentage", 0, node, parm, true, NULL))
     {
 	int32 value = -1;
 	parm->getValue(0, value, 0, SYSgetSTID());
 	res_attr->ThresholdsUsedAsPercentage.Set(value ? true : false);
     }
-    */
+#endif
     
     res_node->SetNodeAttribute(res_attr);
     res_nodes.push_back(res_node);
@@ -2905,7 +2903,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     }
     
     // No materials found
-    if(!per_face_mats && ( per_face_mats_paths.entries() < 0 ) && !main_mat_node)
+    if(!per_face_mats && ( per_face_mats_paths.entries() <= 0 ) && !main_mat_node)
 	return;
     
     // If we have per-face materials, fill in the gaps with our regular material
@@ -3054,30 +3052,59 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
     if(!fbx_material)
 	return 0;
 
+    // Array storing the different texture parameter names
+    UT_StringArray tex_params;
+
     // See how many layers of textures are there
     OP_Node* surf_node = getSurfaceNodeFromMaterialNode(mat_node);
-    int curr_texture, num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex", myStartTime);
-    int num_textures = 0;
-    FbxTexture* fbx_texture;
 
+    int curr_texture = 0;
+    // Look for the ogl_tex params
+    int num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex", myStartTime);
     for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
     {
-	if(isTexturePresent(mat_node, curr_texture, NULL))
-	    num_textures++;
+        UT_String tex_parm_name(UT_String::ALWAYS_DEEP);
+        tex_parm_name.sprintf("ogl_tex%d", curr_texture + 1);
+
+	if (!isTexturePresent(mat_node, tex_parm_name, NULL))
+	    continue;
+
+	tex_params.append(tex_parm_name);
+    }
+
+    // Look for other texture parameters:
+    // map, tex, texture, map_base, tex_base, map1, tex1, texture1, diffmap
+    UT_StringArray poss_tex_params({"map%d", "tex%d", "texture%d"});
+    for (int curr_texture = 0; curr_texture < 16; curr_texture++)
+    {
+        for (int n = 0; n < poss_tex_params.entries(); n++)
+        {
+            UT_String tex_parm_name(UT_String::ALWAYS_DEEP);
+            tex_parm_name.sprintf(poss_tex_params[n], curr_texture + 1);
+
+	    if (!isTexturePresent(mat_node, tex_parm_name, NULL))
+		continue;
+
+	    tex_params.append(tex_parm_name);
+        }
     }
     
+    FbxTexture* fbx_texture = nullptr;
+    int num_textures = tex_params.entries();
     if(num_textures == 0)
 	return 0;
     else if(num_textures == 1)
     {
 	// Single-layer texture
-	fbx_texture = generateFbxTexture(mat_node, 0, myTexturesMap);
+	fbx_texture = generateFbxTexture(mat_node, 0, tex_params[0], myTexturesMap);
+
 	FbxProperty diffuse_prop = fbx_material->FindProperty( FbxSurfaceMaterial::sDiffuse );
 	if( diffuse_prop.IsValid() && fbx_texture)
 	    diffuse_prop.ConnectSrcObject( fbx_texture );
     }
     else
     {
+	// Multi-layer texture
 	FbxProperty diffuse_prop = fbx_material->FindProperty( FbxSurfaceMaterial::sDiffuse );
 	if( !diffuse_prop.IsValid() )
 	    return 0;
@@ -3086,12 +3113,11 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 	texture_name.sprintf("%s_ltexture", fbx_material->GetName());
 	FbxLayeredTexture* layered_texture = FbxLayeredTexture::Create(mySDKManager, (const char*)texture_name);
 	diffuse_prop.ConnectSrcObject( layered_texture );
-
-	// Multi-layer texture
+		
 	/*fbx_default_texture =*/ getDefaultTexture(myTexturesMap);
-	for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
+	for(curr_texture = 0; curr_texture < num_textures; curr_texture++)
 	{
-	    fbx_texture = generateFbxTexture(mat_node, curr_texture, myTexturesMap);
+	    fbx_texture = generateFbxTexture(mat_node, curr_texture, tex_params[curr_texture], myTexturesMap);
 	    if(!fbx_texture)
 		continue;
 	    layered_texture->ConnectSrcObject( fbx_texture );
@@ -3193,7 +3219,7 @@ ROP_FBXMainVisitor::getSurfaceNodeFromMaterialNode(OP_Node* material_node)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, int texture_idx, UT_String* texture_path_out)
+ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, UT_StringRef text_parm_name, UT_String* texture_path_out)
 {
     if(!mat_node)
 	return false;
@@ -3203,9 +3229,7 @@ ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, int texture_idx, UT_Stri
     if(!surface_node)
 	return false;
 
-    UT_String text_parm_name(UT_String::ALWAYS_DEEP);
     UT_String texture_path, texture_name(UT_String::ALWAYS_DEEP);
-    text_parm_name.sprintf("ogl_tex%d", texture_idx+1);
     ROP_FBXUtil::getStringOPParm(surface_node, (const char *)text_parm_name, texture_path, myStartTime);
 
     if(texture_path.isstring() == false || texture_path.length() == 0)
@@ -3218,10 +3242,10 @@ ROP_FBXMainVisitor::isTexturePresent(OP_Node* mat_node, int texture_idx, UT_Stri
 }
 /********************************************************************************************************/
 FbxTexture* 
-ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFbxTextureMap& tex_map)
+ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, UT_StringRef text_parm_name, THdFbxTextureMap& tex_map)
 {
     UT_String texture_path(UT_String::ALWAYS_DEEP);
-    if(!isTexturePresent(mat_node, texture_idx, &texture_path))
+    if(!isTexturePresent(mat_node, text_parm_name, &texture_path))
 	return NULL;
 
     const UT_String& mat_name = mat_node->getName();
@@ -3237,6 +3261,7 @@ ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFb
     texture_name.sprintf("%s_texture%d", (const char*)mat_name, texture_idx+1);    
     FbxFileTexture* new_tex = FbxFileTexture::Create(mySDKManager, (const char*)texture_name);
     new_tex->SetFileName((const char*)texture_path);
+    new_tex->SetTextureUse(FbxTexture::eStandard);
     new_tex->SetMappingType(FbxTexture::eUV);
     new_tex->SetMaterialUse(FbxFileTexture::eModelMaterial);
     new_tex->SetDefaultAlpha(1.0);
@@ -3249,6 +3274,9 @@ FbxSurfaceMaterial*
 ROP_FBXMainVisitor::generateFbxMaterial(const char * mat_string, THdFbxStringMaterialMap& mat_map)
 {
     if (!mat_string)
+	return NULL;
+
+    if (mat_string[0] == '\0')
 	return NULL;
 
     // Find the material if it is already created
