@@ -219,8 +219,8 @@ protected:
     FbxSurfaceMaterial* getDefaultMaterial(THdFbxMaterialMap& mat_map);
     FbxTexture* getDefaultTexture(THdFbxTextureMap& tex_map);
     OP_Node* getSurfaceNodeFromMaterialNode(OP_Node* material_node);
-    FbxTexture* generateFbxTexture(OP_Node* mat_node, int texture_idx, THdFbxTextureMap& tex_map);
-    bool isTexturePresent(OP_Node* mat_node, int texture_idx, UT_String* texture_path_out);
+    FbxTexture* generateFbxTexture(OP_Node* mat_node, int texture_idx, UT_StringRef text_parm_name, THdFbxTextureMap& tex_map);
+    bool isTexturePresent(OP_Node* mat_node, UT_StringRef text_parm_name, UT_String* texture_path_out);
 
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
     FbxLayerElement* getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
