@@ -108,6 +108,28 @@ ROP_FBXSkinningAction::getType(void)
     return ROP_FBXActionApplySkinning;
 }
 /********************************************************************************************************/
+
+/// Write out the dual quaternion blend attribute to FbxSkin's list of control
+/// points and weights.
+static void
+fbxRecordBlendWeights(FbxSkin &fbx_skin, const GU_Detail &gdp,
+                      const UT_StringRef &blend_attrib_name)
+{
+    GA_ROHandleF blend_attrib =
+        gdp.findFloatTuple(GA_ATTRIB_POINT, blend_attrib_name, 1);
+    if (!blend_attrib.isValid())
+        return;
+
+    for (GA_Offset ptoff : gdp.getPointRange())
+    {
+        // Although the API indicates that this could be a sparse list of
+        // weights, Maya doesn't handle that correctly so we'll write out a
+        // dense list.
+        fbx_skin.AddControlPointIndex(gdp.pointIndex(ptoff),
+                                      blend_attrib.get(ptoff));
+    }
+}
+
 void 
 ROP_FBXSkinningAction::performAction(void)
 {
@@ -200,6 +222,7 @@ ROP_FBXSkinningAction::performAction(void)
 		if(!fbx_skin)
 		{
 		    fbx_skin = FbxSkin::Create(sdk_manager, "");
+
 		    if (myDeformNode->getOperator()->getName() == "deform")
 		    {
 			if (ROP_FBXUtil::getIntOPParm(myDeformNode, "usedqskin", start_time) == 0)
@@ -208,24 +231,34 @@ ROP_FBXSkinningAction::performAction(void)
 			}
 			else
 			{
-			    // TODO: Add support for FbxSkin::eBlend which is blend
-			    //       of linear and dual quaternion
-			    fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
+                            if (ROP_FBXUtil::getIntOPParm(myDeformNode, "dodqblendattrib", start_time) == 1)
+                            {
+                                fbx_skin->SetSkinningType(FbxSkin::eBlend);
+
+                                UT_String blend_attrib_name;
+                                ROP_FBXUtil::getStringOPParm(myDeformNode, "dqblendattrib", blend_attrib_name, start_time);
+                                fbxRecordBlendWeights(*fbx_skin, *gdp, blend_attrib_name);
+                            }
+                            else
+                                fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
 			}
 		    }
 		    else if (myDeformNode->getOperator()->getName() == "bonedeform")
 		    {
 			const int method = ROP_FBXUtil::getIntOPParm(myDeformNode, "method", start_time);
-			if (method == 0)
-			{
-			    fbx_skin->SetSkinningType(FbxSkin::eLinear);
-			}
-			else
-			{
-			    // TODO: Add support for FbxSkin::eBlend which is blend
-			    //       of linear and dual quaternion
+
+                        if (method == 2)
+                        {
+			    fbx_skin->SetSkinningType(FbxSkin::eBlend);
+
+                            UT_String blend_attrib_name;
+                            ROP_FBXUtil::getStringOPParm(myDeformNode, "dqblendattrib", blend_attrib_name, start_time);
+                            fbxRecordBlendWeights(*fbx_skin, *gdp, blend_attrib_name);
+                        }
+                        else if (method == 1)
 			    fbx_skin->SetSkinningType(FbxSkin::eDualQuaternion);
-			}
+                        else
+			    fbx_skin->SetSkinningType(FbxSkin::eLinear);
 		    }
 		    else
 		    {
