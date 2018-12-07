@@ -33,6 +33,7 @@
 #define __ROP_FBXMainVisitor_h__
 
 #include <UT/UT_Color.h>
+#include <UT/UT_Array.h>
 #include <UT/UT_Assert.h>
 #include <UT/UT_String.h>
 #include <UT/UT_Set.h>
