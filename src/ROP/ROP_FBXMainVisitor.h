@@ -78,7 +78,7 @@ enum ROP_FBXAttributeType
     ROP_FBXAttributeLastPlaceholder
 };
 /********************************************************************************************************/
-typedef std::vector < const GA_Attribute* > THDAttributeVector;
+typedef UT_Array < const GA_Attribute* > THDAttributeVector;
 typedef std::map < OP_Node* , FbxSurfaceMaterial* > THdFbxMaterialMap;
 typedef std::map < std::string, FbxSurfaceMaterial* > THdFbxStringMaterialMap;
 typedef std::map < OP_Node* , int > THdNodeIntMap;

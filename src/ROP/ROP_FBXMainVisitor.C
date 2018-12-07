@@ -1762,34 +1762,51 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
     const GEO_Primitive* prim;
     float extra_attr_type;
 
+    // We need to use a compound pair storing both the HD and extra type
+    // (even when not using extra attr) or we wont be indexing values properly
+    // as extra would not be taken into account when searching the map
+    typedef std::pair< HD_TYPE, float > HD_EXTRA_TYPE;
+
     bool is_indexed = (layer_elem->GetReferenceMode() != FbxLayerElement::eDirect);
     if (is_indexed)
     {
 	int curr_arr_cntr = 0;
-	UT_Map<HD_TYPE, int> hd_type_map;
+	UT_Map<HD_EXTRA_TYPE, int > hd_extra_type_map;
+	UT_Array<float> extra_index_array;
 	GA_FOR_ALL_PRIMITIVES(gdp, prim)
 	{
 	    GA_Size num_verts = prim->getVertexCount();
 	    for (GA_Size curr_vert = num_verts - 1; curr_vert >= 0; curr_vert--)
 	    {
 		GA_Offset vertexoffset = prim->getVertexOffset(curr_vert);
+		
+		// Get hd_type
 		hd_type = attrib.get(vertexoffset);
 
-		auto found = hd_type_map.find(hd_type);
-		if ( found != hd_type_map.end() )
+		// and the extra type if valid
+		extra_attr_type = 0.0f;
+		if (extra_attrib.isValid())
+		    extra_attr_type = extra_attrib.get(vertexoffset);
+
+		// Build a compound of the two
+		HD_EXTRA_TYPE hd_extra_pair;
+		hd_extra_pair.first = hd_type;
+		hd_extra_pair.second = extra_attr_type;
+
+		// See if we already created that value
+		auto hd_extra_found = hd_extra_type_map.find(hd_extra_pair);
+
+		if (hd_extra_found != hd_extra_type_map.end() )
 		{
 		    // Add the found IDx
-		    layer_elem->GetIndexArray().Add( found->second );
+		    layer_elem->GetIndexArray().Add(hd_extra_found->second );
 		}
 		else
 		{
 		    // Add a new element to the indexed array
 		    // Convert the houdini type to an fbx type
 		    if (extra_attrib.isValid())
-		    {
-			extra_attr_type = extra_attrib.get(vertexoffset);
 			ROP_FBXassignValues(hd_type, fbx_type, &extra_attr_type);
-		    }
 		    else
 			ROP_FBXassignValues(hd_type, fbx_type, NULL);
 
@@ -1797,8 +1814,8 @@ void exportVertexAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
 		    layer_elem->GetDirectArray().Add(fbx_type);
 		    layer_elem->GetIndexArray().Add(curr_arr_cntr);
 
-		    // Also add it to the map
-		    hd_type_map[hd_type] = curr_arr_cntr;
+		    // Also add the compound attribute to the map
+		    hd_extra_type_map[hd_extra_pair] = curr_arr_cntr;
 		    curr_arr_cntr++;
 		}
 	    }
@@ -2351,6 +2368,16 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
     GA_ROAttributeRef attr_offset, extra_attr_offset;
     FbxLayerElement* res_elem;
     THDAttributeVector user_attribs;
+    THDAttributeVector user_attribs_to_ignore;
+
+    // Lambda to remove user attributes already exported as extra attributes
+    auto clean_user_attribs = [&]()
+    {
+	for (int ignore_idx = 0; ignore_idx < user_attribs_to_ignore.entries(); ignore_idx++)
+	{
+	    user_attribs.findAndRemove(user_attribs_to_ignore[ignore_idx]);
+	}
+    };
 
     // Go through point attributes first.
     if(gdp->getNumPoints() > 0)
@@ -2378,8 +2405,12 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
 		// Create an appropriate layer element and fill it with values
 		attr_offset = gdp->findPointAttrib(*attr);
-		if(curr_attr_type == ROP_FBXAttributeVertexColor)
+		if (curr_attr_type == ROP_FBXAttributeVertexColor)
+		{
 		    extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_POINT, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
+		    if (extra_attr_offset.isValid())
+			user_attribs_to_ignore.append(extra_attr_offset);
+		}
 		else
 		    extra_attr_offset.clear();
 
@@ -2387,13 +2418,15 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 		setProperName(res_elem, gdp, attr);
 	    }
 	    else
-		user_attribs.push_back(attr);
+		user_attribs.append(attr);
 	}
     }
-
+    
     // Process all custom attributes
+    clean_user_attribs();
     addUserData(gdp, user_attribs, attr_manager, mesh_attr, FbxLayerElement::eByControlPoint);
     user_attribs.clear();
+    user_attribs_to_ignore.clear();
 
     // Go through vertex attributes
     GA_AttributeFilter filter = GA_AttributeFilter::selectOr(GA_AttributeFilter::selectStandard(),GA_AttributeFilter::selectGroup());
@@ -2419,8 +2452,12 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findVertexAttrib(*attr);
-	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
+	    if (curr_attr_type == ROP_FBXAttributeVertexColor)
+	    {
 		extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_VERTEX, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
+		if (extra_attr_offset.isValid())
+		    user_attribs_to_ignore.append(extra_attr_offset);
+	    }
 	    else
 		extra_attr_offset.clear();
 	    // Maya crashes when we export vertex attributes in direct mode. Therefore, export in indirect.
@@ -2428,12 +2465,14 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 	    setProperName(res_elem, gdp, attr);
 	}
 	else
-	    user_attribs.push_back(attr);
+	    user_attribs.append(attr);
     }
 
     // Process all custom attributes
+    clean_user_attribs();
     addUserData(gdp, user_attribs, attr_manager, mesh_attr, FbxLayerElement::eByPolygonVertex);
     user_attribs.clear();
+    user_attribs_to_ignore.clear();
 
     // Primitive attributes
     for (GA_AttributeDict::ordered_iterator itor = gdp->primitiveAttribs().obegin();
@@ -2458,20 +2497,26 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findPrimAttrib(*attr);
-	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
+	    if (curr_attr_type == ROP_FBXAttributeVertexColor)
+	    {
 		extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_PRIMITIVE, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
+		if (extra_attr_offset.isValid())
+		    user_attribs_to_ignore.append(extra_attr_offset);
+	    }
 	    else
 		extra_attr_offset.clear();
 	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, FbxLayerElement::eByPolygon, mesh_attr);
 	    setProperName(res_elem, gdp, attr);
 	}
 	else
-	    user_attribs.push_back(attr);
+	    user_attribs.append(attr);
     }
 
     // Process all custom attributes
+    clean_user_attribs();
     addUserData(gdp, user_attribs, attr_manager, mesh_attr, FbxLayerElement::eByPolygon);
     user_attribs.clear();
+    user_attribs_to_ignore.clear();
 
     // Detail attributes
     for (GA_AttributeDict::ordered_iterator itor = gdp->attribs().obegin();
@@ -2496,20 +2541,26 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
 	    // Create an appropriate layer element
 	    attr_offset = gdp->findGlobalAttrib(*attr);
-	    if(curr_attr_type == ROP_FBXAttributeVertexColor)
+	    if (curr_attr_type == ROP_FBXAttributeVertexColor)
+	    {
 		extra_attr_offset = gdp->findFloatTuple(GA_ATTRIB_GLOBAL, gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA, gdp->getAttributeLayer(attr->getName())));
+		if (extra_attr_offset.isValid())
+		    user_attribs_to_ignore.append(extra_attr_offset);
+	    }
 	    else
 		extra_attr_offset.clear();
 	    res_elem = getAndSetFBXLayerElement(attr_layer, curr_attr_type, gdp, attr_offset, extra_attr_offset, FbxLayerElement::eAllSame, mesh_attr);
 	    setProperName(res_elem, gdp, attr);
 	}
 	else
-	    user_attribs.push_back(attr);
+	    user_attribs.append(attr);
     }
 
     // Process all custom attributes
+    clean_user_attribs();
     addUserData(gdp, user_attribs, attr_manager, mesh_attr, FbxLayerElement::eAllSame);
     user_attribs.clear();
+    user_attribs_to_ignore.clear();
 }
 /********************************************************************************************************/
 bool
