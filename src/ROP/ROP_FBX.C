@@ -401,6 +401,28 @@ ROP_FBX::endRender()
 {
     myFBXExporter.finishExport();
 
+    // Add any messages we might have had
+    if (myFBXExporter.getErrorManager())
+    {
+        ROP_FBXError *error_ptr;
+        int curr_error,
+            num_errors = myFBXExporter.getErrorManager()->getNumItems();
+        for (curr_error = 0; curr_error < num_errors; curr_error++)
+        {
+            error_ptr = myFBXExporter.getErrorManager()->getError(curr_error);
+            if (error_ptr->getIsCritical())
+            {
+                // Error
+                addError(ROP_MESSAGE, error_ptr->getMessage());
+            }
+            else
+            {
+                // Warning
+                addWarning(ROP_MESSAGE, error_ptr->getMessage());
+            }
+        }
+    }
+
     OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
 
     if (error() < UT_ERROR_ABORT)
