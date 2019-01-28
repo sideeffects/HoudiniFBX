@@ -365,6 +365,8 @@ ROP_FBXExporter::finishExport(void)
     double write_time_start, write_time_end;
     write_time_start = clock();
 #endif
+
+    bool bSuccess = false;
     if(!myDidCancel)
     {
 	// Save the built-up scene
@@ -434,7 +436,7 @@ ROP_FBXExporter::finishExport(void)
 	    return false;
 
 	// Export the scene.
-	bool bSuccess = fbx_exporter->Export(myScene);
+	bSuccess = fbx_exporter->Export(myScene);
 	if (!bSuccess)
 	{
 	    UT_VERIFY(false);
@@ -445,7 +447,6 @@ ROP_FBXExporter::finishExport(void)
 	// Destroy the exporter.
 	fbx_exporter->Destroy();
     }
-
 
     if(myScene)
 	myScene->Destroy();
@@ -493,7 +494,7 @@ ROP_FBXExporter::finishExport(void)
     printf("Total Export Time: %.2f secs \n\n", ((double)total_time) / ((double)CLOCKS_PER_SEC) );
 #endif
 
-    return true;
+    return bSuccess;
 }
 /********************************************************************************************************/
 FbxManager* 
