@@ -832,7 +832,7 @@ ROP_FBXAnimVisitor::addedVertexCacheDeformerToNode(FbxNode* fbx_node, const char
 
     ::mkdir(cache_file_name.c_str(), 0777);
 
-    string rel_pc_name("");;
+    string rel_pc_name("");
     string absolute_pc_name(cache_file_name);
     absolute_pc_name += "/";
     absolute_pc_name += fbx_node->GetName();
