@@ -42,6 +42,7 @@
 #include <OBJ/OBJ_Geometry.h>
 #include <SOP/SOP_Node.h>
 #include <SOP/SOP_BlendShapes.h>
+#include <SOP/SOP_BlendShapes-2.0.h>
 #include <VOP/VOP_Node.h>
 #include <SHOP/SHOP_Node.h>
 #include <SHOP/SHOP_Output.h>
@@ -91,6 +92,7 @@ using namespace std;
 const char *const theBlendShapeNodeTypes[] =
 {
     "blendshapes",
+    "blendshapes::2.0",
     nullptr
 };
 
@@ -3623,7 +3625,7 @@ ROP_FBXMainVisitor::outputBlendShapesNodesIn(OP_Node* node, const UT_String& nod
     }
 
     const UT_StringHolder &node_type = node->getOperator()->getName();
-    if (node_type == "blendshapes")
+    if (node_type == "blendshapes" || node_type == "blendshapes::2.0")
 	return outputBlendShapeNode(node, node_name, skin_deform_node, did_cancel_out, res_nodes, node_info);
 
     // We'll be looking for the blend shape node in the current node's input
@@ -3687,25 +3689,30 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 {
     did_cancel_out = false;
 
-    //SOP_Node* blend_shape_node = dynamic_cast<SOP_Node*>(node);
+    // Check that we indeed are exporting a blendshape or blendshape2 node
     SOP_BlendShapes* blend_shape_node = dynamic_cast<SOP_BlendShapes*>(node);
-    if (!blend_shape_node)
+    SOP_BlendShapes2* blend_shape2_node = dynamic_cast<SOP_BlendShapes2*>(node);
+    if (!blend_shape_node && !blend_shape2_node)
+	return false;
+
+    SOP_Node* blend_sop_node = blend_shape_node ? dynamic_cast<SOP_Node*>(blend_shape_node) : blend_shape2_node;
+    if (!blend_sop_node)
 	return false;
 
     //if (blend_shape_node->getOperator()->getName() != "blendshapes")
     //	return false;
 
-    int num_blend_input = blend_shape_node->nInputs();
+    int num_blend_input = blend_sop_node->nInputs();
     if (num_blend_input < 1)
 	return false;
             
     // The first input is the base mesh used for the blend shape
-    OP_Node* current_input_node = blend_shape_node->getInput(0);
+    OP_Node* current_input_node = blend_sop_node->getInput(0);
     SOP_Node* current_SOP_Node = dynamic_cast<SOP_Node*>(current_input_node);
     if (!current_SOP_Node)
 	return false;
 
-    FbxBlendShape* fbx_blend_shape = FbxBlendShape::Create(mySDKManager, blend_shape_node->getName());
+    FbxBlendShape* fbx_blend_shape = FbxBlendShape::Create(mySDKManager, blend_sop_node->getName());
     if (!fbx_blend_shape)
 	return false;
 
@@ -3733,7 +3740,7 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 
     for (int current_input = 1; current_input < num_blend_input; current_input++)
     {
-	current_input_node = blend_shape_node->getInput(current_input);
+	current_input_node = blend_sop_node->getInput(current_input);
 	current_SOP_Node = dynamic_cast<SOP_Node*>(current_input_node);
 	if (!current_SOP_Node)
 	    continue;	
@@ -3752,9 +3759,9 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 
 	// Get current value
 	//float blend_value = 1.0f;// blend_shape_node->BLEND(current_input, 0);
-	float blend_value = blend_shape_node->evalFloatInst("blend#", &current_input, 0, 0);
+	float blend_value = blend_sop_node->evalFloatInst("blend#", &current_input, 0, 0);
 
-	if (current_SOP_Node->getOperator()->getName() == "sblend")
+	if (current_SOP_Node->getOperator()->getName().contains("sblend"))
 	{
 	    // Each sequence blend input will be exported as an in-between
 	    outputSequenceBlendNode(current_SOP_Node, (const char*)node_name, blend_shape_channel, res_nodes);
@@ -3772,11 +3779,11 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 
     // Adding the blend shape node the construction info
     if(node_info)
-	node_info->addBlendShapeNode(blend_shape_node);
+	node_info->addBlendShapeNode(blend_sop_node);
 
     // and adding the pair Houdini/FbxNode to the node manager
-    ROP_FBXMainNodeVisitInfo main_node_info(blend_shape_node);
-    myNodeManager->addNodePair(blend_shape_node, fbx_node, main_node_info);
+    ROP_FBXMainNodeVisitInfo main_node_info(blend_sop_node);
+    myNodeManager->addNodePair(blend_sop_node, fbx_node, main_node_info);
 
     return true;
 }
@@ -3834,7 +3841,7 @@ ROP_FBXMainVisitor::outputSequenceBlendNode(SOP_Node* seq_blend_node, const char
     if (!seq_blend_node)
 	return false;
 
-    if (seq_blend_node->getOperator()->getName() != "sblend")
+    if (!seq_blend_node->getOperator()->getName().contains("sblend"))
 	return false;
 
     if (!fbx_blend_shape_channel)

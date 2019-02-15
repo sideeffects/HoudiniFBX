@@ -1453,7 +1453,7 @@ ROP_FBXAnimVisitor::exportBlendShapeAnimation(OP_Node* blend_shape_node, FbxNode
     if ( !blend_shape_node || !fbx_node)
 	return false;
 
-    if ( blend_shape_node->getOperator()->getName() != "blendshapes" )
+    if ( !blend_shape_node->getOperator()->getName().contains("blendshapes") )
 	return false;
 
     FbxGeometry* fbx_geo = fbx_node->GetGeometry();
