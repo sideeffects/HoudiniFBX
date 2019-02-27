@@ -378,7 +378,7 @@ ROP_FBXSkinningAction::createSkinningInfo(
 	(void) cregion->getCaptureData(
 		    capt_context.getTime(), dregion_xform,
 		    bcap, tcap, taperx, taperz, iweight, oweight,
-		    /*capture*/false, /*depnode*/nullptr);
+		    /*capture*/false, /*deplist*/nullptr);
     }
     UT_Matrix4D joint_xform(cap_data.regionXform(region_idx));
     joint_xform *= dregion_xform;
