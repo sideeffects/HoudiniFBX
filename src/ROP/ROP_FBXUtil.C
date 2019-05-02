@@ -847,11 +847,12 @@ ROP_FBXUtil::setStandardTransforms(OP_Node* hd_node, FbxNode* fbx_node, ROP_FBXB
     // Houdini only has one inherit type
     fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
 }
+
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::isJointNullNode(OP_Node* null_node, fpreal ftime)
 {
-    if(!null_node)
+    if(!null_node || !null_node->getOperator())
 	return false;
 
     UT_StringRef node_type = null_node->getOperator()->getName();
@@ -862,18 +863,39 @@ ROP_FBXUtil::isJointNullNode(OP_Node* null_node, fpreal ftime)
     OP_Node* child_bone = NULL;
     for (auto &&output : OP_OutputIterator(*null_node))
     {
+	if (!output->getOperator())
+	    continue;
+
 	node_type = output->getOperator()->getName();
 	if(node_type == "bone")
 	{
 	    child_bone = output;
 	    break;
 	}
+
     }
+
+    // If a Null has a cregion inside of it, export it as a joint 
+    OP_NodeList children;
+    null_node->getAllChildren(children);
+    const int child_count = children.entries();
+    for (int i = 0; i < child_count; ++i)
+    {
+        OP_Node *child_node = children(i);
+        UT_StringRef child_node_type = child_node->getOperator()->getName();
+
+        if (child_node_type == "cregion")
+        {
+            return true;
+        }		
+    }
+
     if(!child_bone)	
 	return false;
 
     return isDummyBone(child_bone, ftime);
 }
+
 /********************************************************************************************************/
 bool 
 ROP_FBXUtil::isDummyBone(OP_Node* bone_node, fpreal ftime)
