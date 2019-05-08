@@ -2402,6 +2402,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 	    // Determine the proper attribute type
 	    curr_attr_type = getAttrTypeByName(gdp, attr->getName());
 
+	    // If it's marked as texture coord, go with that.
+	    GA_TypeInfo typeinfo = attr->getTypeInfo();
+	    if (typeinfo == GA_TYPE_TEXTURE_COORD)
+		curr_attr_type = ROP_FBXAttributeUV;
+
 	    if(curr_attr_type != ROP_FBXAttributeUser)
 	    {
 		// Get the appropriate layer
@@ -2448,6 +2453,11 @@ ROP_FBXMainVisitor::exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr)
 
 	// Determine the proper attribute type
 	curr_attr_type = getAttrTypeByName(gdp, attr->getName());
+
+	// If it's marked as texture coord, go with that.
+	GA_TypeInfo typeinfo = attr->getTypeInfo();
+	if (typeinfo == GA_TYPE_TEXTURE_COORD)
+		curr_attr_type = ROP_FBXAttributeUV;
 
 	if(curr_attr_type != ROP_FBXAttributeUser)
 	{
