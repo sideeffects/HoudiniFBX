@@ -3153,6 +3153,23 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
         }
     }
     
+    FbxTexture* fbx_texture = nullptr;
+
+    // Look for the principled shader Normal Map
+    int use_normal_texture = ROP_FBXUtil::getIntOPParm(surf_node, "baseBumpAndNormal_enable", myStartTime);
+    if (use_normal_texture)
+    {
+	int normal_map_type = ROP_FBXUtil::getIntOPParm(surf_node, "baseBumpAndNormal_type", myStartTime);
+	if (normal_map_type == 0)
+	{
+	    fbx_texture = generateFbxTexture(mat_node, 0, "baseNormal_texture", myTexturesMap);
+	    FbxProperty normal_prop = fbx_material->FindProperty(FbxSurfaceMaterial::sNormalMap);
+	    if (normal_prop.IsValid() && fbx_texture)
+		normal_prop.ConnectSrcObject(fbx_texture);
+	}
+    }
+
+
     // Look for the principled shader Diffuse Map
     int use_basecolor_texture = ROP_FBXUtil::getIntOPParm(surf_node, "basecolor_useTexture", myStartTime);
     if (use_basecolor_texture)
@@ -3160,7 +3177,6 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 	tex_params.append("basecolor_texture");
     }
 
-    FbxTexture* fbx_texture = nullptr;
     int num_textures = tex_params.entries();
     if(num_textures == 0)
 	return 0;
