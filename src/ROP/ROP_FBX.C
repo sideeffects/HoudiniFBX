@@ -96,6 +96,7 @@ static PRM_Name	invisObj[] =
     PRM_Name("nullnodes",	"As Hidden Null Nodes"),
     PRM_Name("fullnodes",	"As Hidden Full Nodes"),
     PRM_Name("visiblenodes",	"As Visible Full Nodes"),
+    PRM_Name("nonodes",	        "Don't Export"),
     PRM_Name(0),
 };
 
