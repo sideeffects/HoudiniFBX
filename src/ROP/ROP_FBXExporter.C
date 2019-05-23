@@ -256,17 +256,6 @@ ROP_FBXExporter::doExport(void)
 
     if(!exporting_single_frame)
     {
-	// NOTE: This is a hack. Maya's FBX importer/exporter assumes, for who knows what
-	// reason, that the value set as seconds in this specific case (SetTimelineDefautTimeSpan)
-	// is actually frames. Our importer, as a consequence, also assumes that.
-	// So we export it like this, too. Hopefully they'll fix it in the next revision of FBX SDK.
-	fbx_start.SetSecondDouble(CHgetFrameFromTime(myStartTime));
-	fbx_stop.SetSecondDouble(CHgetFrameFromTime(myEndTime));
-//	fbx_start.SetSecondDouble(myStartTime);
-//	fbx_stop.SetSecondDouble(myEndTime);
-
-	FbxTimeSpan time_span(fbx_start, fbx_stop);
-	scene_time_setting.SetTimelineDefaultTimeSpan(time_span);
 
 	// FBX doesn't support arbitrary frame rates.
 	// Try to match one if it's exact, otherwise default to 24fps and warn the user.
@@ -292,6 +281,13 @@ ROP_FBXExporter::doExport(void)
 	    myErrorManager->addError("Unsupported scene frame rate found. Defaulting to 24 frames per second.",NULL,NULL,false);
 	scene_time_setting.SetTimeMode(time_mode);
 	FbxTime::SetGlobalTimeMode(time_mode, curr_fps);
+
+	fbx_start.SetFrame(CHgetFrameFromTime(myStartTime), time_mode);
+	fbx_stop.SetFrame(CHgetFrameFromTime(myEndTime), time_mode);
+
+	FbxTimeSpan time_span(fbx_start, fbx_stop);
+	scene_time_setting.SetTimelineDefaultTimeSpan(time_span);
+
     }
 
     // Note: what about geom networks in other parts of the scene?
