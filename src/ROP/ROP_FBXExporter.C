@@ -60,6 +60,7 @@
 #include <UT/UT_ScopeExit.h>
 #include <UT/UT_UndoManager.h>
 
+#include <SYS/SYS_Version.h>
 
 // Always declare these variables although they are only modified when
 // compiling debug.
@@ -240,6 +241,18 @@ ROP_FBXExporter::doExport(void)
     ROP_FBXMainVisitor geom_visitor(this);
 
     FbxGlobalSettings& scene_time_setting = myScene->GetGlobalSettings();
+
+
+    // Set Application Info 
+    FbxDocumentInfo* scene_info = myScene->GetSceneInfo();
+    scene_info->Original_ApplicationVendor.Set("SideFX Software");
+    scene_info->Original_ApplicationName.Set("Houdini");
+    scene_info->Original_ApplicationVersion.Set(SYS_Version::full());
+
+    scene_info->LastSaved_ApplicationVendor.Set("SideFX Software");
+    scene_info->LastSaved_ApplicationName.Set("Houdini");
+    scene_info->LastSaved_ApplicationVersion.Set(SYS_Version::full());
+
 
     bool exporting_single_frame = !getExportingAnimation();
     CH_Manager *ch_manager = CHgetManager();
