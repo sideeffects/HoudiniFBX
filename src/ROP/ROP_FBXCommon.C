@@ -324,3 +324,21 @@ ROP_FBXExportOptions::setExportBonesEndEffectors(const bool& export_end_effector
     myExportBonesEndEffectors = export_end_effectors;
 }
 /********************************************************************************************************/
+void
+ROP_FBXExportOptions::appendExportClip(ROP_FBXExportClip clip)
+{
+    myExportClips.append(clip);
+}
+/********************************************************************************************************/
+ROP_FBXExportClip
+ROP_FBXExportOptions::getExportClip(int index)
+{
+    return myExportClips[index];
+}
+/********************************************************************************************************/
+int 
+ROP_FBXExportOptions::getNumExportClips(void)
+{
+    return myExportClips.size();
+}
+/********************************************************************************************************/

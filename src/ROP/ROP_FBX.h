@@ -70,6 +70,8 @@ enum {
     ROP_FBX_FORCEBLENDSHAPE,
     ROP_FBX_FORCESKINDEFORM,
     ROP_FBX_EXPORTENDEFFECTORS,
+    ROP_FBX_EXPORTCLIPS,
+    ROP_FBX_NUMCLIPS,
 
     ROP_FBX_TPRERENDER,
     ROP_FBX_PRERENDER,
@@ -176,6 +178,31 @@ private:
     
     bool CREATESUBNETROOT(fpreal t) const
     { INT_PARM("createsubnetroot", 0, t); }
+
+    int EXPORTCLIPS(void)
+    {
+	INT_PARM("exportclips", 0, 0)
+    }
+
+    int  NUM_CLIPS(fpreal time) const
+    {
+	return evalInt("numclips", 0, time);
+    }
+
+    void CLIP_NAME(UT_String &str, int idx, fpreal time) const
+    {
+	evalStringInst("clipname#", &idx, str, 0, time);
+    }
+
+    int  CLIP_START(int idx, fpreal time) const
+    {
+	return evalIntInst("clipframerange#", &idx, 0, time);
+    }
+
+    int  CLIP_END(int idx, fpreal time) const
+    {
+	return evalIntInst("clipframerange#", &idx, 1, time);
+    }
 
     // Script commands
     void	PRERENDER(UT_String &str, fpreal t)

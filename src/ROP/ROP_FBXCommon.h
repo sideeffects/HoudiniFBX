@@ -79,6 +79,14 @@ enum ROP_FBXInvisibleNodeExportType
     ROP_FBXInvisibleNodeExportAsVisible,
     ROP_FBXInvisibleNodeDontExport
 };
+
+struct ROP_FBXExportClip
+{
+    UT_StringHolder	 name;
+    int			 start_frame;
+    int			 end_frame;
+};
+
 /********************************************************************************************************/
 class ROP_FBXExportOptions
 {
@@ -217,6 +225,16 @@ public:
     /// Indicates weither or not we want to export bones end effectors
     void setExportBonesEndEffectors(const bool& export_end_effectors);
 
+    /// Adds an Export Clip to the list 
+    void appendExportClip(ROP_FBXExportClip take);
+
+    /// Gets the Clip with the specific index
+    ROP_FBXExportClip getExportClip(int index);
+
+	// Get the number of Clips available to export
+    int	getNumExportClips(void);
+
+
 private:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
@@ -290,6 +308,10 @@ private:
 
     /// Indicates weither or not we want to export bones end effectors
     bool myExportBonesEndEffectors;
+
+	// Exports animation clips (frame range tags) into the FBX 
+    UT_Array<ROP_FBXExportClip> myExportClips;
+
 };
 /********************************************************************************************************/
 #endif
