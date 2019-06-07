@@ -1006,7 +1006,7 @@ ROP_FBXUtil::isLODGroupNullNode(OP_Node* null_node)
 }
 /********************************************************************************************************/
 bool
-ROP_FBXUtil::outputCustomProperties(OP_Node* node, FbxNode* fbx_node)
+ROP_FBXUtil::outputCustomProperties(OP_Node* node, FbxObject* fbx_node)
 {
     if (!node || !fbx_node)
 	return false;
@@ -1154,6 +1154,7 @@ ROP_FBXUtil::outputCustomProperties(OP_Node* node, FbxNode* fbx_node)
 
     return true;
 }
+
 /********************************************************************************************************/
 OP_Node* 
 ROP_FBXUtil::findNonInstanceTargetFromInstance(OP_Node* instance_ptr, fpreal ftime)

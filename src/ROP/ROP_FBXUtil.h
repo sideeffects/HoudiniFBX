@@ -104,7 +104,8 @@ public:
 
     static bool isLODGroupNullNode(OP_Node* null_node);
 
-    static bool outputCustomProperties(OP_Node* node, FbxNode* fbx_node);
+    static bool outputCustomProperties(OP_Node* node, FbxObject* fbx_node);
+    
 
     static void getNodeName(OP_Node* node, UT_String& node_name, ROP_FBXNodeManager* node_manager, fpreal ftime);
 

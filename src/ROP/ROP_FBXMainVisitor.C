@@ -3456,6 +3456,8 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     else
 	lamb_new_mat = FbxSurfaceLambert::Create(mySDKManager, (const char*)mat_name);
 
+    // Add custom FBX properties to the node
+    ROP_FBXUtil::outputCustomProperties(surface_node, lamb_new_mat);
 
     if (is_principled)
     {
