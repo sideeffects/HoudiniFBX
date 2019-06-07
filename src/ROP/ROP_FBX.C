@@ -106,6 +106,10 @@ static PRM_Name		sopOutput("sopoutput",	"Output File");
 static PRM_Name		startNode("startnode", "Export");
 static PRM_Name		createSubnetRoot("createsubnetroot", "Create Root for Subnet");
 static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
+static PRM_Name		exportClips("exportclips", "Export Animation Clips (Takes)");
+static PRM_Name		numclips("numclips", "Clips");
+static PRM_Name		clipname("clipname#", "Clip #");
+static PRM_Name		clipframerange("clipframerange#", "Frame Range");
 static PRM_Name		detectConstPointObjs("detectconstpointobjs", "Detect Constant Point Count Dynamic Objects");
 static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches");
 static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
@@ -121,6 +125,7 @@ static PRM_Name		exportEndEffectors("exportendeffectors", "Export End Effectors"
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
 static PRM_Default	exportKindDefault(1);
+static PRM_Default	exportClipsDefault(0);
 static PRM_Default	detectConstPointObjsDefault(1);
 static PRM_Default	deformsAsVcsDefault(0);
 static PRM_Default	convertSurfacesDefault(0);
@@ -141,6 +146,15 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
 
+static PRM_Template theMultiClipsTemplate[] =
+{
+
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,  1, &clipname),
+    PRM_Template(PRM_INT , 2, &clipframerange, PRMzeroDefaults, 0),
+
+    PRM_Template()
+};
+
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
 			      0, 0, &PRM_SpareData::fileChooserModeWrite),
@@ -159,6 +173,8 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE,  1, &forceBlendShape, &forceBlendShapeDefault, NULL),
     PRM_Template(PRM_TOGGLE,  1, &forceSkinDeform, &forceSkinDeformDefault, NULL),
     PRM_Template(PRM_TOGGLE,  1, &exportEndEffectors, &exportEndEffectorsDefault, NULL),
+    PRM_Template(PRM_TOGGLE,  1, &exportClips, &exportClipsDefault, NULL),
+    PRM_Template(PRM_MULTITYPE_LIST, theMultiClipsTemplate, 2, &numclips),
 };
 
 static PRM_Template	geoObsolete[] = {
@@ -190,6 +206,8 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
     theTemplate[ROP_FBX_CREATESUBNETROOT] = geoTemplates[2];
     theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[3];
+    theTemplate[ROP_FBX_EXPORTCLIPS] = geoTemplates[15];
+    theTemplate[ROP_FBX_NUMCLIPS] = geoTemplates[16];
     theTemplate[ROP_FBX_SDKVERSION] = geoTemplates[10];
     theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[7];
     theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[8];
@@ -243,6 +261,10 @@ ROP_FBX::updateParmsFlags()
     // Hide start_node if the node is a sop
     changed |= setVisibleState("startnode", !issop);
     changed |= enableParm("deformsasvcs", DORANGE());
+    changed |= enableParm("exportclips", DORANGE());
+    changed |= enableParm("numclips", EXPORTCLIPS() && DORANGE());
+    changed |= setVisibleState("numclips", EXPORTCLIPS());
+    
 
     return changed;
 }
@@ -344,6 +366,20 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setCreateSubnetRoot(create_subnet_root);
     export_options.setConvertSurfaces(CONVERTSURFACES());
     export_options.setExportBonesEndEffectors(EXPORTENDEFFECTORS());
+
+    int num_clips = NUM_CLIPS(tstart);
+    for (int i = 1; i <= num_clips; ++i)
+    {
+	ROP_FBXExportClip clip;
+	UT_String name;
+	CLIP_NAME(name, i, tstart);
+	clip.name = name;
+
+	clip.start_frame = CLIP_START(i, tstart);
+	clip.end_frame = CLIP_END(i, tstart);
+
+	export_options.appendExportClip(clip);
+    }
 
     if (sopNode)
 	export_options.setSopExport(true);

@@ -342,10 +342,37 @@ ROP_FBXExporter::doExport(void)
 
 	    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
 
-
-	    FbxAnimStack* anim_stack = FbxAnimStack::Create(myScene, curr_hd_take->getName());
 	    FbxAnimLayer* anim_layer = FbxAnimLayer::Create(myScene, "Base Layer");
-	    anim_stack->AddMember(anim_layer);
+
+	    FbxTime::EMode time_mode = scene_time_setting.GetTimeMode();
+
+	    int num_clips = myExportOptions.getNumExportClips();
+	    if (num_clips > 0)
+	    {
+		for (int i = 0; i < num_clips; ++i)
+		{
+		    ROP_FBXExportClip anim_clip = myExportOptions.getExportClip(i);
+		    FbxAnimStack* anim_stack = FbxAnimStack::Create(myScene, anim_clip.name);
+		    anim_stack->AddMember(anim_layer);
+
+		    FbxTime fbx_start, fbx_stop;
+
+		    fbx_start.SetFrame((anim_clip.start_frame), time_mode);
+		    fbx_stop.SetFrame((anim_clip.end_frame), time_mode);
+		    FbxTimeSpan time_span(fbx_start, fbx_stop);
+		    anim_stack->SetLocalTimeSpan(time_span);
+		    anim_stack->SetReferenceTimeSpan(time_span);
+		}
+
+	    }
+	    else 
+	    {
+		FbxAnimStack* anim_stack = FbxAnimStack::Create(myScene, curr_hd_take->getName());
+		anim_stack->AddMember(anim_layer);
+	    }
+
+
+
 	    anim_visitor.reset(anim_layer);
 
 	    // Create a single default animation stack.
