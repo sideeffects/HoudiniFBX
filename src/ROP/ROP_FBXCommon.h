@@ -76,7 +76,8 @@ enum ROP_FBXInvisibleNodeExportType
 {
     ROP_FBXInvisibleNodeExportAsNulls = 0,
     ROP_FBXInvisibleNodeExportFull,
-    ROP_FBXInvisibleNodeExportAsVisible
+    ROP_FBXInvisibleNodeExportAsVisible,
+    ROP_FBXInvisibleNodeDontExport
 };
 /********************************************************************************************************/
 class ROP_FBXExportOptions
