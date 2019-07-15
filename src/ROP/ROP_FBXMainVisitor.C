@@ -1019,7 +1019,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
 
 	// Try output any polylines, if they exist. Unlike Houdini, they're a separate type in FBX.
 	// We ignore them in the about polygon function.
-	outputPolylines(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
+	outputPolylines(final_detail, (const char*)node_name, nullptr, capture_frame, res_nodes);
     }
     if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
 	outputNURBSSurfaces(final_detail, (const char*)node_name, skin_deform_node, capture_frame, res_nodes);
@@ -1094,7 +1094,7 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
 	obj_cntr++;
 
 	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
-
+        skin_deform_node = nullptr;
     }
 
     if(prim_cntr)
@@ -1140,7 +1140,7 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 	FbxNurbsCurve *nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
-
+        skin_deform_node = nullptr;
     }
 
     if (prim_cntr)
@@ -1202,6 +1202,7 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 	FbxNurbsCurve *nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+        skin_deform_node = nullptr;
     }
 }
 /********************************************************************************************************/
@@ -1234,6 +1235,7 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
 	nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name);
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
+        skin_deform_node = nullptr;
     }
 
     if (prim_cntr)
@@ -1450,6 +1452,7 @@ ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_n
 	obj_cntr++;
 
 	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+        skin_deform_node = nullptr;
 
     }
 
