@@ -32,11 +32,12 @@
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXBaseVisitor.h"
 #include "ROP_FBXUtil.h"
-#include <OP/OP_Node.h>
-#include <OP/OP_Network.h>
-#include <OP/OP_Input.h>
-#include <OP/OP_SubnetIndirectInput.h>
 #include <OBJ/OBJ_Node.h>
+#include <OP/OP_Input.h>
+#include <OP/OP_Network.h>
+#include <OP/OP_Node.h>
+#include <OP/OP_Operator.h>
+#include <OP/OP_SubnetIndirectInput.h>
 
 #define NEEDED_INDEX_IS_INTERNAL_NODE	    -2
 #define NEEDED_INDEX_UNDEFINED		    -1
