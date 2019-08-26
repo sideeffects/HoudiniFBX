@@ -401,7 +401,7 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 		// Only visit the input if it is the first connected input.
 		// This helps getting a consistent traversal order with
 		// nodes that have multiple inputs such as the OBJ_Blend.
-		if( target_child->getNthConnectedInput(0) == input_idx_on_target_node )
+		//if( target_child->getNthConnectedInput(0) == input_idx_on_target_node )
 		{
 		    if(visitNodeAndChildren(target_child,
 			parent_info_ptr,
