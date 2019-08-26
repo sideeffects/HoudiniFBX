@@ -397,10 +397,20 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 		node_inp_counters[target_child] = temp_counter;
 
 		input_idx_on_target_node = whichInputIs(node, temp_counter, target_child);
-		if(visitNodeAndChildren(target_child, parent_info_ptr, input_idx_on_target_node, temp_counter) == ROP_FBXInternalVisitorResultStop)
+
+		// Only visit the input if it is the first connected input.
+		// This helps getting a consistent traversal order with
+		// nodes that have multiple inputs such as the OBJ_Blend.
+		if( target_child->getNthConnectedInput(0) == input_idx_on_target_node )
 		{
-		    myDidCancel = true;
-		    break;
+		    if(visitNodeAndChildren(target_child,
+			parent_info_ptr,
+			input_idx_on_target_node,
+			temp_counter) == ROP_FBXInternalVisitorResultStop)
+		    {
+			myDidCancel = true;
+			break;
+		    }
 		}
 	    }
 
