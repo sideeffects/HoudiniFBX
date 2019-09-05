@@ -1019,10 +1019,6 @@ ROP_FBXUtil::outputCustomProperties(OP_Node* node, FbxObject* fbx_node)
 	if (!parm)
 	    continue;
 
-	// Only export spare parameters
-	if (!parm->isSpareParm())
-	    continue;
-
 	// Make sure the parameter is visible
 	PRM_Type parm_type = parm->getType();
 	if (!parm_type.isVisible())
