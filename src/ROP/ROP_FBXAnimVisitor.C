@@ -598,7 +598,10 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	    // Convert frame to time
 	    CH_FullKey full_key;
 	    key_time = tmp_array(curr_frame);
-	    ch->getFullKey(key_time, full_key);
+	    ch->getFullKey(key_time, full_key, 
+		/*reverse=*/false,
+		/*accel_ratios=*/true, 
+		CH_GETKEY_EXTEND_DEFAULT);
 
 	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
 	    fbx_key_idx = fbx_anim_curve->KeyFind(fbx_time, &c_index);
@@ -794,7 +797,10 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 	    full_key.k[1].myV[CH_VALUE] = key_val;
 	}
 	else if(ch)
-	    ch->getFullKey(end_time, full_key);
+	    ch->getFullKey(key_time, full_key, 
+		/*reverse=*/false,
+		/*accel_ratios=*/true, 
+		CH_GETKEY_EXTEND_DEFAULT);
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	if(do_insert)
