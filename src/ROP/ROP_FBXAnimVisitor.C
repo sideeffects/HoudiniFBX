@@ -784,23 +784,26 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 
     if(start_array_idx < end_array_idx && curr_time >= end_time)
     {
-	CH_FullKey full_key;
+	bool valid = true;
 
 	// We skipped the last frame. Add it now.
 	end_time = time_array(end_array_idx);
 	if(direct_eval_parm && parm_idx >= 0)
 	{
 	    direct_eval_parm->getValue(end_time, key_val, parm_idx, thread);
-	    full_key.k[0].myVValid[CH_VALUE] = true;
-	    full_key.k[1].myVValid[CH_VALUE] = false;
-	    full_key.k[0].myV[CH_VALUE] = key_val;
-	    full_key.k[1].myV[CH_VALUE] = key_val;
+	    key_val *= scale_factor;
 	}
 	else if(ch)
-	    ch->getFullKey(key_time, full_key, 
-		/*reverse=*/false,
-		/*accel_ratios=*/true, 
-		CH_GETKEY_EXTEND_DEFAULT);
+	{
+	    next_seg = ch->getSegmentAfterKey(end_time);
+	    ch->sampleValueSlope(next_seg, end_time, thread, key_val, s);
+	    key_val *= scale_factor;
+	}
+	else
+	{
+	    valid = false;
+	    UT_ASSERT(0);
+	}
 
 	fbx_time.SetSecondDouble(end_time+secs_per_sample);
 	if(do_insert)
@@ -809,14 +812,8 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 	    fbx_key_idx = fbx_curve->KeyAdd(fbx_time);
 	fbx_curve->KeySetInterpolation(fbx_key_idx, FbxAnimCurveDef::eInterpolationLinear);
 
-	if(full_key.k[0].myVValid[CH_VALUE])
-	    fbx_curve->KeySetValue(fbx_key_idx, full_key.k[0].myV[CH_VALUE]);
-	else if(full_key.k[1].myVValid[CH_VALUE])
-	    fbx_curve->KeySetValue(fbx_key_idx, full_key.k[1].myV[CH_VALUE]);
-	else
-	{
-	    UT_ASSERT(0);
-	}
+	if(valid)
+	    fbx_curve->KeySetValue(fbx_key_idx, key_val);
 
     }
 
