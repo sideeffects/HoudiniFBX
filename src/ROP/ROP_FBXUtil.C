@@ -125,7 +125,7 @@ ROP_FBXUtil::getStringOPParm(OP_Node *node, const char* parmName, UT_String &str
 	return;
 
     if (node->getParameterOrProperty(parmName, 0, node, parm, true, NULL))
-	parm->getValue(ftime, strref, 0, true, SYSgetSTID());
+	parm->getValue(ftime, strref, 0, /*expand=*/true, SYSgetSTID());
 }
 /********************************************************************************************************/
 int 
@@ -1133,7 +1133,7 @@ ROP_FBXUtil::outputCustomProperties(OP_Node* node, FbxObject* fbx_node)
 	    FbxProperty curr_prop = FbxProperty::Create(fbx_node, FbxStringDT, parm->getLabel(), parm->getLabel());
 
 	    UT_String val;
-	    parm->getValue(0, val, 0, false, SYSgetSTID());
+	    parm->getValue(0, val, 0, /*expand=*/true, SYSgetSTID());
 
 	    FbxString prop_val(val.c_str());
 	    curr_prop.Set(prop_val);
