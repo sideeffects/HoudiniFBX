@@ -248,8 +248,8 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
 	    {
 		GA_PrimCompat::TypeMask prim_type_res;
 		prim_type_res = prim_type & (~(GEO_PrimTypeCompat::GEOPRIMNURBSURF | GEO_PrimTypeCompat::GEOPRIMBEZSURF | GEO_PrimTypeCompat::GEOPRIMNURBCURVE | GEO_PrimTypeCompat::GEOPRIMBEZCURVE));
-		if (prim_type_res)
-		    is_surfs_only = false;
+                if (prim_type_res)
+                    is_surfs_only = false;
 
 	    	convertGeoGDPtoVertexCacheableGDP(gdp, lod, true, *conv_gdp, curr_num_unconverted_points);
 		if(first_frame_num_points < 0)
