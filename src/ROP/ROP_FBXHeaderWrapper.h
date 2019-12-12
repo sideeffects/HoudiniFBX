@@ -56,6 +56,7 @@ SYS_PRAGMA_DISABLE_MISSING_FIELD_INITIALIZERS()
 // Ingeniously, FBX SDK defines strdup as a macro,
 // so we undo the damage here.
 #undef strdup
+#undef snprintf
 #undef getpid
 #undef finite
 
