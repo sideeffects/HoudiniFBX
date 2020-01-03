@@ -410,7 +410,7 @@ ROP_FBXExporter::finishExport(void)
 
 	string sdk_full_version = myExportOptions.getVersion();
 	string sdk_exporter_name, sdk_version;
-	int sep_pos = sdk_full_version.find('|');
+	int sep_pos = sdk_full_version.find("|");
 	if(sep_pos > 0)
 	{
 	    sdk_exporter_name = sdk_full_version.substr(0, sep_pos - 1);
