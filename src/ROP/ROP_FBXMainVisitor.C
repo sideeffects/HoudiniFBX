@@ -180,16 +180,26 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXMainNodeVisitInfo *node_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info_in);
     ROP_FBXMainNodeVisitInfo *parent_info = dynamic_cast<ROP_FBXMainNodeVisitInfo*>(node_info_in->getParentInfo());
 
+    fpreal start_time = myParentExporter->getStartTime();
+
     // Determine which type of Houdini node this is
+    OBJ_Camera *cam = nullptr;
+    UT_StringRef node_type = node->getOperator()->getName();
     bool is_sop_export = myParentExporter->getExportOptions()->isSopExport();
+    if (is_sop_export)
+    {
+	node_type = "geo";
+    }
+    else
+    {
+        // Note that cam might be a switcher or representative object and can
+        // be different from node
+        cam = ROPfbxCastToCamera(node, start_time);
+    }
 
     string lookat_parm_name("lookatpath");
-    UT_StringRef node_type = node->getOperator()->getName();
-    if (is_sop_export)
-	node_type = "geo";
 
     bool is_visible;
-    fpreal start_time = myParentExporter->getStartTime();
     OBJ_Node *obj_node = node->castToOBJNode();
     if (obj_node)
 	is_visible = obj_node->getObjectDisplay(start_time);
@@ -227,7 +237,8 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportFull
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsVisible
 	|| myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeDontExport
-	|| node_type == "null" || ROPfbxIsLightNodeType(node_type) || node_type == "cam" || node_type == "bone" || node_type == "ambient" )
+	|| node_type == "null" || ROPfbxIsLightNodeType(node_type)
+        || cam != nullptr || node_type == "bone" || node_type == "ambient" )
     {
 	if(node_type == "instance")
 	{
@@ -249,8 +260,12 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    OP_Node* inst_target = ROP_FBXUtil::findNonInstanceTargetFromInstance(node, myStartTime);
 	    if(inst_target)
 	    {
+                cam = ROPfbxCastToCamera(inst_target, myStartTime);
+                if (cam)
+                    inst_target = cam; // might be a representative object
+
 		const UT_StringHolder& inst_target_node_type = inst_target->getOperator()->getName();
-		if(inst_target_node_type == "cam" || ROPfbxIsLightNodeType(inst_target_node_type))
+		if(cam || ROPfbxIsLightNodeType(inst_target_node_type))
 		    override_node_type = inst_target_node_type;
 	    }
 
@@ -295,9 +310,9 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		lookat_parm_name = "l_" + lookat_parm_name;
 	    }
 	}
-	else if(node_type == "cam")
+	else if(cam != nullptr)
 	{
-	    outputCameraNode(node, node_info, fbx_parent_node, res_nodes);
+	    outputCameraNode(node, cam, node_info, fbx_parent_node, res_nodes);
 	    res_type = ROP_FBXVisitorResultSkipSubnet;
 	}
 	else if(node_type == "bone")
@@ -502,6 +517,8 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	    UT_StringRef node_type = hd_node->getOperator()->getName();
 	    if(override_node_type.isstring())
 		node_type = override_node_type;
+            else if(ROPfbxCastToCamera(hd_node, myStartTime) != nullptr)
+                node_type = "cam";
 
 	    FbxVector4 adjustment;
 	    if (ROP_FBXUtil::getPostRotateAdjust(node_type, adjustment))
@@ -2795,7 +2812,12 @@ ROP_FBXMainVisitor::outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* nod
 }
 /********************************************************************************************************/
 bool
-ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes)
+ROP_FBXMainVisitor::outputCameraNode(
+        OP_Node* node,
+        OBJ_Camera* cam,
+        ROP_FBXMainNodeVisitInfo* node_info,
+        FbxNode* parent_node,
+        TFbxNodesVector& res_nodes)
 {
     UT_String string_param;
     fpreal float_parm[3];
@@ -2808,8 +2830,20 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     FbxCamera *res_attr = FbxCamera::Create(mySDKManager, (const char*)node_name);
     res_node->SetNodeAttribute(res_attr);
 
+    // Note that node != cam in general when node is a switcher or a subnet
+    // that has cam as its representative object.  Animated camera parameters
+    // are not supported with switcher cameras, we'll only use the camera at
+    // the start time.
+    if (node->getOperator()->getName() == "switcher"
+        && node->isParmTimeDependent("camswitch"))
+    {
+	myErrorManager->addError(
+            "Animated camera switches are not supported, only using camera at "
+            "start time. Node: ", node_name, nullptr);
+    }
+
     // Projection type
-    ROP_FBXUtil::getStringOPParm(node, "projection", string_param, myStartTime);
+    ROP_FBXUtil::getStringOPParm(cam, "projection", string_param, myStartTime);
     FbxCamera::EProjectionType project_type;
     if(string_param == "ortho")
 	project_type = FbxCamera::eOrthogonal;
@@ -2825,7 +2859,7 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     // Focal length
     // Get the units, as well
     double length_mult = 1.0;
-    ROP_FBXUtil::getStringOPParm(node, "focalunits", string_param, myStartTime);
+    ROP_FBXUtil::getStringOPParm(cam, "focalunits", string_param, myStartTime);
     if(string_param == "m")
 	length_mult = 1000.0;
     else if(string_param == "nm")
@@ -2835,19 +2869,19 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     else if(string_param == "ft")
 	length_mult = 304.8;
 
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focal", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "focal", myStartTime);
     //double foc_len = float_parm[0];
     res_attr->SetApertureMode(FbxCamera::eFocalLength);
     res_attr->FocalLength.Set(float_parm[0]*length_mult);
 
     // Pixel ratio
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aspect", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "aspect", myStartTime);
     res_attr->SetPixelRatio(float_parm[0]);
 
     // Up vector
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "up", myStartTime, 0);
-    float_parm[1] = ROP_FBXUtil::getFloatOPParm(node, "up", myStartTime, 1);
-    float_parm[2] = ROP_FBXUtil::getFloatOPParm(node, "up", myStartTime, 2);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "up", myStartTime, 0);
+    float_parm[1] = ROP_FBXUtil::getFloatOPParm(cam, "up", myStartTime, 1);
+    float_parm[2] = ROP_FBXUtil::getFloatOPParm(cam, "up", myStartTime, 2);
     fbx_vec4.Set(float_parm[0], float_parm[1], float_parm[2]);
     res_attr->UpVector.Set(fbx_vec4);
 
@@ -2855,12 +2889,12 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     // aperture mode is set to FbxCamera::eFOCAL_LENGTH, we have to
     // convert our aperture into aperture width and height, in inches,
     // that the FBX SDK expects.
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "aperture", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "aperture", myStartTime);
     //double fov_angle = SYSatan( (double)(float_parm[0])/(2.0*foc_len*length_mult) ) * 2.0;
 
     // Get the x/y resolution of the camera to get aperture ratios.
-    fpreal xres = ROP_FBXUtil::getFloatOPParm(node, "res", myStartTime, 0);
-    fpreal yres = ROP_FBXUtil::getFloatOPParm(node, "res", myStartTime, 1);
+    fpreal xres = ROP_FBXUtil::getFloatOPParm(cam, "res", myStartTime, 0);
+    fpreal yres = ROP_FBXUtil::getFloatOPParm(cam, "res", myStartTime, 1);
 
     // Record the camera resolution
     res_attr->SetAspect(FbxCamera::eFixedResolution, xres, yres);
@@ -2876,18 +2910,18 @@ ROP_FBXMainVisitor::outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* no
     res_attr->SetApertureWidth((float_parm[0] / 10.0) / 2.54);
 
     // Near and far clip planes
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "near", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "near", myStartTime);
     res_attr->SetNearPlane(float_parm[0]);
 
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "far", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "far", myStartTime);
     res_attr->SetFarPlane(float_parm[0]);
 
     // Ortho zoom
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "orthowidth", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "orthowidth", myStartTime);
     res_attr->OrthoZoom.Set(float_parm[0]);
 
     // Focus distance
-    float_parm[0] = ROP_FBXUtil::getFloatOPParm(node, "focus", myStartTime);
+    float_parm[0] = ROP_FBXUtil::getFloatOPParm(cam, "focus", myStartTime);
     res_attr->FocusSource.Set(FbxCamera::eFocusSpecificDistance);
     res_attr->FocusDistance.Set(float_parm[0]);
 

@@ -37,9 +37,12 @@
 
 #include <SYS/SYS_Types.h>
 #include <UT/UT_StringHolder.h>
-
+#include <OP/OP_Node.h>
+#include <OBJ/OBJ_Node.h>
+#include <OBJ/OBJ_Camera.h>
 
 typedef std::vector  < std::string > TStringVector;
+
 /********************************************************************************************************/
 static const int ROP_FBX_DUMMY_PARTICLE_GEOM_VERTEX_COUNT = 4;
 
@@ -49,9 +52,19 @@ ROPfbxIsLightNodeType(const UT_StringRef &node_type)
     return (node_type == "hlight" || node_type == "hlight::2.0");
 }
 
-// Determines which network types the visitor dives into
-static const char* const ROP_FBXnetworkTypesToIgnore[] = { "geo", "bone", "null", "cam", "instance", "hlight", 
-	"hlight::2.0", "ambient", "dopnet", "ropnet", "chopnet",  "popnet",  "vopnet",  "shopnet", 0 };
+static inline OBJ_Camera *
+ROPfbxCastToCamera(OP_Node *node, fpreal t)
+{
+    if (!node)
+        return nullptr;
+    OBJ_Node *obj = node->castToOBJNode();
+    if (!obj)
+        return nullptr;
+    OBJ_Camera *cam = obj->castToOBJCamera();
+    if (!cam)
+        return nullptr;
+    return cam->getControllingCamera(t);
+}
 
 // These declare any node that does not modify the mesh, its vertices or points.
 static const char* const ROP_FBXallowed_inbetween_node_types[] = {"null", "switch", "subnet", "attribcomposite",

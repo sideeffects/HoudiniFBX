@@ -38,6 +38,7 @@
 #include <OP/OP_Node.h>
 #include <OP/OP_Operator.h>
 #include <OP/OP_SubnetIndirectInput.h>
+#include <UT/UT_ArrayStringSet.h>
 
 #define NEEDED_INDEX_IS_INTERNAL_NODE	    -2
 #define NEEDED_INDEX_UNDEFINED		    -1
@@ -427,23 +428,6 @@ ROP_FBXBaseVisitor::visitNodeAndChildren(OP_Node* node, ROP_FBXBaseNodeVisitInfo
 
 }
 /********************************************************************************************************/
-void 
-ROP_FBXBaseVisitor::addNonVisitableNetworkType(const char *net_type)
-{
-    myNetworkTypesNotToVisit.append(net_type);
-}
-/********************************************************************************************************/
-void 
-ROP_FBXBaseVisitor::addNonVisitableNetworkTypes(const char* const net_types[])
-{
-    int arr_pos = 0;
-    while(net_types[arr_pos])
-    {
-	addNonVisitableNetworkType(net_types[arr_pos]);
-	arr_pos++;
-    }
-}
-/********************************************************************************************************/
 bool 
 ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
 {
@@ -463,13 +447,13 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
 
     // Check if the network type is black-listed.
     // Excluded types: dopnet, ropnet, chopnet, popnet, shopnet, vopnet
+    static UT_ArrayStringSet theTypesToIgnore(
+                                { "geo", "bone", "null", "instance", "hlight", "hlight::2.0",
+                                  "ambient", "dopnet", "ropnet", "chopnet",  "popnet",
+                                  "vopnet",  "shopnet" });
     const UT_StringHolder &type_name = node->getOperator()->getName();
-    int curr_id, num_ids = myNetworkTypesNotToVisit.size();
-    for(curr_id = 0; curr_id < num_ids; curr_id++)
-    {
-	if(type_name == myNetworkTypesNotToVisit[curr_id])
-	    return false;
-    }
+    if (theTypesToIgnore.contains(type_name) || ROPfbxCastToCamera(node, myStartTime))
+        return false;
 
     // If not, check if it is hidden and if we're set to export hidden nodes
     // as nulls.
