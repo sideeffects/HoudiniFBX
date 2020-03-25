@@ -60,6 +60,9 @@ ROPfbxCastToCamera(OP_Node *node, fpreal t)
     OBJ_Node *obj = node->castToOBJNode();
     if (!obj)
         return nullptr;
+    // OBJ_Light is a descendant subclass of OBJ_Camera, so we need to discount it
+    if (obj->castToOBJLight())
+        return nullptr;
     OBJ_Camera *cam = obj->castToOBJCamera();
     if (!cam)
         return nullptr;
