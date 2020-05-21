@@ -166,10 +166,10 @@ static PRM_Template theMultiClipsTemplate[] =
 static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode,
                  &startNodeDefault, &bundleMenu, 0, 0, &ROPoutFbxBundlesList),
+    PRM_Template(PRM_TOGGLE, 1, &createSubnetRoot, PRMoneDefaults, nullptr),
     PRM_Template(PRM_FILE, 1, &sopOutput, &sopOutputDefault, nullptr, 0, 0,
                  &PRM_SpareData::fileChooserModeWrite),
     PRM_Template(PRM_SWITCHER, 2, &switcherName, switcherDefs),
-    PRM_Template(PRM_TOGGLE, 1, &createSubnetRoot, PRMoneDefaults, nullptr),
     PRM_Template(PRM_TOGGLE, 1, &exportKind, &exportKindDefault, nullptr),
     PRM_Template(PRM_STRING, PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName,
                  0, &skdVersionsMenu),
@@ -219,13 +219,13 @@ ROP_FBX::getTemplates()
 
     const PRM_Template *tplates = &geoTemplates[0];
     theTemplate[ROP_FBX_STARTNODE] = *tplates++;
+    theTemplate[ROP_FBX_CREATESUBNETROOT] = *tplates++;
     theTemplate[ROP_FBX_SOPOUTPUT] = *tplates++;
     theTemplate[ROP_FBX_MKPATH] = theRopTemplates[ROP_MKPATH_TPLATE];
 
     theTemplate[ROP_FBX_SWITCHER] = *tplates++;
 
     const PRM_Template *page_start = tplates;
-    theTemplate[ROP_FBX_CREATESUBNETROOT] = *tplates++;
     theTemplate[ROP_FBX_EXPORTASCII] = *tplates++;
     theTemplate[ROP_FBX_SDKVERSION] = *tplates++;
     theTemplate[ROP_FBX_VCFORMAT] = *tplates++;
@@ -281,8 +281,10 @@ ROP_FBX::updateParmsFlags()
 
     bool	changed = ROP_Node::updateParmsFlags();
 
-    // Hide start_node if the node is a sop
+    // Hide startnode/createsubnetroot if the node is a sop
     changed |= setVisibleState("startnode", !issop);
+    changed |= setVisibleState("createsubnetroot", !issop);
+
     changed |= enableParm("deformsasvcs", DORANGE());
     changed |= enableParm("exportclips", DORANGE());
     changed |= enableParm("numclips", EXPORTCLIPS() && DORANGE());
