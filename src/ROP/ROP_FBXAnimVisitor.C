@@ -160,11 +160,6 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    continue;
 	res_type = stored_node_info_ptr->getVisitResultType();
 
-	// Skip non-objects, because we can't get transforms for them anyways
-	OBJ_Node* obj_node = is_sop_export ? node->getParent()->castToOBJNode() : node->castToOBJNode();
-	if ( !obj_node )
-	    continue;
-
 	const fpreal t = myParentExporter->getStartTime();
 
         OBJ_Camera *cam = nullptr;
@@ -188,10 +183,16 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	for(int curr_blend_index = 0; curr_blend_index < stored_node_info_ptr->getBlendShapeNodeCount(); curr_blend_index++)
 	    node_info_in->addBlendShapeNode(stored_node_info_ptr->getBlendShapeNodeAt(curr_blend_index));
 
-	if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
-	    exportTRSAnimation(node, myAnimLayer, fbx_node);
-	else
-	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in);
+	// We skip exporting the object-level transforms for SOPs
+	OBJ_Node* obj_node = node->castToOBJNode();
+        if (obj_node)
+        {
+            if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
+                exportTRSAnimation(obj_node, myAnimLayer, fbx_node);
+            else
+                exportResampledAnimation(myAnimLayer, obj_node, fbx_node,
+                                         node_info_in);
+        }
 
 	FbxAnimCurve* curr_anim_curve;
 
@@ -297,7 +298,10 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportTRSAnimation(OP_Node* node, FbxAnimLayer* fbx_anim_layer, FbxNode* fbx_node)
+ROP_FBXAnimVisitor::exportTRSAnimation(
+        OBJ_Node* node,
+        FbxAnimLayer* fbx_anim_layer,
+        FbxNode* fbx_node)
 {
     if(!node || !fbx_anim_layer)
 	return;
@@ -1239,8 +1243,11 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 }
 /********************************************************************************************************/
 void 
-ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, OP_Node* source_node, 
-					     FbxNode* fbx_node, ROP_FBXBaseNodeVisitInfo *node_info)
+ROP_FBXAnimVisitor::exportResampledAnimation(
+        FbxAnimLayer* curr_fbx_anim_layer,
+        OBJ_Node* source_node, 
+        FbxNode* fbx_node,
+        ROP_FBXBaseNodeVisitInfo *node_info)
 {
     // Skip if it's not time dependent by cooking it. If there's errors, then just bail.
     // This check can cause more nodes to be resampled because don't we know if
@@ -1248,7 +1255,9 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     // if none of the cooking parms on the node are time dependent, the output
     // transform might still vary across frames.
     OP_Context context(myParentExporter->getStartTime());
-    if (!source_node->cook(context) || !source_node->isTimeDependent(context))
+    if (!source_node
+            || !source_node->cook(context)
+            || !source_node->isTimeDependent(context))
 	return;
 
     // Output the entire range
@@ -1260,14 +1269,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(FbxAnimLayer* curr_fbx_anim_layer, 
     // transform order in an identical fashion.
     UT_XformOrder xform_order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
 
-    OBJ_Node* obj = CAST_OBJNODE(source_node);
-    if (!obj)
-	obj = CAST_OBJNODE(source_node->getParent());
-
-    if (!obj)
-	return;
-
-    xform_order.rotOrder(OP_Node::getRotOrder(obj->XYZ(start_time)));
+    xform_order.rotOrder(OP_Node::getRotOrder(source_node->XYZ(start_time)));
 
     // Get fbx curves
     const int num_trs_channels = 3;
