@@ -180,7 +180,7 @@ public:
     UT_Color getAccumAmbientColor(void);
     ROP_FBXCreateInstancesAction* getCreateInstancesAction(void);
 
-protected:
+private:
 
     // Given a gdp pointer, this will return a pointer to a gdp which consists of
     // only supported primitives for export. This may or may not be a converted geo.
@@ -213,7 +213,7 @@ protected:
 
     int createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMaterial* fbx_material, THdFbxTextureMap& tex_map);
 
-    FbxNodeAttribute* outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method);
+    void outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
     void outputNURBSSurface(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes);
     void addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager, FbxMesh* mesh_attr, FbxLayerElement::EMappingMode mapping_mode );
 

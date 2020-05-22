@@ -913,7 +913,6 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
     // See what types we have in our GDP
     GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
-    FbxNodeAttribute *res_attr = NULL;
     if (v_cache_out && v_cache_out->getNumFrames() > 0)
     {
 	// We can only cache these:
@@ -924,8 +923,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
 	if ((prim_type == GEO_PrimTypeCompat::GEOPRIMPOLY || prim_type == GEO_PrimTypeCompat::GEOPRIMMESH || prim_type == (GEO_PrimTypeCompat::GEOPRIMPOLY | GEO_PrimTypeCompat::GEOPRIMMESH)) && v_cache_out->getIsNumPointsConstant())
 	{
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometryConstant);
-	    res_attr = outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant);
-	    finalizeGeoNode(res_attr, NULL, capture_frame, -1, res_nodes);
+	    outputPolygons(gdp, (const char*)node_name, 0, ROP_FBXVertexCacheMethodGeometryConstant, nullptr, capture_frame, res_nodes);
 	}
 	else if (prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 	{
@@ -933,8 +931,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
 	    // We cleverly create a square for each particle, then. Use the cache.
 	    GU_Detail *final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodParticles);
-	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
-	    finalizeGeoNode(res_attr, NULL, capture_frame, -1, res_nodes);
+	    outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod(), nullptr, capture_frame, res_nodes);
 	}
 	else if (is_pure_surfaces && v_cache_out->getIsNumPointsConstant())
 	{
@@ -960,8 +957,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
 	    GU_Detail *final_detail;
 	    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodGeometry);
 	    final_detail = v_cache_out->getFrameGeometry(v_cache_out->getFirstFrame());
-	    res_attr = outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod());
-	    finalizeGeoNode(res_attr, NULL, capture_frame, -1, res_nodes);
+	    outputPolygons(final_detail, (const char*)node_name, max_vc_verts, node_info->getVertexCacheMethod(), nullptr, capture_frame, res_nodes);
 	}
     }
     
@@ -1022,8 +1018,6 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
     // See what types we have in our GDP
     GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(gdp);
 
-    FbxNodeAttribute *res_attr = NULL;
-
     GU_Detail conv_gdp;
     const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_type);
 
@@ -1031,8 +1025,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
     if (prim_type & GEO_PrimTypeCompat::GEOPRIMPOLY)
     {
 	// There are polygons in this gdp. Output them.
-	res_attr = outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone);
-	finalizeGeoNode(res_attr, skin_deform_node, capture_frame, -1, res_nodes);
+	outputPolygons(final_detail, (const char*)node_name, 0, ROP_FBXVertexCacheMethodNone, skin_deform_node, capture_frame, res_nodes);
 
 	// Try output any polylines, if they exist. Unlike Houdini, they're a separate type in FBX.
 	// We ignore them in the about polygon function.
@@ -1597,8 +1590,15 @@ ROP_FBXMainVisitor::setNURBSSurfaceInfo(FbxNurbsSurface *nurbs_surf_attr, const 
     }
 }
 /********************************************************************************************************/
-FbxNodeAttribute*
-ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, int max_points, ROP_FBXVertexCacheMethodType vc_method)
+void
+ROP_FBXMainVisitor::outputPolygons(
+        const GU_Detail* gdp,
+        const char* node_name,
+        int max_points,
+        ROP_FBXVertexCacheMethodType vc_method,
+        OP_Node* skin_deform_node,
+        int capture_frame,
+        TFbxNodesVector& res_nodes)
 {
     FbxMesh* mesh_attr = FbxMesh::Create(mySDKManager, node_name);
 
@@ -1706,7 +1706,9 @@ ROP_FBXMainVisitor::outputPolygons(const GU_Detail* gdp, const char* node_name, 
 
     // Now do attributes, or at least some of them
     exportAttributes(gdp, mesh_attr);
-    return mesh_attr;
+
+    // Create corresponding FbxNode
+    finalizeGeoNode(mesh_attr, skin_deform_node, capture_frame, -1, res_nodes);
 }
 /********************************************************************************************************/
 ROP_FBXAttributeType 
