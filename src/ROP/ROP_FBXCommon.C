@@ -32,43 +32,7 @@
 #include "ROP_FBXCommon.h"
 #include <UT/UT_String.h>
 
-using namespace std;
 
-/********************************************************************************************************/
-ROP_FBXExportOptions::ROP_FBXExportOptions()
-{
-    reset();
-}
-/********************************************************************************************************/
-ROP_FBXExportOptions::~ROP_FBXExportOptions()
-{
-
-}
-/********************************************************************************************************/
-void 
-ROP_FBXExportOptions::reset(void)
-{
-    myResampleAllAnimation = false;
-    myResampleIntervalInFrames = 1.0;
-    myExportInAscii = false;
-    myVertexCacheFormat = ROP_FBXVertexCacheExportFormatMaya;
-    myStartNodePath = "/obj";
-    myCreateSubnetRoot = true;
-    myDetectConstantPointCountObjects = true;
-    myPolyConvertLOD = 1.0;
-    myExportDeformsAsVC = false;
-    myExportTakeName = "";
-    myInvisibleObjectsExportType = ROP_FBXInvisibleNodeExportAsNulls;
-    myConvertSurfaces = false;
-    mySdkVersion = "";
-    myBundleNames = "";
-
-    mySaveMemory = false;
-    myForceBlendShapeExport = false;
-    myForceSkinDeformExport = false;
-    mySopExport = false;
-    myExportBonesEndEffectors = true;
-}
 /********************************************************************************************************/
 void 
 ROP_FBXExportOptions::setSaveMemory(bool value)
