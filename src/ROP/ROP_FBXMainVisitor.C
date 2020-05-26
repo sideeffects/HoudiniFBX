@@ -488,15 +488,18 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	setFbxNodeVisibility(*new_node, hd_node, is_visible);
 
 	OBJ_Node *obj_node = hd_node->castToOBJNode();
-	if (ROP_FBXUtil::mapsToFBXTransform(myStartTime, obj_node))
-	{
-	    exportFBXTransform(myStartTime, obj_node, new_node);
-	}
-	else
-	{
-	    // Set the standard transformations (unless we're in the instance)
-	    ROP_FBXUtil::setStandardTransforms(hd_node, new_node, node_info, 0.0, myStartTime);
-	}
+        if (obj_node)
+        {
+            if (ROP_FBXUtil::mapsToFBXTransform(myStartTime, obj_node))
+            {
+                exportFBXTransform(myStartTime, obj_node, new_node);
+            }
+            else
+            {
+                // Set the standard transformations (unless we're in the instance)
+                ROP_FBXUtil::setStandardTransforms(obj_node, new_node, node_info, 0.0, myStartTime);
+            }
+        }
 
 	// If there's a lookat object, queue up the action
 	if(lookatobjectpath.length() > 0)
