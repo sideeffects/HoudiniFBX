@@ -311,26 +311,6 @@ ROP_FBX::~ROP_FBX()
 {
 }
 
-class ropFBX_AutoCookRender {
-public:
-    ropFBX_AutoCookRender(OP_Node *sop)
-    {
-	if ((myObj = sop->getParent()))
-	{
-	    myPrev = myObj->isCookingRender();
-	    myObj->setCookingRender(1);
-	}
-    }
-    ~ropFBX_AutoCookRender()
-    {
-	if (myObj)
-	    myObj->setCookingRender(myPrev);
-    }
-private:
-    OP_Node	*myObj;
-    int		 myPrev;
-};
-
 int
 ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 {
