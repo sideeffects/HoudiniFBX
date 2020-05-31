@@ -388,6 +388,23 @@ ROP_FBXExporter::doExport(void)
 	// Perform post-actions
 	if(!myDidCancel)
 	    myActionManager->performPostActions();
+
+        // Convert axis system if needed
+        FbxAxisSystem target_axis;
+        switch (myExportOptions.getAxisSystem())
+        {
+            case ROP_FBXAxisSystem_YUp_RightHanded:
+                target_axis = FbxAxisSystem::MayaYUp;
+                break;
+            case ROP_FBXAxisSystem_YUp_LeftHanded:
+                target_axis = FbxAxisSystem::DirectX;
+                break;
+            case ROP_FBXAxisSystem_ZUp_RightHanded:
+                target_axis = FbxAxisSystem::Max;
+                break;
+        }
+        if (target_axis != scene_time_setting.GetAxisSystem())
+            target_axis.ConvertScene(myScene);
     }
 }
 /********************************************************************************************************/
