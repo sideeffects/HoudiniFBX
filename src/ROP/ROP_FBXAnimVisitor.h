@@ -103,6 +103,10 @@ protected:
     int lookupExactPointCount(OP_Node *node, fpreal time, int selected_prim_idx);
 
     bool exportBlendShapeAnimation(OP_Node* blend_shape_node, FbxNode* fbx_node);
+
+    bool exportPackedPrimAnimation(OP_Node* node, const UT_StringRef& path_attrib_name,
+                                   FbxAnimLayer* fbx_anim_layer);
+
 private:
 
     ROP_FBXExporter* myParentExporter;

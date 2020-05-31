@@ -56,7 +56,8 @@ enum {
     ROP_FBX_CREATESUBNETROOT,
     ROP_FBX_SOPOUTPUT,
     ROP_FBX_MKPATH,
-//    ROP_FBX_INITSIM,
+    ROP_FBX_BUILDFROMPATH,
+    ROP_FBX_PATHATTRIB,
 
     ROP_FBX_SWITCHER,
     ROP_FBX_EXPORTASCII,
@@ -180,6 +181,9 @@ private:
     bool CREATESUBNETROOT(fpreal t) const
     { INT_PARM("createsubnetroot", 0, t); }
 
+    bool BUILD_FROM_PATH(fpreal t) const
+    { INT_PARM("buildfrompath", 0, t); }
+
     int EXPORTCLIPS(void)
     {
 	INT_PARM("exportclips", 0, 0)
@@ -204,6 +208,14 @@ private:
     {
 	return evalIntInst("clipframerange#", &idx, 1, time);
     }
+
+    UT_StringHolder PATH_ATTRIB(fpreal t) const
+    {
+        UT_StringHolder attrib;
+        evalString(attrib, "pathattrib", 0, t);
+        return attrib;
+    }
+
 
     // Script commands
     void	PRERENDER(UT_String &str, fpreal t)

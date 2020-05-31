@@ -50,8 +50,10 @@
 #include <GU/GU_ConvertParms.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_DetailHandle.h>
+#include <GU/GU_PackedContext.h>
 #include <GU/GU_PrimNURBCurve.h>
 #include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimRBezCurve.h>
 #include <GU/GU_PrimRBezSurf.h>
@@ -68,19 +70,32 @@
 #include <GD/GD_TrimRegion.h>
 #include <GA/GA_ATIGroupBool.h>
 #include <GA/GA_AttributeFilter.h>
+#include <GA/GA_ElementGroup.h>
 #include <GA/GA_ElementWrangler.h>
+#include <GA/GA_Handle.h>
+#include <GA/GA_MergeOptions.h>
 #include <GA/GA_Names.h>
+#include <GA/GA_Types.h>
 
 #include <OP/OP_Director.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Utils.h>
 
+#include <UT/UT_Array.h>
+#include <UT/UT_ArrayStringMap.h>
+#include <UT/UT_Assert.h>
 #include <UT/UT_BoundingRect.h>
 #include <UT/UT_CrackMatrix.h>
+#include <UT/UT_DirUtil.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_Optional.h>
+#include <UT/UT_String.h>
 #include <UT/UT_StringHolder.h>
+#include <UT/UT_UniquePtr.h>
+#include <UT/UT_WorkBuffer.h>
+#include <UT/UT_XformOrder.h>
 
 
 #ifdef UT_DEBUG
@@ -550,12 +565,13 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     res_node_pair_info->setVertexCache(v_cache);
     res_node_pair_info->setVisitResultType(res_type);
     res_node_pair_info->setSourcePrimitive(constr_info.getHdPrimitiveIndex());
+    res_node_pair_info->setPathValue(constr_info.getPathValue());
     res_node_pair_info->setTraveledInputIndex(node_info->getTraveledInputIndex());
     for (int curr_blend_index = 0; curr_blend_index < node_info->getBlendShapeNodeCount(); curr_blend_index++)
 	res_node_pair_info->addBlendShapeNode(node_info->getBlendShapeNodeAt(curr_blend_index));
 
-    // Add it to the hierarchy
-    if(!node_info->getIsVisitingFromInstance())
+    // Add it to the hierarchy, but only we haven't parented it yet.
+    if(!node_info->getIsVisitingFromInstance() && !new_node->GetParent())
     {
 	fbx_parent_node->AddChild(new_node);
 	node_info->setFbxNode(new_node);
@@ -768,26 +784,38 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     OP_Network* op_net = dynamic_cast<OP_Network*>(node);
     if(!op_net)
 	return false;
-    OP_Node *rend_node = myParentExporter->getExportOptions()->isSopExport() ? node : op_net->getRenderNodePtr();
+    auto&& options = *myParentExporter->getExportOptions();
+    bool is_sop_export = options.isSopExport();
+    OP_Node *rend_node = is_sop_export ? node : op_net->getRenderNodePtr();
     if(!rend_node)
 	return false;
     SOP_Node* sop_node = dynamic_cast<SOP_Node*>(rend_node);
     if(!sop_node)
 	return false;
 
+    UT_StringRef path_attrib_name = is_sop_export ? options.getSopExportPathAttrib() : UT_StringRef();
+
     bool temp_bool, found_particles;
     bool is_vertex_cacheable = false;
     OP_Node* skin_deform_node = NULL;
     OP_Node* blend_shape_node = NULL;
 
-    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, myParentExporter->getExportOptions()->getExportDeformsAsVC(), myStartTime, found_particles, myParentExporter->getExportOptions()->isSopExport() );
+    temp_bool = ROP_FBXUtil::isVertexCacheable(op_net, options.getExportDeformsAsVC(), myStartTime, found_particles, is_sop_export);
     if(myParentExporter->getExportingAnimation() || found_particles)
 	is_vertex_cacheable = temp_bool;
 
-    bool force_skin_deform = myParentExporter->getExportOptions()->getForceSkinDeformExport();
-    bool look_for_skin_deform_node = myParentExporter->getExportOptions()->getExportDeformsAsVC() == false && !is_vertex_cacheable;
+    bool force_skin_deform = options.getForceSkinDeformExport();
+    bool look_for_skin_deform_node = options.getExportDeformsAsVC() == false && !is_vertex_cacheable;
     if (!look_for_skin_deform_node && force_skin_deform)
+    {
 	look_for_skin_deform_node = true;
+    }
+    if (look_for_skin_deform_node && path_attrib_name)
+    {
+        if (force_skin_deform)
+	    myErrorManager->addError("Skin deforms cannot be exported when using path attribute.");
+        look_for_skin_deform_node = false;
+    }
 
     if(look_for_skin_deform_node)
     {
@@ -812,10 +840,18 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     }
 
     bool blend_shapes_out_only = false;
-    bool force_blend_shape = myParentExporter->getExportOptions()->getForceBlendShapeExport();
-    bool look_for_blend_shape_node = myParentExporter->getExportOptions()->getExportDeformsAsVC() == false;// && !is_vertex_cacheable;
+    bool force_blend_shape = options.getForceBlendShapeExport();
+    bool look_for_blend_shape_node = options.getExportDeformsAsVC() == false;// && !is_vertex_cacheable;
     if (!look_for_blend_shape_node && force_blend_shape)
+    {
 	look_for_blend_shape_node = true;
+    }
+    if (look_for_blend_shape_node && path_attrib_name)
+    {
+        if (force_blend_shape)
+            myErrorManager->addError("Blend shapes cannot be exported when using path attribute.");
+        look_for_blend_shape_node = false;
+    }
 
     if (look_for_blend_shape_node)
     {
@@ -842,6 +878,12 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	return outputBlendShapesNodesIn(rend_node, node_name, skin_deform_node, did_cancel_out, res_nodes, NULL, node_info);
     }	
 
+    if (path_attrib_name)
+    {
+        return outputSOPNodeByPath(parent_node, path_attrib_name, sop_node, node_info, v_cache_out,
+                                   did_cancel_out, res_nodes);
+    }
+
     if (is_vertex_cacheable)
     {
 	return outputSOPNodeWithVC(sop_node, node_name, node_info, v_cache_out, did_cancel_out, res_nodes);
@@ -850,6 +892,300 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     {
 	v_cache_out = NULL;
 	return outputSOPNodeWithoutVC(sop_node, node_name, skin_deform_node, did_cancel_out, res_nodes);
+    }
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputShapePrimitives(
+        const char *node_name,
+        const UT_StringHolder &path_value,
+        const GU_Detail *gdp,
+        const GA_OffsetList &prims,
+        TFbxNodesVector& res_nodes)
+{
+    // Copy requested prims over
+    GU_Detail shape;
+    GA_Range prim_range(gdp->getPrimitiveMap(), prims);
+    GA_MergeOptions options;
+    options.setSourcePrimitiveRange(prim_range);
+    options.setMergeGroups(GA_GROUP_PRIMITIVE, true);
+    options.setAllMergeInternalGroups(false);
+    options.setMergeInternalGroups(GA_GROUP_PRIMITIVE, false);
+    shape.baseMerge(*gdp, options);
+
+    // Handle packed primitives
+    UT_Matrix4D prim_xform(1);
+    bool have_prim_xform = false;
+    if (GU_PrimPacked::hasPackedPrimitives(shape))
+    {
+        GU_PackedContext packed_context;
+        UT_Array<const GEO_Primitive *> packed_prims;
+        GA_OffsetList old_prims;
+        GA_OffsetList old_pts;
+        GA_Size npacked_beg = 0;
+        GA_Size npacked_end = shape.getNumPrimitives();
+
+        // If we only have 1 packed primitive, then save its transform for the FbxNode
+        bool need_undo_xform = false;
+        if (npacked_end == 1)
+        {
+            const GEO_Primitive *prim = shape.getGEOPrimitive(shape.primitiveOffset(0));
+            const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
+
+            packed_prim->getFullTransform4(prim_xform);
+            have_prim_xform = true;
+
+            // We can avoid untransforming if we've got a packed detail
+            GU_ConstDetailHandle packed_gdh = packed_prim->getPackedDetail();
+            const GU_Detail *packed_gdp = packed_gdh.gdp();
+            if (!packed_gdp)
+            {
+                need_undo_xform = true;
+            }
+            else
+            {
+                need_undo_xform = false;
+                shape.replaceWith(*packed_gdp);
+                if (GU_PrimPacked::hasPackedPrimitives(shape))
+                    npacked_end = shape.getNumPrimitives();
+                else
+                    npacked_end = npacked_beg;
+            }
+        }
+
+        // Iteratively unpack all packed prims and delete originals
+        while (npacked_beg < npacked_end)
+        {
+            // Make list of pack_prims to convert
+            packed_prims.clear();
+            for (GA_Index i = npacked_beg; i < npacked_end; ++i)
+            {
+                GA_Offset primoff = shape.primitiveOffset(i);
+                const GEO_Primitive *prim = shape.getGEOPrimitive(primoff);
+                if (GU_PrimPacked::isPackedPrimitive(*prim))
+                    packed_prims.append(prim);
+            }
+
+            npacked_beg = npacked_end;
+            for (const GEO_Primitive *prim : packed_prims)
+            {
+                const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
+                if (!packed_prim->unpackWithContext(shape, packed_context))
+                    return false;
+                old_prims.append(prim->getMapOffset());
+                for(exint i = 0, n = prim->getVertexCount(); i < n; ++i)
+                    old_pts.append(prim->getPointOffset(i));
+            }
+            npacked_end = shape.getNumPrimitives();
+        }
+        if (old_prims.entries())
+        {
+            shape.destroyPrimitiveOffsets(GA_Range(shape.getPrimitiveMap(), old_prims));
+            shape.destroyPointOffsets(GA_Range(shape.getPointMap(), old_pts));
+        }
+
+        // Untransform if needed
+        if (need_undo_xform)
+        {
+            UT_ASSERT(have_prim_xform);
+            UT_Matrix4D inverse = prim_xform;
+            inverse.invert();
+            shape.transform(inverse);
+        }
+    }
+    else if (shape.getNumPrimitives() == 1
+             && shape.getPrimitiveVertexCount(shape.primitiveOffset(0)) == 1)
+    {
+        const GA_Primitive *prim = shape.getPrimitive(shape.primitiveOffset(0));
+        prim->getLocalTransform4(prim_xform);
+        have_prim_xform = true;
+    }
+
+    // Convert geometry to only accepted types
+    GU_Detail conv_gdp;
+    GA_PrimCompat::TypeMask prim_type = ROP_FBXUtil::getGdpPrimId(&shape);
+    const GU_Detail* out_gdp = getExportableGeo(&shape, conv_gdp, prim_type);
+
+    // Output geometry by type
+    int beg_i = res_nodes.size();
+    if (prim_type == GEO_PrimTypeCompat::GEOPRIMPOLY)
+    {
+        outputPolygons(out_gdp, node_name, 0, ROP_FBXVertexCacheMethodNone, nullptr, 0, res_nodes);
+
+        // Try output any polylines, if they exist. Unlike Houdini, they're a
+        // separate type in FBX.  We ignored them in the outputPolygons
+        outputPolylines(out_gdp, node_name, nullptr, 0, res_nodes);
+    }
+    // Unfortunately, the order of these is important and matters to the
+    // ROP_FBXAnimVisitor::fillVertexArray().
+    int prim_cntr = -1;
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBSURF)
+        outputNURBSSurfaces(out_gdp, node_name, nullptr, 0, res_nodes, &prim_cntr);
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMBEZSURF)
+        outputBezierSurfaces(out_gdp, node_name, nullptr, 0, res_nodes, &prim_cntr);
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMBEZCURVE)
+        outputBezierCurves(out_gdp, node_name, nullptr, 0, res_nodes, &prim_cntr);
+    if (prim_type & GEO_PrimTypeCompat::GEOPRIMNURBCURVE)
+        outputNURBSCurves(out_gdp, node_name, nullptr, 0, res_nodes, &prim_cntr);
+
+    // Set transforms on created FbxNodes
+    if (have_prim_xform)
+    {
+        UT_Vector3D r, s, t;
+        UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+        prim_xform.explode(order, r, s, t); // NB: FBX does not support shears right now
+        r.radToDeg();
+        for (int i = beg_i, end_i = res_nodes.size(); i < end_i; ++i)
+        {
+            ROP_FBXConstructionInfo &info = res_nodes[i];
+            info.setPathValue(path_value);
+
+            FbxNode *fbx_node = info.getFbxNode();
+            fbx_node->LclScaling.Set(FbxVector4(s(0), s(1), s(2)));
+            fbx_node->LclRotation.Set(FbxVector4(r(0), r(1), r(2)));
+            fbx_node->LclTranslation.Set(FbxVector4(t(0), t(1), t(2)));
+            // Use default XYZ rotation order, with normal parent transform inheritance
+            fbx_node->SetRotationActive(false);
+            fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
+        }
+    }
+
+    return true;
+}
+/********************************************************************************************************/
+namespace {
+    struct rop_PathAttribShape
+    {
+        UT_StringHolder myPathValue;
+        UT_StringHolder myFBXPath;
+        const char*     myNodeName;
+        GA_OffsetList   myPrims;
+    };
+}
+/********************************************************************************************************/
+bool
+ROP_FBXMainVisitor::outputSOPNodeByPath(
+        FbxNode* fbx_root,
+        const UT_StringRef& path_attrib_name,
+        SOP_Node* sop_node,
+        ROP_FBXMainNodeVisitInfo* node_info,
+        ROP_FBXGDPCache *&v_cache_out,
+        bool& did_cancel_out,
+        TFbxNodesVector& res_nodes)
+{
+    if (!sop_node)
+	return false;
+
+    // We currently don't support vertex cache output
+    v_cache_out = nullptr;
+    node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodNone);
+
+    GU_DetailHandle gdh;
+    OP_Context context(myParentExporter->getStartTime());
+    if (!ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
+        return false;
+
+    GU_DetailHandleAutoReadLock gdl(gdh);
+    const GU_Detail*            gdp = gdl.getGdp();
+
+    GA_ROHandleS path_attrib(gdp, GA_ATTRIB_PRIMITIVE, path_attrib_name);
+    if (path_attrib.isInvalid())
+    {
+        UT_WorkBuffer msg;
+        msg.format("Missing path attrib '{}' for export.", path_attrib_name);
+        myErrorManager->addError(msg.buffer());
+        return false;
+    }
+
+    //
+    // Partition the paths into groups of primitives
+    //
+    UT_ArrayStringMap<int> shape_map;
+    UT_Array<rop_PathAttribShape> shapes;
+    for (GA_Offset primoff : gdp->getPrimitiveRange())
+    {
+        const UT_StringHolder &path = path_attrib.get(primoff);
+        auto item = shape_map.find(path);
+        if (item != shape_map.end())
+        {
+            shapes(item->second).myPrims.append(primoff);
+        }
+        else
+        {
+            int i = shapes.append(); 
+            shape_map[path] = i;
+
+            rop_PathAttribShape &s = shapes(i);
+            s.myPathValue = path;
+            s.myFBXPath = s.myPathValue.c_str() + UTgetRootPrefixLength(path);
+            s.myNodeName = UT_StringWrap(s.myFBXPath).fileName();
+            if (!UTisstring(s.myNodeName))
+            {
+                UT_WorkBuffer msg;
+                msg.format("Cannot create node with empty name for primitive {}",
+                           gdp->primitiveIndex(primoff));
+                myErrorManager->addError(msg.buffer());
+                return false;
+            }
+            s.myPrims.append(primoff);
+        }
+    }
+
+    //
+    // Create FbxNode/FbxNodeAttribute pairs for every shape
+    //
+    UT_ArrayStringMap<FbxNode*> node_map;
+    for (auto&& s : shapes)
+    {
+        int i = res_nodes.size();
+        if (!outputShapePrimitives(s.myNodeName, s.myPathValue, gdp, s.myPrims, res_nodes))
+        {
+            UT_WorkBuffer msg;
+            msg.format("Failed to output shape for path {}", s.myPathValue);
+            myErrorManager->addError(msg.buffer());
+            continue;
+        }
+        UT_ASSERT(i < res_nodes.size() && res_nodes[i].getFbxNode());
+        node_map[s.myFBXPath] = res_nodes[i].getFbxNode();
+    }
+
+    //
+    // Create FbxNodes for all the shape ancestors.
+    // Note that we allow shapes to be parented to each other which is why we
+    // need to ensure we first populate node_map with all the shapes.
+    //
+    UT_String parent_path;
+    UT_String node_name;
+    for (auto&& s : shapes)
+    {
+        FbxNode* child = node_map[s.myFBXPath];
+        UT_StringWrap(s.myFBXPath).splitPath(parent_path, node_name);
+
+        while (parent_path.isstring() && parent_path != "/")
+        {
+            FbxNode* parent;
+            auto item = node_map.find(parent_path);
+            if (item != node_map.end())
+            {
+                parent = item->second;
+                parent_path.splitPath(parent_path, node_name);
+            }
+            else
+            {
+                UT_String new_parent_path;
+                parent_path.splitPath(new_parent_path, node_name);
+                parent = FbxNode::Create(mySDKManager, node_name);
+                node_map[parent_path] = parent;
+                parent_path.swap(new_parent_path);
+            }
+
+            parent->AddChild(child);
+            child = parent;
+        }
+        if (fbx_root && !child->GetParent())
+            fbx_root->AddChild(child);
     }
 
     return true;
@@ -884,10 +1220,13 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
     else
 	node_to_use = sop_node;
 
+    // getMaxPointsOverAnimation() will fill out v_cache_out with converted
+    // copies of the geometry.
     max_vc_verts = ROP_FBXUtil::getMaxPointsOverAnimation(node_to_use, geom_export_time, end_time,
 	myParentExporter->getExportOptions()->getPolyConvertLOD(),
 	myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(),
 	myParentExporter->getExportOptions()->getConvertSurfaces(),
+        /*keep_packprims*/false,
 	myBoss, v_cache_out, is_pure_surfaces);
 
     if (max_vc_verts < 0)
@@ -3644,7 +3983,11 @@ ROP_FBXMainVisitor::setProperName(FbxLayerElement* fbx_layer_elem, const GU_Deta
 }
 /********************************************************************************************************/
 const GU_Detail* 
-ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, GA_PrimCompat::TypeMask &prim_types_in_out)
+ROP_FBXMainVisitor::getExportableGeo(
+        const GU_Detail* gdp_orig,
+        GU_Detail& conversion_spare,
+        GA_PrimCompat::TypeMask &prim_types_in_out,
+        bool keep_packprims)
 {
     if(!gdp_orig)
 	return NULL;
@@ -3662,11 +4005,25 @@ ROP_FBXMainVisitor::getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conve
 	// We have some primitives that are not supported
 	float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
 	conversion_spare.duplicate(*gdp_orig);
+
+        UT_UniquePtr<GA_PrimitiveGroup> group;
+        if (keep_packprims)
+        {
+            group.reset(conversion_spare.newDetachedPrimitiveGroup());
+            conversion_spare.forEachPrimitive([&conversion_spare, &group](GA_Offset primoff) 
+            {
+                const int id = conversion_spare.getPrimitiveTypeId(primoff);
+                if (!GU_PrimPacked::isPackedPrimitive(id))
+                    group->addOffset(primoff);
+            });
+        }
+
 	GU_ConvertParms conv_parms;
 	conv_parms.setFromType(GEO_PrimTypeCompat::GEOPRIMALL & (~supported_types));
 	conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
 	conv_parms.method.setULOD(lod);
 	conv_parms.method.setVLOD(lod);
+        conv_parms.primGroup = group.get();
 	conversion_spare.convert(conv_parms);
 	final_detail = &conversion_spare;
 

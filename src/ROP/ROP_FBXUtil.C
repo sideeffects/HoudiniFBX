@@ -33,6 +33,7 @@
 #include "ROP_FBXCommon.h"
 
 #include <GU/GU_DetailHandle.h>
+#include <GU/GU_PrimPacked.h>
 
 #include <GEO/GEO_ConvertParms.h>
 #include <GEO/GEO_Primitive.h>
@@ -53,6 +54,7 @@
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StringHolder.h>
 #include <UT/UT_Thread.h>
+#include <UT/UT_UniquePtr.h>
 #include <UT/UT_XformOrder.h>
 
 #ifdef UT_DEBUG
@@ -165,8 +167,17 @@ ROP_FBXUtil::getFloatOPParm(OP_Node *node, const char* parmName, fpreal ftime, i
 }
 /********************************************************************************************************/
 int 
-ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpreal end_time, float lod, bool allow_constant_point_detection, 
-				       bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces)
+ROP_FBXUtil::getMaxPointsOverAnimation(
+        OP_Node* op_node,
+        fpreal start_time,
+        fpreal end_time,
+        float lod,
+        bool allow_constant_point_detection,
+        bool convert_surfaces,
+        bool keep_packprims,
+        UT_Interrupt* boss_op,
+        ROP_FBXGDPCache* v_cache_out,
+        bool &is_pure_surfaces)
 {
 #ifdef UT_DEBUG
     double timer_start = clock();
@@ -251,7 +262,8 @@ ROP_FBXUtil::getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpre
                 if (prim_type_res)
                     is_surfs_only = false;
 
-	    	convertGeoGDPtoVertexCacheableGDP(gdp, lod, true, *conv_gdp, curr_num_unconverted_points);
+                convertGeoGDPtoVertexCacheableGDP(gdp, lod, true, keep_packprims,
+                                                  *conv_gdp, curr_num_unconverted_points);
 		if(first_frame_num_points < 0)
 		    first_frame_num_points = curr_num_unconverted_points;
 		else
@@ -376,20 +388,18 @@ ROP_FBXUtil::convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& ou
 }
 /********************************************************************************************************/
 void 
-ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points)
+ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(
+        const GU_Detail* src_gdp,
+        float lod,
+        bool do_triangulate_and_rearrange,
+        bool keep_packprims,
+        GU_Detail& out_gdp,
+        int& num_pre_proc_points)
 {
+    GU_Detail conv_gdp;
+
 #ifdef UT_DEBUG
     double cook_start, cook_end;
-#endif
-    GU_Detail conv_gdp;
-    GEO_ConvertParms conv_parms;
-    conv_parms.setFromType(GEO_PrimTypeCompat::GEOPRIMALL);
-    conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
-    conv_parms.method.setULOD(lod);
-    conv_parms.method.setVLOD(lod);
-    conv_parms.myDestDetail = &conv_gdp;
-    conv_parms.mySourceDetail = &conv_gdp;
-#ifdef UT_DEBUG
     cook_start = clock();
 #endif
     conv_gdp.duplicate(*src_gdp);
@@ -399,6 +409,27 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 
     cook_start = clock();
 #endif
+
+    UT_UniquePtr<GA_PrimitiveGroup> group;
+    if (keep_packprims)
+    {
+        group.reset(conv_gdp.newDetachedPrimitiveGroup());
+        conv_gdp.forEachPrimitive([&conv_gdp, &group](GA_Offset primoff) 
+        {
+            const int id = conv_gdp.getPrimitiveTypeId(primoff);
+            if (!GU_PrimPacked::isPackedPrimitive(id))
+                group->addOffset(primoff);
+        });
+    }
+
+    GEO_ConvertParms conv_parms;
+    conv_parms.setFromType(GEO_PrimTypeCompat::GEOPRIMALL);
+    conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
+    conv_parms.method.setULOD(lod);
+    conv_parms.method.setVLOD(lod);
+    conv_parms.primGroup = group.get();
+    conv_parms.myDestDetail = &conv_gdp;
+    conv_parms.mySourceDetail = &conv_gdp;
     num_pre_proc_points = conv_gdp.getNumPoints();
     conv_gdp.convert(conv_parms);
 //    num_pre_proc_points = conv_gdp.getNumPoints();
@@ -408,6 +439,14 @@ ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float l
 	out_gdp.duplicate(conv_gdp);
 	return;
     }
+
+    //
+    // The reason for this triangulation here is only to support the ROP_FBXVertexCacheMethodGeometry
+    // vertex cache method which has varying amount of geometry per frame.  We simulate this by computing
+    // the maximum number of points for all frames and then creating dummy primitives for the extra points
+    // on frames that have less than the maximum number of points. I think that to make this easy to do,
+    // triangulation is performed so that we have a known topology to work with.
+    //
 
 #ifdef UT_DEBUG
     cook_end = clock();

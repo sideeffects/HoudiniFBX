@@ -32,14 +32,17 @@
 #ifndef __ROP_FBXMainVisitor_h__
 #define __ROP_FBXMainVisitor_h__
 
+#include "ROP_FBXHeaderWrapper.h"
+#include "ROP_FBXCommon.h"
+#include "ROP_FBXBaseVisitor.h"
+
+#include <GA/GA_OffsetList.h>
 #include <UT/UT_Color.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_Assert.h>
 #include <UT/UT_String.h>
+#include <UT/UT_StringHolder.h>
 #include <UT/UT_Set.h>
-#include "ROP_FBXHeaderWrapper.h"
-#include "ROP_FBXCommon.h"
-#include "ROP_FBXBaseVisitor.h"
 
 #include <map>
 #include <string>
@@ -161,8 +164,12 @@ public:
 
     FbxNode* getFbxNode(void) { return myNode; }
 
+    const UT_StringHolder& getPathValue() const { return myPathValue; }
+    void setPathValue(const UT_StringHolder &path) { myPathValue = path; }
+
 private:
     FbxNode* myNode;
+    UT_StringHolder myPathValue;
     int myHdPrimCnt;
 };
 typedef std::vector < ROP_FBXConstructionInfo > TFbxNodesVector;
@@ -188,10 +195,26 @@ private:
     // the idea is to avoid dynamically allocating one and avoiding ambiguity 
     // regarding whether the returned pointer needs to be deleted or not. 
     // In this case, it doesn't ever need to be deleted.
-    const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare, GA_PrimCompat::TypeMask &prim_types_in_out);
+    const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare,
+                                      GA_PrimCompat::TypeMask &prim_types_in_out,
+                                      bool keep_packprims = false);
 
     void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
+    bool outputShapePrimitives(
+            const char *node_name,
+            const UT_StringHolder &path_value,
+            const GU_Detail *gdp,
+            const GA_OffsetList &prims,
+            TFbxNodesVector& res_nodes);
+    bool outputSOPNodeByPath(
+            FbxNode* fbx_root,
+            const UT_StringRef& path_attrib_name,
+            SOP_Node* node,
+            ROP_FBXMainNodeVisitInfo* node_info,
+            ROP_FBXGDPCache *&v_cache_out,
+            bool& did_cancel_out,
+            TFbxNodesVector& res_nodes);
     bool outputSOPNodeWithVC(SOP_Node* node, const UT_String& node_name, ROP_FBXMainNodeVisitInfo* node_info, ROP_FBXGDPCache *&v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputSOPNodeWithoutVC(SOP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);

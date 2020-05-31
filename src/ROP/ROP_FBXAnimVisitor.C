@@ -45,6 +45,7 @@
 #include <GU/GU_DetailHandle.h>
 #include <GU/GU_PrimNURBCurve.h>
 #include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimRBezCurve.h>
 #include <GU/GU_PrimRBezSurf.h>
 #include <GEO/GEO_Primitive.h>
@@ -62,11 +63,14 @@
 #include <CH/CH_Segment.h>
 
 #include <TAKE/TAKE_Take.h>
+#include <UT/UT_ArrayStringMap.h>
 #include <UT/UT_FloatArray.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_StringHolder.h>
 #include <UT/UT_Thread.h>
+#include <UT/UT_UniquePtr.h>
+#include <UT/UT_WorkBuffer.h>
 #include <SYS/SYS_SequentialThreadIndex.h>
 #include <SYS/SYS_StaticAssert.h>
 #include <SYS/SYS_TypeTraits.h>
@@ -149,7 +153,14 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     ROP_FBXNodeInfo* stored_node_info_ptr;
     TFbxNodeInfoVector fbx_nodes;
 
-    bool is_sop_export = myParentExporter->getExportOptions()->isSopExport();
+    ROP_FBXExportOptions& options = *myParentExporter->getExportOptions();
+    bool is_sop_export = options.isSopExport();
+    if (is_sop_export)
+    {
+        UT_StringRef path_attrib_name = options.getSopExportPathAttrib();
+        if (path_attrib_name)
+            exportPackedPrimAnimation(node, path_attrib_name, myAnimLayer);
+    }
 
     myNodeManager->findNodeInfos(node, fbx_nodes);
     int curr_fbx_node, num_fbx_nodes = fbx_nodes.size();
@@ -1051,7 +1062,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    if(node_info_in->getIsSurfacesOnly())
 		conv_gdp.duplicate(*gdp);
 	    else
-		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp, dummy_int);
+		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, /*keep_packprims*/false, conv_gdp, dummy_int);
 	}
 	else
 	{
@@ -1060,7 +1071,7 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    if(prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 		ROP_FBXUtil::convertParticleGDPtoPolyGDP(gdp, conv_gdp);
 	    else
-		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), true, conv_gdp, dummy_int);
+		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), true, /*keep_packprims*/false, conv_gdp, dummy_int);
 	}
 	final_gdp = &conv_gdp;
     }
@@ -1499,6 +1510,155 @@ ROP_FBXAnimVisitor::exportBlendShapeAnimation(OP_Node* blend_shape_node, FbxNode
 	    // FBX uses percent for its BS values, so we need to use a scale factor here.
 	    exportChannel(curr_anim_curve, blend_shape_node, "blend#", 0, 100.0, (n + 1));
 	}
+    }
+
+    return true;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXAnimVisitor::exportPackedPrimAnimation(
+        OP_Node* node, const UT_StringRef& path_attrib_name, FbxAnimLayer* fbx_anim_layer)
+{
+    SOP_Node* sop_node = node->castToSOPNode();
+    if (!sop_node)
+        return false;
+
+    constexpr const char* components[] =
+    {
+        FBXSDK_CURVENODE_COMPONENT_X,
+        FBXSDK_CURVENODE_COMPONENT_Y,
+        FBXSDK_CURVENODE_COMPONENT_Z
+    };
+
+    struct PathInfo
+    {
+        FbxNode*        myFbxNode;
+        // These next two arrays are indexed in order of S, R, T
+        FbxAnimCurve*   myCurves[9];
+        int             myLastKeys[9] = { 0 };
+    };
+    UT_ArrayStringMap<UT_UniquePtr<PathInfo>> info_from_path;
+    TFbxNodeInfoVector node_infos;
+    myNodeManager->findNodeInfos(node, node_infos);
+    for (auto&& info : node_infos)
+    {
+        UT_UniquePtr<PathInfo>& path_info = info_from_path[info->getPathValue()];
+        path_info = UTmakeUnique<PathInfo>();
+
+        FbxNode *fbx_node = info->getFbxNode();
+        path_info->myFbxNode = fbx_node;
+
+        // Use default XYZ rotation order, with normal parent transform inheritance
+        fbx_node->SetRotationActive(false);
+        fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
+
+        using FbxDouble3Property = FbxPropertyT<FbxDouble3>;
+        FbxDouble3Property* props[] =
+        {
+            &(fbx_node->LclScaling),
+            &(fbx_node->LclRotation),
+            &(fbx_node->LclTranslation)
+        };
+        int c = 0;
+        for (FbxDouble3Property* prop : props)
+        {
+            for (const char* comp : components)
+            {
+                path_info->myCurves[c] = prop->GetCurve(fbx_anim_layer, comp, /*create*/true);
+                path_info->myCurves[c]->KeyModifyBegin();
+                ++c;
+            }
+        }
+    }
+
+    FbxTime fbx_time;
+    fpreal start_time = myParentExporter->getStartTime();
+    fpreal end_time = myParentExporter->getEndTime();
+    fpreal secs_per_sample = CHgetManager()->getSecsPerSample();
+    fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+    for (fpreal curr_time = start_time; curr_time < end_time; curr_time += time_step)
+    {
+	fbx_time.SetSecondDouble(curr_time + secs_per_sample);
+
+        GU_DetailHandle gdh;
+        OP_Context context(curr_time);
+        ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh);
+        GU_DetailHandleAutoReadLock gdl(gdh);
+        const GU_Detail* gdp = gdl.getGdp();
+        if (!gdp)
+        {
+            UT_WorkBuffer msg;
+            msg.format("No geometry found on frame {}.", CHgetFrameFromTime(curr_time));
+            myErrorManager->addError(msg.buffer());
+            continue;
+        }
+        GA_ROHandleS path_attrib(gdp, GA_ATTRIB_PRIMITIVE, path_attrib_name);
+        if (path_attrib.isInvalid())
+        {
+            UT_WorkBuffer msg;
+            msg.format("Missing path attrib '{}' on frame {}.",
+                       path_attrib_name, CHgetFrameFromTime(curr_time));
+            myErrorManager->addError(msg.buffer());
+            continue;
+        }
+
+        for (GA_Offset primoff : gdp->getPrimitiveRange())
+        {
+            auto item = info_from_path.find(path_attrib.get(primoff));
+            if (item == info_from_path.end())
+            {
+                UT_WorkBuffer msg;
+                msg.format("Found invalid path attrib value '{}' on frame {} primitive {}.",
+                           path_attrib.get(primoff), CHgetFrameFromTime(curr_time),
+                           gdp->primitiveIndex(primoff));
+	        myErrorManager->addError(msg.buffer());
+                continue;
+            }
+
+            UT_Matrix4D xform;
+            int type_id = gdp->getPrimitiveTypeId(primoff);
+            if (GU_PrimPacked::isPackedPrimitive(type_id))
+            {
+                const GA_Primitive *prim = gdp->getPrimitive(primoff);
+                const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
+                packed_prim->getFullTransform4(xform);
+            }
+            else if (gdp->getPrimitiveVertexCount(primoff) == 1)
+            {
+                const GA_Primitive *prim = gdp->getPrimitive(primoff);
+                prim->getLocalTransform4(xform);
+            }
+            else // no transform available, vertex cache output
+            {
+                continue;
+            }
+
+            UT_Vector3D vec[3]; // S, R, T order
+            UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+            // Note that FBX does not support shears as of writing
+            xform.explode(order, /*r*/ vec[1], /*s*/ vec[0], /*t*/ vec[2]);
+            vec[1].radToDeg();
+
+            PathInfo& path_info = *(item->second);
+            int c = 0;
+            for (int i = 0; i < 3; ++i)
+            {
+                for (int j = 0; j < 3; ++j, ++c)
+                {
+                    FbxAnimCurve* curve = path_info.myCurves[c];
+                    int key_i = curve->KeyAdd(fbx_time, &path_info.myLastKeys[c]);
+                    curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+                    curve->KeySetValue(key_i, vec[i](j));
+                }
+            }
+        }
+    }
+
+    for (auto&& item : info_from_path)
+    {
+        PathInfo& path_info = *(item.second);
+        for (int c = 0; c < 9; ++c)
+            path_info.myCurves[c]->KeyModifyEnd();
     }
 
     return true;

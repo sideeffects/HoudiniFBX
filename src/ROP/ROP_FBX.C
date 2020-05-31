@@ -105,6 +105,9 @@ CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 static PRM_Name		sopOutput("sopoutput",	"Output File");
 static PRM_Name		startNode("startnode", "Export");
 static PRM_Name		createSubnetRoot("createsubnetroot", "Create Root for Subnet");
+static PRM_Name         buildFromPath("buildfrompath",
+                                       "Build Hierarchy From Attribute");
+static PRM_Name         pathAttrib("pathattrib", "Path Attribute");
 static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
 static PRM_Name		exportClips("exportclips", "Export Animation Clips (Takes)");
 static PRM_Name		numclips("numclips", "Clips");
@@ -124,6 +127,7 @@ static PRM_Name		exportEndEffectors("exportendeffectors", "Export End Effectors"
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
+static PRM_Default      pathAttribDef(0, "path");
 static PRM_Default	exportKindDefault(1);
 static PRM_Default	exportClipsDefault(0);
 static PRM_Default	detectConstPointObjsDefault(1);
@@ -169,6 +173,8 @@ static PRM_Template	 geoTemplates[] = {
     PRM_Template(PRM_TOGGLE, 1, &createSubnetRoot, PRMoneDefaults, nullptr),
     PRM_Template(PRM_FILE, 1, &sopOutput, &sopOutputDefault, nullptr, 0, 0,
                  &PRM_SpareData::fileChooserModeWrite),
+    PRM_Template(PRM_TOGGLE, 1, &buildFromPath, PRMzeroDefaults),
+    PRM_Template(PRM_STRING, 1, &pathAttrib, &pathAttribDef),
     PRM_Template(PRM_SWITCHER, 2, &switcherName, switcherDefs),
     PRM_Template(PRM_TOGGLE, 1, &exportKind, &exportKindDefault, nullptr),
     PRM_Template(PRM_STRING, PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName,
@@ -222,6 +228,8 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_CREATESUBNETROOT] = *tplates++;
     theTemplate[ROP_FBX_SOPOUTPUT] = *tplates++;
     theTemplate[ROP_FBX_MKPATH] = theRopTemplates[ROP_MKPATH_TPLATE];
+    theTemplate[ROP_FBX_BUILDFROMPATH] = *tplates++;
+    theTemplate[ROP_FBX_PATHATTRIB] = *tplates++;
 
     theTemplate[ROP_FBX_SWITCHER] = *tplates++;
 
@@ -277,13 +285,16 @@ ROP_FBX::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 bool
 ROP_FBX::updateParmsFlags()
 {
-    bool issop = CAST_SOPNODE(getInput(0)) != NULL;
+    const fpreal t = CHgetEvalTime();
+    bool changed = ROP_Node::updateParmsFlags();
 
-    bool	changed = ROP_Node::updateParmsFlags();
-
-    // Hide startnode/createsubnetroot if the node is a sop
+    // Switch visibilities for parms which are SOP specific
+    const bool issop = CAST_SOPNODE(getInput(0)) != NULL;
     changed |= setVisibleState("startnode", !issop);
     changed |= setVisibleState("createsubnetroot", !issop);
+    changed |= setVisibleState("buildfrompath", issop);
+    changed |= setVisibleState("pathattrib", issop);
+    changed |= enableParm("pathattrib", BUILD_FROM_PATH(t));
 
     changed |= enableParm("deformsasvcs", DORANGE());
     changed |= enableParm("exportclips", DORANGE());
@@ -388,7 +399,11 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     }
 
     if (sopNode)
+    {
 	export_options.setSopExport(true);
+        if (BUILD_FROM_PATH(tstart))
+            export_options.setSopExportPathAttrib(PATH_ATTRIB(tstart));
+    }
 
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;

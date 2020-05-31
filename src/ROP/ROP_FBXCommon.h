@@ -245,8 +245,17 @@ public:
     /// Gets the Clip with the specific index
     ROP_FBXExportClip getExportClip(int index);
 
-	// Get the number of Clips available to export
+    /// Get the number of Clips available to export
     int	getNumExportClips(void);
+
+    /// When isSopExport(), specify path attribute which will partition the
+    /// result into multiple FbxNodes.
+    /// @{
+    void setSopExportPathAttrib(const UT_StringHolder &path_attrib)
+            { mySopExportPathAttrib = path_attrib; }
+    const UT_StringHolder &getSopExportPathAttrib() const
+            { return mySopExportPathAttrib; }
+    /// @}
 
 
 private:
@@ -326,6 +335,7 @@ private:
 	// Exports animation clips (frame range tags) into the FBX 
     UT_Array<ROP_FBXExportClip> myExportClips;
 
+    UT_StringHolder mySopExportPathAttrib = "";
 };
 /********************************************************************************************************/
 #endif
