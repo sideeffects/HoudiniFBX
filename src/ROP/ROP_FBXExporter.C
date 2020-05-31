@@ -271,7 +271,7 @@ ROP_FBXExporter::doExport(void)
     {
 
 	// FBX doesn't support arbitrary frame rates.
-	// Try to match one if it's exact, otherwise default to 24fps and warn the user.
+        // NOTE: Using FbxTime::ConvertFrameRateToTimeMode() seems to not support everything here!
 	fpreal curr_fps = ch_manager->getSamplesPerSec();
 	FbxTime::EMode time_mode = FbxTime::eFrames24;
 	if(SYSisEqual(curr_fps, 24.0))
@@ -282,14 +282,26 @@ ROP_FBXExporter::doExport(void)
 	    time_mode = FbxTime::eFrames100;
 	else if(SYSisEqual(curr_fps, 60.0))
 	    time_mode = FbxTime::eFrames60;
-	else if(SYSisEqual(curr_fps, 48.0))
-	    time_mode = FbxTime::eFrames48;
 	else if(SYSisEqual(curr_fps, 50.0))
 	    time_mode = FbxTime::eFrames50;
+	else if(SYSisEqual(curr_fps, 48.0))
+	    time_mode = FbxTime::eFrames48;
 	else if(SYSisEqual(curr_fps, 30.0))
 	    time_mode = FbxTime::eFrames30;
+	else if(SYSisEqual(curr_fps, 29.97))
+	    time_mode = FbxTime::eNTSCFullFrame;
 	else if(SYSisEqual(curr_fps, 25.0))
 	    time_mode = FbxTime::ePAL;
+	else if(SYSisEqual(curr_fps, 1000.0))
+	    time_mode = FbxTime::eFrames1000;
+	else if(SYSisEqual(curr_fps, 23.976))
+	    time_mode = FbxTime::eFilmFullFrame;
+	else if(SYSisEqual(curr_fps, 96.0))
+	    time_mode = FbxTime::eFrames96;
+	else if(SYSisEqual(curr_fps, 72.0))
+	    time_mode = FbxTime::eFrames72;
+	else if(SYSisEqual(curr_fps, 59.94))
+	    time_mode = FbxTime::eFrames59dot94;
 	else
 	    myErrorManager->addError("Unsupported scene frame rate found. Defaulting to 24 frames per second.",NULL,NULL,false);
 	scene_time_setting.SetTimeMode(time_mode);
