@@ -1179,6 +1179,10 @@ ROP_FBXMainVisitor::outputSOPNodeByPath(
                 parent = FbxNode::Create(mySDKManager, node_name);
                 node_map[parent_path] = parent;
                 parent_path.swap(new_parent_path);
+
+                FbxNull *fbx_null = FbxNull::Create(mySDKManager, node_name);
+                fbx_null->Look.Set(FbxNull::eNone);
+                parent->SetNodeAttribute(fbx_null);
             }
 
             parent->AddChild(child);
