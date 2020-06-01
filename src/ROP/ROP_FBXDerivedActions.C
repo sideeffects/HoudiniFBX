@@ -556,7 +556,6 @@ ROP_FBXCreateInstancesAction::performAction(void)
     ROP_FBXMainVisitor geom_visitor(&getParentManager().getExporter());
     ROP_FBXMainNodeVisitInfo visit_info(NULL);
     ROP_FBXMainNodeVisitInfo *target_node_info;
-    geom_visitor.addNonVisitableNetworkTypes(ROP_FBXnetworkTypesToIgnore);
 
     TFbxNodeInfoVector inst_nodes;
     int curr_inst_node, num_inst_nodes;

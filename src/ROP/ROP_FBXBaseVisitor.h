@@ -139,9 +139,6 @@ public:
     /// Calls visitNodeAndChildren() on the root (given) node.
     void visitScene(OP_Node* start_node);
 
-    void addNonVisitableNetworkType(const char *net_type);
-    void addNonVisitableNetworkTypes(const char* const net_types[]);
-
     bool getDidCancel(void);
 
 private:
@@ -163,7 +160,6 @@ private:
     void findVisitInfos(OP_Node* hd_node, TBaseNodeVisitInfoVector &res_infos);
 
 private:
-    UT_StringArray myNetworkTypesNotToVisit;
     ROP_FBXInvisibleNodeExportType myHiddenNodeExportMode;
 
     bool myDidCancel;

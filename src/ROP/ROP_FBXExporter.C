@@ -314,8 +314,6 @@ ROP_FBXExporter::doExport(void)
 	return;
     }
 
-    geom_visitor.addNonVisitableNetworkTypes(ROP_FBXnetworkTypesToIgnore);
-
     geom_visitor.visitScene(geom_node);
     myDidCancel = geom_visitor.getDidCancel();
 
@@ -338,7 +336,6 @@ ROP_FBXExporter::doExport(void)
 	if(!exporting_single_frame)
 	{ 
 	    ROP_FBXAnimVisitor anim_visitor(this);
-	    anim_visitor.addNonVisitableNetworkTypes(ROP_FBXnetworkTypesToIgnore);
 
 	    TAKE_Take *curr_hd_take = OPgetDirector()->getTakeManager()->getCurrentTake();
 

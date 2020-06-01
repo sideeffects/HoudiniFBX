@@ -53,6 +53,7 @@ class ROP_FBXGDPCache;
 class ROP_FBXGDPCache;
 class ROP_FBXNodeManager;
 
+class OBJ_Camera;
 class OBJ_Node;
 class GU_Detail;
 class GU_PrimNURBCurve;
@@ -195,7 +196,11 @@ protected:
     bool outputSOPNodeWithoutVC(SOP_Node* node, const UT_String& node_name, OP_Node* skin_deform_node, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputNullNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
     bool outputLightNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
-    bool outputCameraNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, TFbxNodesVector& res_nodes);
+    bool outputCameraNode(OP_Node* node,
+                          OBJ_Camera* cam,
+                          ROP_FBXMainNodeVisitInfo* node_info,
+                          FbxNode* parent_node,
+                          TFbxNodesVector& res_nodes);
     bool outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, bool is_a_null, TFbxNodesVector& res_nodes);
     void outputNURBSSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr = NULL);
     void outputNURBSCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr = NULL);

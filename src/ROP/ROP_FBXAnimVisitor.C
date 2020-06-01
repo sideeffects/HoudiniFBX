@@ -165,6 +165,21 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	if ( !obj_node )
 	    continue;
 
+	const fpreal t = myParentExporter->getStartTime();
+
+        OBJ_Camera *cam = nullptr;
+	UT_StringRef node_type = node->getOperator()->getName();
+	if (is_sop_export)
+        {
+	    node_type = "geo";
+        }
+        else
+        {
+            // Note that cam might be a switcher or representative object and
+            // can be different from node/obj_node
+            cam = ROPfbxCastToCamera(node, t);
+        }
+
 	FbxNode *fbx_node = stored_node_info_ptr->getFbxNode();
 	node_info_in->setMaxObjectPoints(stored_node_info_ptr->getMaxObjectPoints());
 	node_info_in->setVertexCacheMethod(stored_node_info_ptr->getVertexCacheMethod());
@@ -173,16 +188,12 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	for(int curr_blend_index = 0; curr_blend_index < stored_node_info_ptr->getBlendShapeNodeCount(); curr_blend_index++)
 	    node_info_in->addBlendShapeNode(stored_node_info_ptr->getBlendShapeNodeAt(curr_blend_index));
 
-	const fpreal t = myParentExporter->getStartTime();
 	if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
 	    exportTRSAnimation(node, myAnimLayer, fbx_node);
 	else
 	    exportResampledAnimation(myAnimLayer, node, fbx_node, node_info_in);
 
 	FbxAnimCurve* curr_anim_curve;
-	UT_StringRef node_type = node->getOperator()->getName();
-	if ( is_sop_export )
-	    node_type = "geo";
 
 	if(node_type == "geo" || node_type == "instance")
 	{
@@ -246,8 +257,14 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 		exportChannel(curr_anim_curve, node, "light_color", 2);
 	    }
 	}
-	else if(node_type == "cam")
+	else if(cam != nullptr)
 	{
+            // Note that node != cam in general when node is a switcher or a
+            // subnet that has cam as its representative object.
+            // Because we're not looping here for all time, animated camera
+            // parameters are not supported with switcher cameras,
+            // we'll only use the camera at the start time.
+
 	    FbxCamera *cam_attrib = FbxCast<FbxCamera>(fbx_node->GetNodeAttribute());
 	    if (cam_attrib)
 	    {
@@ -255,7 +272,7 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 //		cam_attrib->FocalLength.GetKFCurveNode(true, fbx_attr_take_node->GetName());
 
 		curr_anim_curve = cam_attrib->FocalLength.GetCurve(myAnimLayer, NULL, true);
-		exportChannel(curr_anim_curve, node, "focal", 0);
+		exportChannel(curr_anim_curve, cam, "focal", 0);
 	    }
 	}
 
