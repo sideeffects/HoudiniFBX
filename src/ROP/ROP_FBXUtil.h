@@ -40,6 +40,7 @@
 #include <GU/GU_Detail.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_Set.h>
+#include <UT/UT_StringHolder.h>
 #include <UT/UT_VectorTypes.h>
 #include <SYS/SYS_Types.h>
 
@@ -76,12 +77,16 @@ public:
     static int getIntOPParm(OP_Node *node, const char* parmName, fpreal ftime, int index = 0);
     static fpreal getFloatOPParm(OP_Node *node, const char* parmName, fpreal ftime, int index = 0, bool *did_find = NULL);
 
-    static int getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time, fpreal end_time, float lod, bool allow_constant_point_detection, 
-	bool convert_surfaces, UT_Interrupt* boss_op, ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces);
+    static int getMaxPointsOverAnimation(OP_Node* op_node, fpreal start_time,
+            fpreal end_time, float lod, bool allow_constant_point_detection,
+            bool convert_surfaces, bool keep_packprims, UT_Interrupt* boss_op,
+            ROP_FBXGDPCache* v_cache_out, bool &is_pure_surfaces);
     static bool isVertexCacheable(OP_Network *op_net, bool include_deform_nodes, fpreal ftime, bool& found_particles, bool is_sop_export);
 
     static void convertParticleGDPtoPolyGDP(const GU_Detail* src_gdp, GU_Detail& out_gdp);
-    static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp, float lod, bool do_triangulate_and_rearrange, GU_Detail& out_gdp, int& num_pre_proc_points);
+    static void convertGeoGDPtoVertexCacheableGDP(const GU_Detail* src_gdp,
+            float lod, bool do_triangulate_and_rearrange, bool keep_packprims,
+            GU_Detail& out_gdp, int& num_pre_proc_points);
 
     static EFbxRotationOrder fbxRotationOrder(UT_XformOrder::xyzOrder rot_order);
     static bool mapsToFBXTransform(fpreal t, OBJ_Node* node);
@@ -178,6 +183,9 @@ public:
     int getBlendShapeNodeCount() const;
     OP_Node* getBlendShapeNodeAt(const int& index);
 
+    void setPathValue(const UT_StringHolder& path) { myPathValue = path; }
+    const UT_StringHolder& getPathValue() const { return myPathValue; }
+
 private:
     FbxNode* myFbxNode;
 
@@ -196,6 +204,8 @@ private:
     int myTravelledIndex;
 
     int mySourcePrim;
+
+    UT_StringHolder myPathValue;
 
     std::vector<OP_Node*> myBlendShapeNodes;
 };

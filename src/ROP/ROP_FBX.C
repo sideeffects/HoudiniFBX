@@ -105,6 +105,9 @@ CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 static PRM_Name		sopOutput("sopoutput",	"Output File");
 static PRM_Name		startNode("startnode", "Export");
 static PRM_Name		createSubnetRoot("createsubnetroot", "Create Root for Subnet");
+static PRM_Name         buildFromPath("buildfrompath",
+                                       "Build Hierarchy From Attribute");
+static PRM_Name         pathAttrib("pathattrib", "Path Attribute");
 static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
 static PRM_Name		exportClips("exportclips", "Export Animation Clips (Takes)");
 static PRM_Name		numclips("numclips", "Clips");
@@ -124,6 +127,7 @@ static PRM_Name		exportEndEffectors("exportendeffectors", "Export End Effectors"
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
+static PRM_Default      pathAttribDef(0, "path");
 static PRM_Default	exportKindDefault(1);
 static PRM_Default	exportClipsDefault(0);
 static PRM_Default	detectConstPointObjsDefault(1);
@@ -146,6 +150,14 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
 
+static PRM_Name switcherName("switcher", "");
+
+static PRM_Default switcherDefs[] =
+{
+    PRM_Default(0, "FBX"),
+    PRM_Default(0, "Scripts"),
+};
+
 static PRM_Template theMultiClipsTemplate[] =
 {
 
@@ -156,24 +168,35 @@ static PRM_Template theMultiClipsTemplate[] =
 };
 
 static PRM_Template	 geoTemplates[] = {
-    PRM_Template(PRM_FILE,    1, &sopOutput, &sopOutputDefault, NULL,
-			      0, 0, &PRM_SpareData::fileChooserModeWrite),
-    PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode, &startNodeDefault, &bundleMenu,
-							    0, 0, &ROPoutFbxBundlesList),
-    PRM_Template(PRM_TOGGLE,  1, &createSubnetRoot, PRMoneDefaults, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &exportKind, &exportKindDefault, NULL),
-    PRM_Template(PRM_FLT,  1, &polyLOD, &polyLODDefault, NULL, &polyLODRange),
-    PRM_Template(PRM_TOGGLE,  1, &detectConstPointObjs, &detectConstPointObjsDefault, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &deformsAsVcs, &deformsAsVcsDefault, NULL),
-    PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0, &vcTypeMenu),
-    PRM_Template(PRM_ORD,  PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName, 0, &invisObjMenu),
-    PRM_Template(PRM_TOGGLE,  1, &convertSurfacesName, &convertSurfacesDefault, NULL),
-    PRM_Template(PRM_STRING,  PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName, 0, &skdVersionsMenu),
-    PRM_Template(PRM_TOGGLE,  1, &conserveMem, &conserveMemDefault, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &forceBlendShape, &forceBlendShapeDefault, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &forceSkinDeform, &forceSkinDeformDefault, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &exportEndEffectors, &exportEndEffectorsDefault, NULL),
-    PRM_Template(PRM_TOGGLE,  1, &exportClips, &exportClipsDefault, NULL),
+    PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST, 1, &startNode,
+                 &startNodeDefault, &bundleMenu, 0, 0, &ROPoutFbxBundlesList),
+    PRM_Template(PRM_TOGGLE, 1, &createSubnetRoot, PRMoneDefaults, nullptr),
+    PRM_Template(PRM_FILE, 1, &sopOutput, &sopOutputDefault, nullptr, 0, 0,
+                 &PRM_SpareData::fileChooserModeWrite),
+    PRM_Template(PRM_TOGGLE, 1, &buildFromPath, PRMzeroDefaults),
+    PRM_Template(PRM_STRING, 1, &pathAttrib, &pathAttribDef),
+    PRM_Template(PRM_SWITCHER, 2, &switcherName, switcherDefs),
+    PRM_Template(PRM_TOGGLE, 1, &exportKind, &exportKindDefault, nullptr),
+    PRM_Template(PRM_STRING, PRM_Template::PRM_EXPORT_TBX, 1, &sdkVersionName,
+                 0, &skdVersionsMenu),
+    PRM_Template(PRM_ORD, PRM_Template::PRM_EXPORT_TBX, 1, &vcTypeName, 0,
+                 &vcTypeMenu),
+    PRM_Template(PRM_ORD, PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName,
+                 0, &invisObjMenu),
+    PRM_Template(PRM_FLT, 1, &polyLOD, &polyLODDefault, nullptr, &polyLODRange),
+    PRM_Template(PRM_TOGGLE, 1, &detectConstPointObjs,
+                 &detectConstPointObjsDefault, nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &convertSurfacesName, &convertSurfacesDefault,
+                 nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &conserveMem, &conserveMemDefault, nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &deformsAsVcs, &deformsAsVcsDefault, nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &forceBlendShape, &forceBlendShapeDefault,
+                 nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &forceSkinDeform, &forceSkinDeformDefault,
+                 nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &exportEndEffectors, &exportEndEffectorsDefault,
+                 nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &exportClips, &exportClipsDefault, nullptr),
     PRM_Template(PRM_MULTITYPE_LIST, theMultiClipsTemplate, 2, &numclips),
 };
 
@@ -187,7 +210,6 @@ PRM_Template *
 ROP_FBX::getTemplates()
 {
     static PRM_Template	*theTemplate = 0;
-
     if (theTemplate)
 	return theTemplate;
 
@@ -200,25 +222,33 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_TRANGE] = theRopTemplates[ROP_TRANGE_TPLATE];
     theTemplate[ROP_FBX_FRANGE] = theRopTemplates[ROP_FRAMERANGE_TPLATE];
     theTemplate[ROP_FBX_TAKE] = theRopTemplates[ROP_TAKENAME_TPLATE];
-    theTemplate[ROP_FBX_SOPOUTPUT] = geoTemplates[0];
-    theTemplate[ROP_FBX_MKPATH] = theRopTemplates[ROP_MKPATH_TPLATE];
 
-    theTemplate[ROP_FBX_STARTNODE] = geoTemplates[1];
-    theTemplate[ROP_FBX_CREATESUBNETROOT] = geoTemplates[2];
-    theTemplate[ROP_FBX_EXPORTASCII] = geoTemplates[3];
-    theTemplate[ROP_FBX_EXPORTCLIPS] = geoTemplates[15];
-    theTemplate[ROP_FBX_NUMCLIPS] = geoTemplates[16];
-    theTemplate[ROP_FBX_SDKVERSION] = geoTemplates[10];
-    theTemplate[ROP_FBX_VCFORMAT] = geoTemplates[7];
-    theTemplate[ROP_FBX_INVISOBJ] = geoTemplates[8];
-    theTemplate[ROP_FBX_POLYLOD] = geoTemplates[4];
-    theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = geoTemplates[5];
-    theTemplate[ROP_FBX_CONVERTSURFACES] = geoTemplates[9];
-    theTemplate[ROP_FBX_CONSERVEMEM] = geoTemplates[11];
-    theTemplate[ROP_FBX_DEFORMSASVCS] = geoTemplates[6];
-    theTemplate[ROP_FBX_FORCEBLENDSHAPE] = geoTemplates[12];
-    theTemplate[ROP_FBX_FORCESKINDEFORM] = geoTemplates[13];
-    theTemplate[ROP_FBX_EXPORTENDEFFECTORS] = geoTemplates[14];
+    const PRM_Template *tplates = &geoTemplates[0];
+    theTemplate[ROP_FBX_STARTNODE] = *tplates++;
+    theTemplate[ROP_FBX_CREATESUBNETROOT] = *tplates++;
+    theTemplate[ROP_FBX_SOPOUTPUT] = *tplates++;
+    theTemplate[ROP_FBX_MKPATH] = theRopTemplates[ROP_MKPATH_TPLATE];
+    theTemplate[ROP_FBX_BUILDFROMPATH] = *tplates++;
+    theTemplate[ROP_FBX_PATHATTRIB] = *tplates++;
+
+    theTemplate[ROP_FBX_SWITCHER] = *tplates++;
+
+    const PRM_Template *page_start = tplates;
+    theTemplate[ROP_FBX_EXPORTASCII] = *tplates++;
+    theTemplate[ROP_FBX_SDKVERSION] = *tplates++;
+    theTemplate[ROP_FBX_VCFORMAT] = *tplates++;
+    theTemplate[ROP_FBX_INVISOBJ] = *tplates++;
+    theTemplate[ROP_FBX_POLYLOD] = *tplates++;
+    theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = *tplates++;
+    theTemplate[ROP_FBX_CONVERTSURFACES] = *tplates++;
+    theTemplate[ROP_FBX_CONSERVEMEM] = *tplates++;
+    theTemplate[ROP_FBX_DEFORMSASVCS] = *tplates++;
+    theTemplate[ROP_FBX_FORCEBLENDSHAPE] = *tplates++;
+    theTemplate[ROP_FBX_FORCESKINDEFORM] = *tplates++;
+    theTemplate[ROP_FBX_EXPORTENDEFFECTORS] = *tplates++;
+    theTemplate[ROP_FBX_EXPORTCLIPS] = *tplates++;
+    theTemplate[ROP_FBX_NUMCLIPS] = *tplates++;
+    switcherDefs[0].setOrdinal(tplates - page_start);
 
     theTemplate[ROP_FBX_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
     theTemplate[ROP_FBX_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
@@ -232,8 +262,9 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_TPOSTRENDER] = theRopTemplates[ROP_TPOSTRENDER_TPLATE];
     theTemplate[ROP_FBX_POSTRENDER] = theRopTemplates[ROP_POSTRENDER_TPLATE];
     theTemplate[ROP_FBX_LPOSTRENDER] = theRopTemplates[ROP_LPOSTRENDER_TPLATE];
-    theTemplate[ROP_FBX_MAXPARMS] = PRM_Template();
+    switcherDefs[1].setOrdinal(ROP_FBX_LPOSTRENDER - ROP_FBX_TPRERENDER + 1);
 
+    theTemplate[ROP_FBX_MAXPARMS] = PRM_Template();
     UT_ASSERT(PRM_Template::countTemplates(theTemplate) == ROP_FBX_MAXPARMS);
 
     return theTemplate;
@@ -254,12 +285,17 @@ ROP_FBX::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 bool
 ROP_FBX::updateParmsFlags()
 {
-    bool issop = CAST_SOPNODE(getInput(0)) != NULL;
+    const fpreal t = CHgetEvalTime();
+    bool changed = ROP_Node::updateParmsFlags();
 
-    bool	changed = ROP_Node::updateParmsFlags();
-
-    // Hide start_node if the node is a sop
+    // Switch visibilities for parms which are SOP specific
+    const bool issop = CAST_SOPNODE(getInput(0)) != NULL;
     changed |= setVisibleState("startnode", !issop);
+    changed |= setVisibleState("createsubnetroot", !issop);
+    changed |= setVisibleState("buildfrompath", issop);
+    changed |= setVisibleState("pathattrib", issop);
+    changed |= enableParm("pathattrib", BUILD_FROM_PATH(t));
+
     changed |= enableParm("deformsasvcs", DORANGE());
     changed |= enableParm("exportclips", DORANGE());
     changed |= enableParm("numclips", EXPORTCLIPS() && DORANGE());
@@ -286,26 +322,6 @@ ROP_FBX::~ROP_FBX()
 {
 }
 
-class ropFBX_AutoCookRender {
-public:
-    ropFBX_AutoCookRender(OP_Node *sop)
-    {
-	if ((myObj = sop->getParent()))
-	{
-	    myPrev = myObj->isCookingRender();
-	    myObj->setCookingRender(1);
-	}
-    }
-    ~ropFBX_AutoCookRender()
-    {
-	if (myObj)
-	    myObj->setCookingRender(myPrev);
-    }
-private:
-    OP_Node	*myObj;
-    int		 myPrev;
-};
-
 int
 ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 {
@@ -326,11 +342,12 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     UT_String str_sdk_version(UT_String::ALWAYS_DEEP);
 
     OUTPUT(mySavePath, tstart);
-    STARTNODE(str_start_node);
 
     SOP_Node* sopNode = getSopNode();
     if ( sopNode )
 	sopNode->getFullPath( str_start_node );
+    else
+        STARTNODE(str_start_node);
 
     bool create_subnet_root = CREATESUBNETROOT(tstart);
     SDKVERSION(str_sdk_version);
@@ -382,7 +399,11 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     }
 
     if (sopNode)
+    {
 	export_options.setSopExport(true);
+        if (BUILD_FROM_PATH(tstart))
+            export_options.setSopExportPathAttrib(PATH_ATTRIB(tstart));
+    }
 
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
