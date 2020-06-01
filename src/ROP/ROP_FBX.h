@@ -64,6 +64,7 @@ enum {
     ROP_FBX_SDKVERSION,
     ROP_FBX_VCFORMAT,
     ROP_FBX_INVISOBJ,
+    ROP_FBX_AXISSYSTEM,
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
     ROP_FBX_CONVERTSURFACES,
@@ -171,6 +172,9 @@ private:
 
     int INVISOBJ(void)
     { INT_PARM("invisobj", 0, 0) }
+
+    int AXISSYSTEM(fpreal t) const
+    { INT_PARM("axissystem", 0, t) }
 
     void STARTNODE(UT_String& str)
     { STR_PARM("startnode",  0, 0); }

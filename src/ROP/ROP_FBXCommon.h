@@ -96,6 +96,13 @@ enum ROP_FBXInvisibleNodeExportType
     ROP_FBXInvisibleNodeDontExport
 };
 
+enum ROP_FBXAxisSystemType
+{
+    ROP_FBXAxisSystem_YUp_RightHanded,
+    ROP_FBXAxisSystem_YUp_LeftHanded,
+    ROP_FBXAxisSystem_ZUp_RightHanded
+};
+
 struct ROP_FBXExportClip
 {
     UT_StringHolder	 name;
@@ -257,6 +264,11 @@ public:
             { return mySopExportPathAttrib; }
     /// @}
 
+    /// The axis system to export to
+    /// @{
+    ROP_FBXAxisSystemType getAxisSystem() const { return myAxisSystem; }
+    void setAxisSystem(ROP_FBXAxisSystemType s) { myAxisSystem = s; }
+    /// @}
 
 private:
 
@@ -336,6 +348,8 @@ private:
     UT_Array<ROP_FBXExportClip> myExportClips;
 
     UT_StringHolder mySopExportPathAttrib = "";
+
+    ROP_FBXAxisSystemType myAxisSystem = ROP_FBXAxisSystem_YUp_RightHanded;
 };
 /********************************************************************************************************/
 #endif

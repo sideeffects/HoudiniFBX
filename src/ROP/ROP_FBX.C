@@ -100,6 +100,14 @@ static PRM_Name	invisObj[] =
     PRM_Name(0),
 };
 
+static PRM_Name	axisSystem[] = // must match ROP_FBXAxisSystemType
+{
+    PRM_Name("yupright",    "Y Up (Right-handed)"),
+    PRM_Name("yupleft",     "Y Up (Left-handed)"),
+    PRM_Name("zupright",    "Z Up (Right-handed)"),
+    PRM_Name(0),
+};
+
 CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
@@ -118,6 +126,7 @@ static PRM_Name		deformsAsVcs("deformsasvcs", "Export Deforms as Vertex Caches")
 static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
 static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
 static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
+static PRM_Name		axisSystemName("axissystem", "Axis System");
 static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
 static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of Export Time");
@@ -149,6 +158,8 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 				   | PRM_CHOICELIST_REPLACE), &ROP_FBX::buildVersionsMenu);
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
+static PRM_ChoiceList	axisSystemMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
+				   | PRM_CHOICELIST_REPLACE), axisSystem);
 
 static PRM_Name switcherName("switcher", "");
 
@@ -183,6 +194,7 @@ static PRM_Template	 geoTemplates[] = {
                  &vcTypeMenu),
     PRM_Template(PRM_ORD, PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName,
                  0, &invisObjMenu),
+    PRM_Template(PRM_ORD, 1, &axisSystemName, 0, &axisSystemMenu),
     PRM_Template(PRM_FLT, 1, &polyLOD, &polyLODDefault, nullptr, &polyLODRange),
     PRM_Template(PRM_TOGGLE, 1, &detectConstPointObjs,
                  &detectConstPointObjsDefault, nullptr),
@@ -238,6 +250,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_SDKVERSION] = *tplates++;
     theTemplate[ROP_FBX_VCFORMAT] = *tplates++;
     theTemplate[ROP_FBX_INVISOBJ] = *tplates++;
+    theTemplate[ROP_FBX_AXISSYSTEM] = *tplates++;
     theTemplate[ROP_FBX_POLYLOD] = *tplates++;
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = *tplates++;
     theTemplate[ROP_FBX_CONVERTSURFACES] = *tplates++;
@@ -404,6 +417,8 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
         if (BUILD_FROM_PATH(tstart))
             export_options.setSopExportPathAttrib(PATH_ATTRIB(tstart));
     }
+
+    export_options.setAxisSystem(ROP_FBXAxisSystemType(AXISSYSTEM(tstart)));
 
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
