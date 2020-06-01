@@ -1230,7 +1230,6 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
 	myParentExporter->getExportOptions()->getPolyConvertLOD(),
 	myParentExporter->getExportOptions()->getDetectConstantPointCountObjects(),
 	myParentExporter->getExportOptions()->getConvertSurfaces(),
-        /*keep_packprims*/false,
 	myBoss, v_cache_out, is_pure_surfaces);
 
     if (max_vc_verts < 0)
@@ -3990,8 +3989,7 @@ const GU_Detail*
 ROP_FBXMainVisitor::getExportableGeo(
         const GU_Detail* gdp_orig,
         GU_Detail& conversion_spare,
-        GA_PrimCompat::TypeMask &prim_types_in_out,
-        bool keep_packprims)
+        GA_PrimCompat::TypeMask &prim_types_in_out)
 {
     if(!gdp_orig)
 	return NULL;
@@ -4010,24 +4008,11 @@ ROP_FBXMainVisitor::getExportableGeo(
 	float lod = myParentExporter->getExportOptions()->getPolyConvertLOD();
 	conversion_spare.duplicate(*gdp_orig);
 
-        UT_UniquePtr<GA_PrimitiveGroup> group;
-        if (keep_packprims)
-        {
-            group.reset(conversion_spare.newDetachedPrimitiveGroup());
-            conversion_spare.forEachPrimitive([&conversion_spare, &group](GA_Offset primoff) 
-            {
-                const int id = conversion_spare.getPrimitiveTypeId(primoff);
-                if (!GU_PrimPacked::isPackedPrimitive(id))
-                    group->addOffset(primoff);
-            });
-        }
-
 	GU_ConvertParms conv_parms;
 	conv_parms.setFromType(GEO_PrimTypeCompat::GEOPRIMALL & (~supported_types));
 	conv_parms.setToType(GEO_PrimTypeCompat::GEOPRIMPOLY);
 	conv_parms.method.setULOD(lod);
 	conv_parms.method.setVLOD(lod);
-        conv_parms.primGroup = group.get();
 	conversion_spare.convert(conv_parms);
 	final_detail = &conversion_spare;
 

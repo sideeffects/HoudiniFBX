@@ -196,8 +196,7 @@ private:
     // regarding whether the returned pointer needs to be deleted or not. 
     // In this case, it doesn't ever need to be deleted.
     const GU_Detail* getExportableGeo(const GU_Detail* gdp_orig, GU_Detail& conversion_spare,
-                                      GA_PrimCompat::TypeMask &prim_types_in_out,
-                                      bool keep_packprims = false);
+                                      GA_PrimCompat::TypeMask &prim_types_in_out);
 
     void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
