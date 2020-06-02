@@ -557,7 +557,11 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 
 
     // Export materials
-    exportMaterials(hd_node, new_node);
+    if (constr_info.getNeedMaterialExport())
+    {
+        constr_info.setNeedMaterialExport(false);
+        exportMaterials(hd_node, new_node);
+    }
 
     res_node_pair_info->setVertexCacheMethod(node_info->getVertexCacheMethod());
     res_node_pair_info->setMaxObjectPoints(node_info->getMaxObjectPoints());
@@ -899,10 +903,11 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 /********************************************************************************************************/
 bool
 ROP_FBXMainVisitor::outputShapePrimitives(
-        const char *node_name,
-        const UT_StringHolder &path_value,
-        const GU_Detail *gdp,
-        const GA_OffsetList &prims,
+        SOP_Node* sop_node,
+        const char* node_name,
+        const UT_StringHolder& path_value,
+        const GU_Detail* gdp,
+        const GA_OffsetList& prims,
         TFbxNodesVector& res_nodes)
 {
     // Copy requested prims over
@@ -1052,6 +1057,14 @@ ROP_FBXMainVisitor::outputShapePrimitives(
         }
     }
 
+    // Export materials
+    for (int i = beg_i, end_i = res_nodes.size(); i < end_i; ++i)
+    {
+        ROP_FBXConstructionInfo &info = res_nodes[i];
+        info.setNeedMaterialExport(false);
+        exportMaterials(sop_node, info.getFbxNode(), out_gdp);
+    }
+
     return true;
 }
 /********************************************************************************************************/
@@ -1140,7 +1153,7 @@ ROP_FBXMainVisitor::outputSOPNodeByPath(
     for (auto&& s : shapes)
     {
         int i = res_nodes.size();
-        if (!outputShapePrimitives(s.myNodeName, s.myPathValue, gdp, s.myPrims, res_nodes))
+        if (!outputShapePrimitives(sop_node, s.myNodeName, s.myPathValue, gdp, s.myPrims, res_nodes))
         {
             UT_WorkBuffer msg;
             msg.format("Failed to output shape for path {}", s.myPathValue);
@@ -3283,76 +3296,77 @@ ROP_FBXMainVisitor::getAccumAmbientColor(void)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
+ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node, const GU_Detail *mat_gdp)
 {
-//    OP_Director* op_director = OPgetDirector();
-
     UT_String main_mat_path;
     ROP_FBXUtil::getStringOPParm(source_node, GEO_STD_ATTRIB_MATERIAL, main_mat_path, myStartTime);
-    OP_Node* main_mat_node = NULL;
+    OP_Node* main_mat_node = nullptr;
     if(main_mat_path.isstring())
 	main_mat_node = source_node->findNode(main_mat_path);
 
+    SOP_Node* sop_node = nullptr;
+    if (myParentExporter->getExportOptions()->isSopExport())
+    {
+        sop_node = dynamic_cast<SOP_Node*>(source_node);
+    }
+    else
+    {
+        OP_Network* src_net = dynamic_cast<OP_Network*>(source_node);
+        OP_Node* net_disp_node = nullptr;
+        if (src_net)
+            net_disp_node = src_net->getRenderNodePtr();
+        if (net_disp_node)
+            sop_node = dynamic_cast<SOP_Node*>(net_disp_node);
+    }
+
+    GU_DetailHandle gdh;
+    GU_Detail conv_gdp;
+    if (!mat_gdp && sop_node)
+    {
+        OP_Context context(myStartTime);
+        if (ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
+        {
+            const GU_Detail* gdp = gdh.gdp();
+            GA_PrimCompat::TypeMask prim_types = ROP_FBXUtil::getGdpPrimId(gdp);
+            mat_gdp = getExportableGeo(gdp, conv_gdp, prim_types);
+        }
+    }
+
     // See if there are any per-face indices
-    fpreal start_time = myStartTime;
-    int curr_prim, num_prims = 0;
-    OP_Node **per_face_mats = NULL;
+    int num_prims = 0;
+    UT_UniquePtr<OP_Node*[]> per_face_mats;
     UT_StringArray per_face_mats_paths;
 
-    const GEO_Primitive *prim;
-    OP_Network* src_net = dynamic_cast<OP_Network*>(source_node);
-    OP_Node* net_disp_node = NULL;
-    if(src_net)
-	net_disp_node = src_net->getRenderNodePtr();
-    SOP_Node* sop_node = NULL;
-    if(net_disp_node)
-	sop_node = dynamic_cast<SOP_Node*>(net_disp_node);
-
-    if ( myParentExporter->getExportOptions()->isSopExport() )
-	sop_node = dynamic_cast<SOP_Node*>(source_node);
-
-    if(sop_node)
+    if (mat_gdp && sop_node)
     {
-	GU_DetailHandle gdh;
-	OP_Context	context(start_time);
-	if (ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
-	{
-	    GU_DetailHandleAutoReadLock	 gdl(gdh);
-	    const GU_Detail		*gdp = gdl.getGdp();
-	    GU_Detail conv_gdp;
-	    GA_PrimCompat::TypeMask prim_types = ROP_FBXUtil::getGdpPrimId(gdp);
-	    const GU_Detail* final_detail = getExportableGeo(gdp, conv_gdp, prim_types);
+        // See if we have any per-prim materials
+        GA_ROAttributeRef attrOffset = mat_gdp->findStringTuple(GA_ATTRIB_PRIMITIVE,
+                                                                GEO_STD_ATTRIB_MATERIAL);
+        const GA_Attribute *matPathAttr = attrOffset.getAttribute();
+    
+        const char *loc_mat_path = nullptr;
+        if(attrOffset.isValid())
+        {
+            const GA_AIFStringTuple *stuple = attrOffset.getAIFStringTuple();
+            num_prims = mat_gdp->getNumPrimitives();
+            per_face_mats = UTmakeUnique<OP_Node*[]>(num_prims);
+            memset(per_face_mats.get(), 0, sizeof(OP_Node*)*num_prims);
+            per_face_mats_paths.setSize(num_prims);
 
-	    if(final_detail)
-	    {
-		// See if we have any per-prim materials
-		GA_ROAttributeRef attrOffset = final_detail->findStringTuple(GA_ATTRIB_PRIMITIVE, GEO_STD_ATTRIB_MATERIAL);
-		const GA_Attribute *matPathAttr = attrOffset.getAttribute();
-    	    
-		const char *loc_mat_path = NULL;
-		if(attrOffset.isValid())
-		{
-		    const GA_AIFStringTuple *stuple = attrOffset.getAIFStringTuple();
-		    num_prims = final_detail->getNumPrimitives();
-		    per_face_mats = new OP_Node* [num_prims];
-		    memset(per_face_mats, 0, sizeof(OP_Node*)*num_prims);
-		    per_face_mats_paths.setSize(num_prims);
-
-		    int curr_prim_idx = 0;
-		    GA_FOR_ALL_PRIMITIVES(final_detail, prim)
-		    {
-			loc_mat_path = stuple->getString(matPathAttr, prim->getMapOffset());
-			// Find corresponding mat
-			if(loc_mat_path)
-			{
-			    per_face_mats[curr_prim_idx] = source_node->findNode(loc_mat_path);
-			}
-			per_face_mats_paths[curr_prim_idx] = loc_mat_path;
-			curr_prim_idx++;
-		    }
-		}
-	    }
-	}
+            const GEO_Primitive *prim;
+            int curr_prim_idx = 0;
+            GA_FOR_ALL_PRIMITIVES(mat_gdp, prim)
+            {
+                loc_mat_path = stuple->getString(matPathAttr, prim->getMapOffset());
+                // Find corresponding mat
+                if(loc_mat_path)
+                {
+                    per_face_mats[curr_prim_idx] = source_node->findNode(loc_mat_path);
+                }
+                per_face_mats_paths[curr_prim_idx] = loc_mat_path;
+                curr_prim_idx++;
+            }
+        }
     }
     
     // No materials found
@@ -3362,7 +3376,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     // If we have per-face materials, fill in the gaps with our regular material
     if ( main_mat_node )
     {
-	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+	for (int curr_prim = 0; curr_prim < num_prims; curr_prim++)
 	{
 	    if(!per_face_mats[curr_prim])
 		per_face_mats[curr_prim] = main_mat_node;
@@ -3372,11 +3386,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
     // We're guaranteed not have materials on layers yet.
     FbxLayerContainer* node_attr = FbxCast<FbxLayerContainer>(fbx_node->GetNodeAttribute());
     if(!node_attr)
-    {
-	if(per_face_mats)
-	    delete[] per_face_mats;
 	return;
-    }
 
     UT_ASSERT(node_attr);
     FbxLayer* mat_layer = node_attr->GetLayer(0);
@@ -3407,7 +3417,7 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	THdFbxStringIntMap::iterator mpathi;
 
 	int curr_fbx_mat_idx, curr_added_mats = 0;
-	for(curr_prim = 0; curr_prim < num_prims; curr_prim++)
+	for (int curr_prim = 0; curr_prim < num_prims; curr_prim++)
 	{
 	    bool material_found_in_path_map = false;
 	    fbx_material = generateFbxMaterial(per_face_mats[curr_prim], myMaterialsMap);
@@ -3494,9 +3504,6 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node)
 	mat_layer->SetMaterials(temp_layer_elem);
 	temp_layer_elem->GetIndexArray().Add(mat_index);
     }
-
-    if(per_face_mats)
-	delete[] per_face_mats;
 }
 /********************************************************************************************************/
 int
