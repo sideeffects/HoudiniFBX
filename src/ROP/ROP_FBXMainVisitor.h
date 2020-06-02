@@ -147,17 +147,7 @@ private:
 class ROP_FBXConstructionInfo
 {
 public:
-    ROP_FBXConstructionInfo() 
-    {
-	myNode = NULL;
-	myHdPrimCnt = -1;
-    }
-    ROP_FBXConstructionInfo(FbxNode* fbx_node)
-    {
-	myNode = fbx_node;
-	myHdPrimCnt = -1;
-    }
-    ~ROP_FBXConstructionInfo()  { }
+    ROP_FBXConstructionInfo(FbxNode* fbx_node) : myNode(fbx_node) { }
 
     void setHdPrimitiveIndex(int prim_cnt) { myHdPrimCnt = prim_cnt; }
     int getHdPrimitiveIndex(void) { return myHdPrimCnt; }
@@ -167,10 +157,14 @@ public:
     const UT_StringHolder& getPathValue() const { return myPathValue; }
     void setPathValue(const UT_StringHolder &path) { myPathValue = path; }
 
+    bool getNeedMaterialExport() const { return myNeedMaterialExport; }
+    void setNeedMaterialExport(bool need) { myNeedMaterialExport = need; }
+
 private:
-    FbxNode* myNode;
+    FbxNode* myNode = nullptr;
     UT_StringHolder myPathValue;
-    int myHdPrimCnt;
+    int myHdPrimCnt = -1;
+    bool myNeedMaterialExport = true;
 };
 typedef std::vector < ROP_FBXConstructionInfo > TFbxNodesVector;
 /********************************************************************************************************/
@@ -201,10 +195,11 @@ private:
     void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputShapePrimitives(
-            const char *node_name,
-            const UT_StringHolder &path_value,
-            const GU_Detail *gdp,
-            const GA_OffsetList &prims,
+            SOP_Node* sop_node,
+            const char* node_name,
+            const UT_StringHolder& path_value,
+            const GU_Detail* gdp,
+            const GA_OffsetList& prims,
             TFbxNodesVector& res_nodes);
     bool outputSOPNodeByPath(
             FbxNode* fbx_root,
@@ -240,7 +235,7 @@ private:
     void addUserData(const GU_Detail* gdp, THDAttributeVector& hd_attribs, ROP_FBXAttributeLayerManager& attr_manager, FbxMesh* mesh_attr, FbxLayerElement::EMappingMode mapping_mode );
 
     void exportAttributes(const GU_Detail* gdp, FbxMesh* mesh_attr);
-    void exportMaterials(OP_Node* source_node, FbxNode* fbx_node);
+    void exportMaterials(OP_Node* source_node, FbxNode* fbx_node, const GU_Detail *mat_gdp = nullptr);
 
     FbxSurfaceMaterial* generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& mat_map);
     FbxSurfaceMaterial* generateFbxMaterial(const char * mat_string, THdFbxStringMaterialMap& mat_map);
