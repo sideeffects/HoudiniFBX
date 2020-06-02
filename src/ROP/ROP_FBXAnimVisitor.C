@@ -1062,7 +1062,9 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    if(node_info_in->getIsSurfacesOnly())
 		conv_gdp.duplicate(*gdp);
 	    else
-		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, /*keep_packprims*/false, conv_gdp, dummy_int);
+                ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(
+                        gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), false, conv_gdp,
+                        dummy_int);
 	}
 	else
 	{
@@ -1071,7 +1073,9 @@ ROP_FBXAnimVisitor::fillVertexArray(OP_Node* node, fpreal time, ROP_FBXBaseNodeV
 	    if(prim_type == GEO_PrimTypeCompat::GEOPRIMPART)
 		ROP_FBXUtil::convertParticleGDPtoPolyGDP(gdp, conv_gdp);
 	    else
-		ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), true, /*keep_packprims*/false, conv_gdp, dummy_int);
+                ROP_FBXUtil::convertGeoGDPtoVertexCacheableGDP(
+                        gdp, myParentExporter->getExportOptions()->getPolyConvertLOD(), true, conv_gdp,
+                        dummy_int);
 	}
 	final_gdp = &conv_gdp;
     }
