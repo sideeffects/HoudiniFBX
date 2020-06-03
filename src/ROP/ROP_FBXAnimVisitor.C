@@ -71,6 +71,8 @@
 #include <UT/UT_Thread.h>
 #include <UT/UT_UniquePtr.h>
 #include <UT/UT_WorkBuffer.h>
+#include <SYS/SYS_Inline.h>
+#include <SYS/SYS_Math.h>
 #include <SYS/SYS_SequentialThreadIndex.h>
 #include <SYS/SYS_StaticAssert.h>
 #include <SYS/SYS_TypeTraits.h>
@@ -308,6 +310,13 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     return res_type;
 }
 /********************************************************************************************************/
+static SYS_FORCE_INLINE void
+ropSetFbxTime(FbxTime& fbx_time, fpreal hd_time_seconds)
+{
+    fbx_time.SetSecondDouble(hd_time_seconds);
+    fbx_time += FbxTime::GetOneFrameValue();
+}
+/********************************************************************************************************/
 void 
 ROP_FBXAnimVisitor::exportTRSAnimation(
         OBJ_Node* node,
@@ -419,7 +428,7 @@ ROP_FBXAnimVisitor::exportTRSAnimation(
 	    scale *= uniform_scale;
 
 	    FbxTime fbx_time;
-	    fbx_time.SetSecondDouble(key_time + secs_per_sample);
+	    ropSetFbxTime(fbx_time, key_time);
 	    for (int c = 0; c < NUM_COMPONENTS; ++c)
 	    {
 		FbxAnimCurve* curve = curves[c];
@@ -488,7 +497,7 @@ ROP_FBXAnimVisitor::exportTRSAnimation(
 		ROP_FBXUtil::doPostRotateAdjust(post_rotate, rotate_adjust);
 
 		FbxTime fbx_time;
-		fbx_time.SetSecondDouble(key_time + secs_per_sample);
+	        ropSetFbxTime(fbx_time, key_time);
 		for (int c = 0; c < NUM_COMPONENTS; ++c)
 		{
 		    FbxAnimCurve* curve = curves[c];
@@ -509,6 +518,103 @@ void
 ROP_FBXAnimVisitor::onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info)
 {
     // Nothing to do for now.
+}
+/********************************************************************************************************/
+static inline void
+ropOutputLinearKeysGeneric(
+        FbxAnimCurve* fbx_curve, int& key_hint, double scale_factor,
+        CH_Channel& ch, fpreal& t, fpreal end_time, fpreal time_step, int thread)
+{
+    const fpreal tol = ch.getTolerance();
+    FbxTime fbx_time;
+    for ( ; SYSisLessOrEqual(t, end_time, tol); t += time_step)
+    {
+        ropSetFbxTime(fbx_time, t);
+        int key_i = fbx_curve->KeyAdd(fbx_time, &key_hint);
+        fbx_curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+
+        fpreal key_val = ch.evaluate(t, /*no_disabling*/false, thread);
+        fbx_curve->KeySetValue(key_i, key_val * scale_factor);
+    }
+}
+/********************************************************************************************************/
+static inline void
+ropOutputBasicKeysOutside(
+        FbxAnimCurve* fbx_curve, int& key_hint, double scale_factor,
+        CH_Channel& ch, fpreal& t, fpreal end_time,
+        fpreal time_step, int thread, bool detect_constant)
+{
+    CH_Segment* seg;
+    const fpreal tol = ch.getTolerance();
+    if (SYSisLess(t, ch.getStart(), tol))
+    {
+        if (ch.getChannelLeftType() != CH_CHANNEL_EXTEND)
+        {
+            ropOutputLinearKeysGeneric(fbx_curve, key_hint, scale_factor, ch, t, end_time,
+                                       time_step, thread);
+            return;
+        }
+        // else fall through to evaluating using seg
+        seg = ch.getFirstSegment();
+    }
+    else if (SYSisGreaterOrEqual(t, ch.getEnd(), tol))
+    {
+        if (ch.getChannelRightType() != CH_CHANNEL_EXTEND)
+        {
+            ropOutputLinearKeysGeneric(fbx_curve, key_hint, scale_factor, ch, t, end_time,
+                                       time_step, thread);
+            return;
+        }
+        // else fall through to evaluating using seg
+        seg = ch.getSegmentAfterKey(ch.getEnd());
+        UT_ASSERT(seg);
+    }
+    else
+    {
+        UT_ASSERT(!"This function can only be used for evaluating outside the channel range");
+        return;
+    }
+
+    // Fast path for evaluating the segment past the channel ends
+    // NOTE: seg->isTimeDependent() might return true even when not strictly necessary but it doesn't
+    //       harm because we just end up outputting more keys in that case.
+    FbxTime fbx_time;
+    if (detect_constant && !seg->isTimeDependent())
+    {
+        // Set key at time start time t
+        {
+            ropSetFbxTime(fbx_time, t);
+            int key_i = fbx_curve->KeyAdd(fbx_time, &key_hint);
+            fbx_curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationConstant);
+            fbx_curve->KeySetConstantMode(key_i, FbxAnimCurveDef::eConstantStandard);
+
+            fpreal key_val = ch.evaluateSegment(seg, ch.localTime(t), /*extend*/true, thread);
+            fbx_curve->KeySetValue(key_i, key_val * scale_factor);
+        }
+        // Set key at end time
+        t = end_time;
+        {
+            ropSetFbxTime(fbx_time, t);
+            int key_i = fbx_curve->KeyAdd(fbx_time, &key_hint);
+            fbx_curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+
+            fpreal key_val = ch.evaluateSegment(seg, ch.localTime(t), /*extend*/true, thread);
+            fbx_curve->KeySetValue(key_i, key_val * scale_factor);
+        }
+        t += time_step;
+    }
+    else
+    {
+        for ( ; SYSisLessOrEqual(t, end_time, tol); t += time_step)
+        {
+            ropSetFbxTime(fbx_time, t);
+            int key_i = fbx_curve->KeyAdd(fbx_time, &key_hint);
+            fbx_curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+
+            fpreal key_val = ch.evaluateSegment(seg, ch.localTime(t), /*extend*/true, thread);
+            fbx_curve->KeySetValue(key_i, key_val * scale_factor);
+        }
+    }
 }
 /********************************************************************************************************/
 void 
@@ -558,86 +664,91 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	    return;
     }
 
-    fpreal temp_float;
-    fpreal start_frame;
-    fpreal end_frame;
-    UT_SuperIntervalR range;
-    UT_FprealArray tmp_array;
+    if (!force_resample && ch && !ch->isAllEnabled())
+        force_resample = true;
+
     CH_Manager *ch_manager = CHgetManager();
-
-    fpreal start_time = myParentExporter->getStartTime();
-    fpreal end_time = myParentExporter->getEndTime();
-    start_frame = ch_manager->getSample(start_time);
-    end_frame = ch_manager->getSample(end_time);
-
-    if(myExportOptions->getResampleAllAnimation() || force_resample)
-    {
-	// Do the entire time range
-	tmp_array.setSize(2);
-	tmp_array(0) = ch_manager->getTime(start_frame);
-	tmp_array(1) = ch_manager->getTime(end_frame);
-    }
-    else
-    {
-	CHbuildRange( start_frame, end_frame, range );
-	ch->getKeyTimes(range, tmp_array, false);
-
-	if(!ch->isAtHardKeyframe(start_frame))
-	{
-	    // We're not starting at a key frame. Add start time to the array.
-	    tmp_array.insert(ch_manager->getTime(start_frame), 0);
-	}
-	if(!ch->isAtHardKeyframe(end_frame))
-	{
-	    // We're not ending at a key frame. Add end time to the array.
-	    tmp_array.append(ch_manager->getTime(end_frame));
-	}
-    }
+    const fpreal start_time = myParentExporter->getStartTime();
+    const fpreal end_time = myParentExporter->getEndTime();
+    const fpreal start_frame = ch_manager->getSample(start_time);
+    const fpreal end_frame = ch_manager->getSample(end_time);
 
     fbx_anim_curve->KeyModifyBegin();
 
-    fpreal secs_per_sample = 1.0/ch_manager->getSamplesPerSec();
-    if(myExportOptions->getResampleAllAnimation() || force_resample)
+    const bool resample_all = myExportOptions->getResampleAllAnimation();
+    if (resample_all || force_resample)
     {
-	PRM_Parm* temp_parm_ptr = NULL;
-	if(use_override)
-	    temp_parm_ptr = parm;
-	outputResampled(fbx_anim_curve, ch, 0, tmp_array.size()-1, tmp_array, false, temp_parm_ptr, parm_idx, scale_factor);
+        if (use_override && parm && parm_idx >= 0)
+        {
+            // Do the entire time range
+            UT_FprealArray tmp_array;
+            tmp_array.setSizeNoInit(2);
+            tmp_array(0) = start_time;
+            tmp_array(1) = end_time;
+            outputResampled(fbx_anim_curve, ch, 0, tmp_array.size()-1, tmp_array, false, parm, parm_idx,
+                            scale_factor);
+        }
+        else if (ch)
+        {
+            outputBasicKeys(fbx_anim_curve, *ch, start_time, end_time, scale_factor, !resample_all);
+        }
     }
     else
     {
-	bool found_untied_keys = false;
+        UT_ASSERT(ch);
 
-	int fbx_key_idx;
-	fpreal key_time;
-	FbxTime fbx_time;
-	CH_Segment* next_seg;
-	UT_String str_expression(UT_String::ALWAYS_DEEP);
-	exint  num_frames = tmp_array.size();
-	double key_val, db_val;
+        fpreal secs_per_sample = ch_manager->getSecsPerSample();
 	int thread = SYSgetSTID();
 
-	for (exint curr_frame = 0; curr_frame < num_frames; curr_frame++)
-	{
-	    key_time = tmp_array(curr_frame);
-	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
-	    fbx_key_idx = fbx_anim_curve->KeyAdd(fbx_time);
-	}
+        UT_SuperIntervalR range;
+        UT_FprealArray tmp_array;
+	CHbuildRange(start_frame, end_frame, range);
+	ch->getKeyTimes(range, tmp_array, false);
 
 	int c_index = 0;
+	if(!ch->isAtHardKeyframe(start_frame))
+	{
+	    // We're not starting at a key frame. Resample from start_time to channel start
+            fpreal t = start_time;
+            fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+	    ropOutputBasicKeysOutside(fbx_anim_curve, c_index, scale_factor, *ch, t, ch->getStart(),
+                                      time_step, thread, !resample_all);
+	}
+	FbxTime fbx_time;
+	exint num_frames = tmp_array.size();
+	for (exint curr_frame = 0; curr_frame < num_frames; curr_frame++)
+	{
+	    fpreal key_time = tmp_array(curr_frame);
+            ropSetFbxTime(fbx_time, key_time);
+	    (void) fbx_anim_curve->KeyAdd(fbx_time, &c_index);
+	}
+	if(!ch->isAtHardKeyframe(end_frame))
+	{
+	    // We're not ending at a key frame. Resample from channel end to end_time
+            fpreal t = ch->getEnd();
+            fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+	    ropOutputBasicKeysOutside(fbx_anim_curve, c_index, scale_factor, *ch, t, end_time,
+                                      time_step, thread, !resample_all);
+	}
+
+        // Reset key index hint back to 0 just in case because we're starting from the beginning again
+        c_index = 0;
+
+	bool found_untied_keys = false;
 	for(exint curr_frame = 0; curr_frame < num_frames; curr_frame++)
 	{
 	    // Convert frame to time
 	    CH_FullKey full_key;
-	    key_time = tmp_array(curr_frame);
+	    fpreal key_time = tmp_array(curr_frame);
 	    ch->getFullKey(key_time, full_key, 
 		/*reverse=*/false,
 		/*accel_ratios=*/true, 
 		CH_GETKEY_EXTEND_DEFAULT);
 
-	    fbx_time.SetSecondDouble(key_time+secs_per_sample);
-	    fbx_key_idx = fbx_anim_curve->KeyFind(fbx_time, &c_index);
+            ropSetFbxTime(fbx_time, key_time);
+	    int fbx_key_idx = fbx_anim_curve->KeyFind(fbx_time, &c_index);
 
+            fpreal key_val;
 	    if( (full_key.k[0].myVValid[CH_VALUE] && full_key.k[1].myVValid[CH_VALUE]) )
 	    {
 		if( SYSisEqual( full_key.k[0].myV[CH_VALUE], full_key.k[1].myV[CH_VALUE]) )
@@ -653,11 +764,7 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	    else if(full_key.k[1].myVValid[CH_VALUE])
 		key_val = full_key.k[1].myV[CH_VALUE];
 	    else
-	    {
-		parm->getValue(key_time, temp_float, parm_idx, thread);
-		key_val = temp_float;
-	    }
-
+		parm->getValue(key_time, key_val, parm_idx, thread);
 	    key_val *= scale_factor;
 
 	    // Doh! Segments can be expressions, as well.
@@ -665,10 +772,10 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	    fbx_anim_curve->KeySetValue(fbx_key_idx, key_val);
 
 	    // Look at the next segment type
-	    next_seg = ch->getSegmentAfterKey(key_time);
+	    CH_Segment* next_seg = ch->getSegmentAfterKey(key_time);
 	    if(next_seg)
 	    { 
-		str_expression = next_seg->getCHExpr()->getExpression();
+	        UT_String str_expression = next_seg->getCHExpr()->getExpression();
 		if(str_expression == "bezier()" || str_expression == "cubic()")
 		{
 		    fbx_anim_curve->KeySetInterpolation(fbx_key_idx, FbxAnimCurveDef::eInterpolationCubic);
@@ -682,13 +789,11 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 		    // Set the slopes
 		    if(full_key.k[0].myVValid[CH_SLOPE])
 		    {
-			db_val = full_key.k[0].myV[CH_SLOPE]*scale_factor;
-    			l_info.mDerivative = db_val;
+    			l_info.mDerivative = full_key.k[0].myV[CH_SLOPE]*scale_factor;
 		    }
 		    if(full_key.k[1].myVValid[CH_SLOPE])
 		    {
-			db_val = full_key.k[1].myV[CH_SLOPE]*scale_factor;
-			r_info.mDerivative = db_val;
+			r_info.mDerivative = full_key.k[1].myV[CH_SLOPE]*scale_factor;
 		    }
 
 		    if(full_key.k[0].myVValid[CH_ACCEL])
@@ -800,7 +905,7 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 		else if(ch && next_seg)
 		    ch->sampleValueSlope(next_seg, curr_time, thread, key_val, s);		    
 
-		fbx_time.SetSecondDouble(curr_time+secs_per_sample);
+                ropSetFbxTime(fbx_time, curr_time);
 		if(do_insert)
 		    fbx_key_idx = fbx_curve->KeyInsert(fbx_time, &opt_idx);
 		else
@@ -837,7 +942,7 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 	    UT_ASSERT(0);
 	}
 
-	fbx_time.SetSecondDouble(end_time+secs_per_sample);
+        ropSetFbxTime(fbx_time, end_time);
 	if(do_insert)
 	    fbx_key_idx = fbx_curve->KeyInsert(fbx_time);
 	else
@@ -849,6 +954,70 @@ ROP_FBXAnimVisitor::outputResampled(FbxAnimCurve* fbx_curve, CH_Channel *ch, int
 
     }
 
+}
+/********************************************************************************************************/
+void 
+ROP_FBXAnimVisitor::outputBasicKeys(
+        FbxAnimCurve* fbx_curve, CH_Channel &ch, fpreal start_time, fpreal end_time,
+        double scale_factor, bool detect_constant)
+{
+    CH_Manager &ch_mgr = *CHgetManager();
+
+    const int thread = SYSgetSTID();
+    const fpreal secs_per_sample = ch_mgr.getSecsPerSample();
+    const fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
+
+    int last_key = 0;
+
+    // Slow code path if channel has any disabled segments
+    if (!ch.isAllEnabled())
+    {
+        fpreal t = start_time;
+        ropOutputLinearKeysGeneric(fbx_curve, last_key, scale_factor, ch, t, end_time, time_step, thread);
+        return;
+    }
+
+    //
+    // Else, split evaluation into 3 portions to avoid binary searching
+    //
+
+    fpreal t = start_time;
+
+    // Evaluate portion before start of channel, to handle end conditions
+    const fpreal channel_start = ch.getStart();
+    ropOutputBasicKeysOutside(fbx_curve, last_key, scale_factor, ch, t, channel_start, time_step, thread,
+                              detect_constant);
+    // Evaluate portion within the channel by directly traversing segments
+    FbxTime fbx_time;
+    const unsigned seg_n = ch.getNSegments() - 1; // -1 to exclude end segment
+    for (unsigned seg_i = 0; t < end_time && seg_i < seg_n; ++seg_i)
+    {
+        CH_Segment& seg = *ch.getSegment(seg_i);
+        // Avoid resampling if we can
+        if (detect_constant && !seg.isTimeDependent())
+        {
+            ropSetFbxTime(fbx_time, t);
+            int key_i = fbx_curve->KeyAdd(fbx_time, &last_key);
+            fbx_curve->KeySetValue(key_i, seg.getInValue() * scale_factor);
+            fbx_curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationConstant);
+            fbx_curve->KeySetConstantMode(key_i, FbxAnimCurveDef::eConstantStandard);
+
+            t = SYSmin(ch.globalTime(seg.getEnd()), end_time);
+            continue;
+        }
+        // Else, resample entire segment
+        for (fpreal seg_end = ch.globalTime(seg.getEnd()); t < end_time && t < seg_end; t += time_step)
+        {
+            ropSetFbxTime(fbx_time, t);
+            int key_i = fbx_curve->KeyAdd(fbx_time, &last_key);
+            fpreal key_val = ch.evaluateSegment(seg, ch.localTime(t), /*extend*/false, thread);
+            fbx_curve->KeySetValue(key_i, key_val * scale_factor);
+            fbx_curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+        }
+    }
+    // Evaluate portion after the channel, to handle end conditions
+    ropOutputBasicKeysOutside(fbx_curve, last_key, scale_factor, ch, t, end_time, time_step, thread,
+                              detect_constant);
 }
 /********************************************************************************************************/
 FbxVertexCacheDeformer* 
@@ -1334,7 +1503,8 @@ ROP_FBXAnimVisitor::exportResampledAnimation(
 	prev_frame_rot_ptr = &prev_frame_rot;
 	prev_frame_rot = r_out;
 
-	fbx_time.SetSecondDouble(curr_time+secs_per_sample);
+        ropSetFbxTime(fbx_time, curr_time);
+
 	for(int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
 	    // Note that we can't use KeyInsert() here because sometimes (but not always) it returns
@@ -1367,7 +1537,7 @@ ROP_FBXAnimVisitor::exportResampledAnimation(
     {
 	ROP_FBXUtil::getFinalTransforms(source_node, node_info, 0.0, end_time, xform_order, t_out, r_out, s_out, prev_frame_rot_ptr);
 
-	fbx_time.SetSecondDouble(end_time+secs_per_sample);
+        ropSetFbxTime(fbx_time, end_time);
 	for(int curr_channel_idx = 0; curr_channel_idx < num_trs_channels; curr_channel_idx++)
 	{
 	    fbx_key_idx = fbx_t[curr_channel_idx]->KeyAdd(fbx_time, &t_opt_idx[curr_channel_idx]);
@@ -1582,7 +1752,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
     fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
     for (fpreal curr_time = start_time; curr_time < end_time; curr_time += time_step)
     {
-	fbx_time.SetSecondDouble(curr_time + secs_per_sample);
+        ropSetFbxTime(fbx_time, curr_time);
 
         GU_DetailHandle gdh;
         OP_Context context(curr_time);
