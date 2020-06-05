@@ -100,7 +100,8 @@ enum ROP_FBXAxisSystemType
 {
     ROP_FBXAxisSystem_YUp_RightHanded,
     ROP_FBXAxisSystem_YUp_LeftHanded,
-    ROP_FBXAxisSystem_ZUp_RightHanded
+    ROP_FBXAxisSystem_ZUp_RightHanded,
+    ROP_FBXAxisSystem_Current
 };
 
 struct ROP_FBXExportClip
@@ -264,10 +265,16 @@ public:
             { return mySopExportPathAttrib; }
     /// @}
 
-    /// The axis system to export to
+    /// The axis system to write into the FBX file
     /// @{
     ROP_FBXAxisSystemType getAxisSystem() const { return myAxisSystem; }
     void setAxisSystem(ROP_FBXAxisSystemType s) { myAxisSystem = s; }
+    /// @}
+
+    /// Determine if we should convert to getAxisSystem() when different
+    /// @{
+    bool getConvertAxisSystem() const { return myConvertAxisSystem; }
+    void setConvertAxisSystem(bool f) { myConvertAxisSystem = f; }
     /// @}
 
 private:
@@ -350,6 +357,7 @@ private:
     UT_StringHolder mySopExportPathAttrib = "";
 
     ROP_FBXAxisSystemType myAxisSystem = ROP_FBXAxisSystem_YUp_RightHanded;
+    bool myConvertAxisSystem = false;
 };
 /********************************************************************************************************/
 #endif

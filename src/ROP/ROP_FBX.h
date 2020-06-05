@@ -65,6 +65,7 @@ enum {
     ROP_FBX_VCFORMAT,
     ROP_FBX_INVISOBJ,
     ROP_FBX_AXISSYSTEM,
+    ROP_FBX_CONVERTAXIS,
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
     ROP_FBX_CONVERTSURFACES,
@@ -109,6 +110,10 @@ public:
     static void			 buildVersionsMenu(void *data, PRM_Name *,
 						  int, const PRM_SpareData *,
 						  const PRM_Parm *);
+    static void			 buildAxisMenu(void *data, PRM_Name *,
+                                               int, const PRM_SpareData *,
+                                               const PRM_Parm *);
+
     virtual void		 resolveObsoleteParms(
 						PRM_ParmList *obsolete_parms);
 
@@ -175,6 +180,9 @@ private:
 
     int AXISSYSTEM(fpreal t) const
     { INT_PARM("axissystem", 0, t) }
+
+    bool CONVERTAXIS(fpreal t) const
+    { INT_PARM("convertaxis", 0, t) }
 
     void STARTNODE(UT_String& str)
     { STR_PARM("startnode",  0, 0); }
