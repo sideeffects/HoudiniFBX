@@ -30,28 +30,26 @@
  */
 
 #include "ROP_FBX.h"
-#include <UT/UT_InfoTree.h>
-#include <CH/CH_LocalVariable.h>
-#include <PRM/PRM_Include.h>
-#include <PRM/PRM_SpareData.h>
-#include <SOP/SOP_Node.h>
-#include <OP/OP_Director.h>
-#include <OBJ/OBJ_Node.h>
-#include <GEO/GEO_Vertex.h>
-#include <SIM/SIM_Object.h>
-#include <SIM/SIM_Geometry.h>
-#include <DOP/DOP_Parent.h>
-#include <DOP/DOP_FullPathData.h>
-#include <PRM/PRM_Include.h>
-#include <PRM/PRM_SpareData.h>
-#include <PRM/PRM_DialogScript.h>
-#include <PRM/PRM_SharedFunc.h>
-#include <OP/OP_Bundle.h>
-#include <OP/OP_BundleList.h>
-#include <OP/OP_NodeInfoParms.h>
+
 #include <ROP/ROP_Error.h>
 #include <ROP/ROP_Templates.h>
+#include <OBJ/OBJ_Node.h>
+#include <SOP/SOP_Node.h>
+
+#include <OP/OP_Bundle.h>
+#include <OP/OP_BundleList.h>
+#include <OP/OP_Director.h>
+#include <OP/OP_NodeInfoParms.h>
+#include <PRM/PRM_DialogScript.h>
+#include <PRM/PRM_Include.h>
+#include <PRM/PRM_Include.h>
+#include <PRM/PRM_SharedFunc.h>
+#include <PRM/PRM_SpareData.h>
+#include <PRM/PRM_SpareData.h>
+#include <CH/CH_LocalVariable.h>
+
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_InfoTree.h>
 
 using namespace std;
 
@@ -100,14 +98,6 @@ static PRM_Name	invisObj[] =
     PRM_Name(0),
 };
 
-static PRM_Name	axisSystem[] = // must match ROP_FBXAxisSystemType
-{
-    PRM_Name("yupright",    "Y Up (Right-handed)"),
-    PRM_Name("yupleft",     "Y Up (Left-handed)"),
-    PRM_Name("zupright",    "Z Up (Right-handed)"),
-    PRM_Name(0),
-};
-
 CH_LocalVariable	ROP_FBX::myVariableList[] = { {0, 0, 0} };
 
 static PRM_Name		sopOutput("sopoutput",	"Output File");
@@ -127,6 +117,7 @@ static PRM_Name		polyLOD("polylod", "Conversion Level of Detail");
 static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
 static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
 static PRM_Name		axisSystemName("axissystem", "Axis System");
+static PRM_Name		convertAxisName("convertaxis", "Convert to Specified Axis System");
 static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
 static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of Export Time");
@@ -158,8 +149,7 @@ static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUS
 				   | PRM_CHOICELIST_REPLACE), &ROP_FBX::buildVersionsMenu);
 static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
 				   | PRM_CHOICELIST_REPLACE), invisObj);
-static PRM_ChoiceList	axisSystemMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
-				   | PRM_CHOICELIST_REPLACE), axisSystem);
+static PRM_ChoiceList	axisSystemMenu(PRM_CHOICELIST_SINGLE, &ROP_FBX::buildAxisMenu);
 
 static PRM_Name switcherName("switcher", "");
 
@@ -194,7 +184,8 @@ static PRM_Template	 geoTemplates[] = {
                  &vcTypeMenu),
     PRM_Template(PRM_ORD, PRM_Template::PRM_EXPORT_TBX, 1, &invisObjTypeName,
                  0, &invisObjMenu),
-    PRM_Template(PRM_ORD, 1, &axisSystemName, 0, &axisSystemMenu),
+    PRM_Template(PRM_ORD, 1, &axisSystemName, PRMzeroDefaults, &axisSystemMenu),
+    PRM_Template(PRM_TOGGLE, 1, &convertAxisName, PRMzeroDefaults),
     PRM_Template(PRM_FLT, 1, &polyLOD, &polyLODDefault, nullptr, &polyLODRange),
     PRM_Template(PRM_TOGGLE, 1, &detectConstPointObjs,
                  &detectConstPointObjsDefault, nullptr),
@@ -251,6 +242,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_VCFORMAT] = *tplates++;
     theTemplate[ROP_FBX_INVISOBJ] = *tplates++;
     theTemplate[ROP_FBX_AXISSYSTEM] = *tplates++;
+    theTemplate[ROP_FBX_CONVERTAXIS] = *tplates++;
     theTemplate[ROP_FBX_POLYLOD] = *tplates++;
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = *tplates++;
     theTemplate[ROP_FBX_CONVERTSURFACES] = *tplates++;
@@ -314,6 +306,8 @@ ROP_FBX::updateParmsFlags()
     changed |= enableParm("numclips", EXPORTCLIPS() && DORANGE());
     changed |= setVisibleState("numclips", EXPORTCLIPS());
     
+    changed |= enableParm("convertaxis",
+                          AXISSYSTEM(t) != ROP_FBXAxisSystem_Current);
 
     return changed;
 }
@@ -419,6 +413,7 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     }
 
     export_options.setAxisSystem(ROP_FBXAxisSystemType(AXISSYSTEM(tstart)));
+    export_options.setConvertAxisSystem(CONVERTAXIS(tstart));
 
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
@@ -552,6 +547,31 @@ ROP_FBX::buildVersionsMenu(
     }
 
     setMenu(menu[menu_item], 0, 0);
+}
+
+void
+ROP_FBX::buildAxisMenu(
+	void *, PRM_Name *menu, int,
+	const PRM_SpareData *, const PRM_Parm *)
+{
+    const char *current_up = "Current (Y Up Right-handed)";
+    switch (OPgetDirector()->getOrientationMode())
+    {
+        case OP_Director::Y_UP:
+            // use default
+            break;
+        case OP_Director::Z_UP:
+            current_up = "Current (Z Up Right-handed)";
+            break;
+    }
+
+    // We must build these matching the ROP_FBXAxisSystemType enum
+    int i = 0;
+    setMenu(menu[i++], "yupright", "Y Up (Right-handed)"),
+    setMenu(menu[i++], "yupleft", "Y Up (Left-handed)"),
+    setMenu(menu[i++], "zupright", "Z Up (Right-handed)"),
+    setMenu(menu[i++], "currentup", current_up),
+    setMenu(menu[i], nullptr, nullptr);
 }
 
 void

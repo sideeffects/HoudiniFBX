@@ -240,7 +240,7 @@ ROP_FBXExporter::doExport(void)
     // Export geometry first
     ROP_FBXMainVisitor geom_visitor(this);
 
-    FbxGlobalSettings& scene_time_setting = myScene->GetGlobalSettings();
+    FbxGlobalSettings& scene_settings = myScene->GetGlobalSettings();
 
 
     // Set Application Info 
@@ -269,7 +269,6 @@ ROP_FBXExporter::doExport(void)
 
     if(!exporting_single_frame)
     {
-
 	// FBX doesn't support arbitrary frame rates.
         // NOTE: Using FbxTime::ConvertFrameRateToTimeMode() seems to not support everything here!
 	fpreal curr_fps = ch_manager->getSamplesPerSec();
@@ -304,14 +303,14 @@ ROP_FBXExporter::doExport(void)
 	    time_mode = FbxTime::eFrames59dot94;
 	else
 	    myErrorManager->addError("Unsupported scene frame rate found. Defaulting to 24 frames per second.",NULL,NULL,false);
-	scene_time_setting.SetTimeMode(time_mode);
+	scene_settings.SetTimeMode(time_mode);
 	FbxTime::SetGlobalTimeMode(time_mode, curr_fps);
 
 	fbx_start.SetFrame(CHgetFrameFromTime(myStartTime), time_mode);
 	fbx_stop.SetFrame(CHgetFrameFromTime(myEndTime), time_mode);
 
 	FbxTimeSpan time_span(fbx_start, fbx_stop);
-	scene_time_setting.SetTimelineDefaultTimeSpan(time_span);
+	scene_settings.SetTimelineDefaultTimeSpan(time_span);
 
     }
 
@@ -353,7 +352,7 @@ ROP_FBXExporter::doExport(void)
 
 	    FbxAnimLayer* anim_layer = FbxAnimLayer::Create(myScene, "Base Layer");
 
-	    FbxTime::EMode time_mode = scene_time_setting.GetTimeMode();
+	    FbxTime::EMode time_mode = scene_settings.GetTimeMode();
 
 	    int num_clips = myExportOptions.getNumExportClips();
 	    if (num_clips > 0)
@@ -401,22 +400,66 @@ ROP_FBXExporter::doExport(void)
 	if(!myDidCancel)
 	    myActionManager->performPostActions();
 
-        // Convert axis system if needed
-        FbxAxisSystem target_axis;
-        switch (myExportOptions.getAxisSystem())
+        // Setup the axis system into the file, converting if needed
+        FbxAxisSystem scene_axis_system = scene_settings.GetAxisSystem();
+        switch (OPgetDirector()->getOrientationMode())
         {
-            case ROP_FBXAxisSystem_YUp_RightHanded:
-                target_axis = FbxAxisSystem::MayaYUp;
+            case OP_Director::Y_UP:
+                scene_axis_system = FbxAxisSystem::MayaYUp;
                 break;
-            case ROP_FBXAxisSystem_YUp_LeftHanded:
-                target_axis = FbxAxisSystem::DirectX;
-                break;
-            case ROP_FBXAxisSystem_ZUp_RightHanded:
-                target_axis = FbxAxisSystem::Max;
+            case OP_Director::Z_UP:
+                scene_axis_system = FbxAxisSystem::MayaZUp;
                 break;
         }
-        if (target_axis != scene_time_setting.GetAxisSystem())
-            target_axis.ConvertScene(myScene);
+        if (myExportOptions.getConvertAxisSystem()
+            && myExportOptions.getAxisSystem() != ROP_FBXAxisSystem_Current)
+        {
+            FbxAxisSystem target_axis;
+            switch (myExportOptions.getAxisSystem())
+            {
+                case ROP_FBXAxisSystem_YUp_RightHanded:
+                    target_axis = FbxAxisSystem::MayaYUp;
+                    UT_ASSERT(target_axis == FbxAxisSystem::Motionbuilder);
+                    UT_ASSERT(target_axis == FbxAxisSystem::OpenGL);
+                    break;
+                case ROP_FBXAxisSystem_YUp_LeftHanded:
+                    target_axis = FbxAxisSystem::DirectX;
+                    UT_ASSERT(target_axis == FbxAxisSystem::Lightwave);
+                    break;
+                case ROP_FBXAxisSystem_ZUp_RightHanded:
+                    target_axis = FbxAxisSystem::MayaZUp;
+                    UT_ASSERT(target_axis == FbxAxisSystem::Max);
+                    break;
+                case ROP_FBXAxisSystem_Current:
+                    UT_ASSERT(!"Should not get here");
+                    target_axis = scene_axis_system;
+                    break;
+            }
+            if (target_axis != scene_axis_system)
+            {
+                scene_settings.SetOriginalUpAxis(scene_axis_system);
+                target_axis.ConvertScene(myScene);
+                UT_ASSERT(scene_settings.GetAxisSystem() == target_axis);
+            }
+        }
+        else // Set axis system without conversion
+        {
+            switch (myExportOptions.getAxisSystem())
+            {
+                case ROP_FBXAxisSystem_YUp_RightHanded:
+                    scene_settings.SetAxisSystem(FbxAxisSystem::MayaYUp);
+                    break;
+                case ROP_FBXAxisSystem_YUp_LeftHanded:
+                    scene_settings.SetAxisSystem(FbxAxisSystem::DirectX);
+                    break;
+                case ROP_FBXAxisSystem_ZUp_RightHanded:
+                    scene_settings.SetAxisSystem(FbxAxisSystem::Max);
+                    break;
+                case ROP_FBXAxisSystem_Current:
+                    scene_settings.SetAxisSystem(scene_axis_system);
+                    break;
+            }
+        }
     }
 }
 /********************************************************************************************************/
