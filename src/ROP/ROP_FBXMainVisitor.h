@@ -130,7 +130,7 @@ class ROP_FBXMainNodeVisitInfo : public ROP_FBXBaseNodeVisitInfo
 {
 public:
     ROP_FBXMainNodeVisitInfo(OP_Node* hd_node);
-    virtual ~ROP_FBXMainNodeVisitInfo();
+    ~ROP_FBXMainNodeVisitInfo() override;
 
     double getBoneLength(void);
     void setBoneLength(double b_length);
@@ -172,11 +172,11 @@ class ROP_FBXMainVisitor : public ROP_FBXBaseVisitor
 {
 public:
     ROP_FBXMainVisitor(ROP_FBXExporter* parent_exporter);
-    virtual ~ROP_FBXMainVisitor();
+    ~ROP_FBXMainVisitor() override;
 
-    ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node, int input_idx_on_this_node);
-    ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info);
-    void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info);
+    ROP_FBXBaseNodeVisitInfo* visitBegin(OP_Node* node, int input_idx_on_this_node) override;
+    ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info) override;
+    void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info) override;
 
     UT_Color getAccumAmbientColor(void);
     ROP_FBXCreateInstancesAction* getCreateInstancesAction(void);

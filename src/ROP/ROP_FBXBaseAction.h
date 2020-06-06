@@ -69,7 +69,7 @@ class ROP_FBXBaseFbxNodeAction : public ROP_FBXBaseAction
 {
 public:
     ROP_FBXBaseFbxNodeAction(FbxNode* acted_on_node, ROP_FBXActionManager& parent_manager);
-    virtual ~ROP_FBXBaseFbxNodeAction();
+    ~ROP_FBXBaseFbxNodeAction() override;
 
     FbxNode* getActedOnNode(void);
     ROP_FBXErrorManager& getErrorManager(void);
