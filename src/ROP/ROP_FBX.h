@@ -96,7 +96,7 @@ enum {
 class ROP_FBX : public ROP_Node
 {
 public:
-    virtual bool		 updateParmsFlags();
+    bool                         updateParmsFlags() override;
 
     static PRM_Template		*getTemplates();
     static PRM_Template		*getObsolete();
@@ -114,29 +114,37 @@ public:
                                                int, const PRM_SpareData *,
                                                const PRM_Parm *);
 
-    virtual void		 resolveObsoleteParms(
-						PRM_ParmList *obsolete_parms);
+    void                         resolveObsoleteParms(
+                                        PRM_ParmList *obsolete_parms) override;
 
 
-    virtual fpreal		 getW() const;
-    virtual fpreal		 getH() const;
+    fpreal                       getW() const override;
+    fpreal                       getH() const override;
 
-    virtual void		 inputConnectChanged(int which);
+    void                         inputConnectChanged(int which) override;
     
-    virtual void		 getNodeSpecificInfoText(OP_Context &context,
-					OP_NodeInfoParms &iparms);
-    virtual void		 fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
-					const OP_NodeInfoTreeParms &parms);
+    void                         getNodeSpecificInfoText(
+                                        OP_Context &context,
+					OP_NodeInfoParms &iparms) override;
+    void                         fillInfoTreeNodeSpecific(
+                                        UT_InfoTree &tree, 
+					const OP_NodeInfoTreeParms &parms
+                                        ) override;
 
     SOP_Node *			 getSopNode() const;
 
 protected:
 	     ROP_FBX(OP_Network *net, const char *name, OP_Operator *op);
-    virtual ~ROP_FBX();
+            ~ROP_FBX() override;
 
-    virtual int			 startRender(int nframes, fpreal s, fpreal e);
-    virtual ROP_RENDER_CODE	 renderFrame(fpreal time, UT_Interrupt *boss);
-    virtual ROP_RENDER_CODE	 endRender();
+    int                          startRender(
+                                        int nframes,
+                                        fpreal s,
+                                        fpreal e) override;
+    ROP_RENDER_CODE              renderFrame(
+                                        fpreal time,
+                                        UT_Interrupt *boss) override;
+    ROP_RENDER_CODE              endRender() override;
 
 private:
     void	OUTPUT(UT_String &str, fpreal t)
