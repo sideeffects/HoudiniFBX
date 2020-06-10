@@ -297,9 +297,18 @@ ROP_FBX::updateParmsFlags()
     const bool issop = CAST_SOPNODE(getInput(0)) != NULL;
     changed |= setVisibleState("startnode", !issop);
     changed |= setVisibleState("createsubnetroot", !issop);
-    changed |= setVisibleState("buildfrompath", issop);
-    changed |= setVisibleState("pathattrib", issop);
-    changed |= enableParm("pathattrib", BUILD_FROM_PATH(t));
+
+    bool allow_buildfrompath = issop;
+    if (!allow_buildfrompath)
+    {
+        UT_String node_path;
+        STARTNODE(node_path);
+        OBJ_Node* start = CAST_OBJNODE(findNode(node_path));
+        allow_buildfrompath = (start && start->getObjectType() == OBJ_GEOMETRY);
+    }
+    changed |= enableParm("buildfrompath", allow_buildfrompath);
+    changed |= enableParm("pathattrib", allow_buildfrompath);
+    changed |= enableParm("pathattrib", allow_buildfrompath && BUILD_FROM_PATH(t));
 
     changed |= enableParm("deformsasvcs", DORANGE());
     changed |= enableParm("exportclips", DORANGE());
@@ -405,9 +414,15 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 	export_options.appendExportClip(clip);
     }
 
-    if (sopNode)
+    export_options.setSopExport(sopNode != nullptr);
+
+    // Decide whether we can build from path. We allow SOP nodes and Geometry
+    // OBJ nodes. Notice that exact match for OBJ_GEOMETRY to disallow things
+    // like Null OBJs.
+    OP_Node* node = findNode(str_start_node);
+    OBJ_Node* obj_node = CAST_OBJNODE(node);
+    if (sopNode || (obj_node && obj_node->getObjectType() == OBJ_GEOMETRY))
     {
-	export_options.setSopExport(true);
         if (BUILD_FROM_PATH(tstart))
             export_options.setSopExportPathAttrib(PATH_ATTRIB(tstart));
     }

@@ -1357,6 +1357,7 @@ ROP_FBXNodeInfo::ROP_FBXNodeInfo() : myVisitInfoCopy(NULL)
     myVertexCache = NULL;
     mySourcePrim = -1;
     myIsSurfacesOnly = false;
+    myHasPrimTransform = false;
     myTravelledIndex = -1;
     
     myVisitResultType = ROP_FBXVisitorResultOk;

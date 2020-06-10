@@ -64,6 +64,7 @@
 
 #include <TAKE/TAKE_Take.h>
 #include <UT/UT_ArrayStringMap.h>
+#include <UT/UT_CrackMatrix.h>
 #include <UT/UT_FloatArray.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Matrix4.h>
@@ -151,17 +152,24 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 
     res_type = ROP_FBXVisitorResultSkipSubnet;
 
+    OBJ_Node* obj_node = node->castToOBJNode();
+
     // Find the related FBX node
     ROP_FBXNodeInfo* stored_node_info_ptr;
     TFbxNodeInfoVector fbx_nodes;
 
     ROP_FBXExportOptions& options = *myParentExporter->getExportOptions();
     bool is_sop_export = options.isSopExport();
-    if (is_sop_export)
+    if (is_sop_export || (obj_node && obj_node->getObjectType() == OBJ_GEOMETRY))
     {
         UT_StringRef path_attrib_name = options.getSopExportPathAttrib();
         if (path_attrib_name)
+        {
             exportPackedPrimAnimation(node, path_attrib_name, myAnimLayer);
+
+            // Reset obj_node so that we go through the SOP code path
+            obj_node = nullptr;
+        }
     }
 
     myNodeManager->findNodeInfos(node, fbx_nodes);
@@ -197,7 +205,6 @@ ROP_FBXAnimVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
 	    node_info_in->addBlendShapeNode(stored_node_info_ptr->getBlendShapeNodeAt(curr_blend_index));
 
 	// We skip exporting the object-level transforms for SOPs
-	OBJ_Node* obj_node = node->castToOBJNode();
         if (obj_node)
         {
             if (ROP_FBXUtil::mapsToFBXTransform(t, obj_node))
@@ -1689,11 +1696,20 @@ ROP_FBXAnimVisitor::exportBlendShapeAnimation(OP_Node* blend_shape_node, FbxNode
     return true;
 }
 /********************************************************************************************************/
+static inline bool
+ropHasLocalTransform(const GA_Detail& geo, GA_PrimitiveTypeId type)
+{
+    const GA_PrimitiveDefinition* defn = geo.getPrimitiveFactory().lookupDefinition(type);
+    UT_ASSERT(defn);
+    return defn->hasLocalTransform();
+}
+/********************************************************************************************************/
 bool
 ROP_FBXAnimVisitor::exportPackedPrimAnimation(
         OP_Node* node, const UT_StringRef& path_attrib_name, FbxAnimLayer* fbx_anim_layer)
 {
-    SOP_Node* sop_node = node->castToSOPNode();
+    OBJ_Node* obj_node = node->castToOBJNode();
+    SOP_Node* sop_node = obj_node ? obj_node->getRenderSopPtr() : node->castToSOPNode();
     if (!sop_node)
         return false;
 
@@ -1706,21 +1722,49 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
 
     struct PathInfo
     {
-        FbxNode*        myFbxNode;
+        UT_Vector3D     myPrevRot{0.0}; // in radians
         // These next two arrays are indexed in order of S, R, T
         FbxAnimCurve*   myCurves[9];
         int             myLastKeys[9] = { 0 };
+        bool            myHasPrimTransform = false;
+
+        void addTransformKey(const FbxTime& fbx_time, const UT_Matrix4D& xform)
+        {
+            UT_Vector3D vec[3]; // S, R, T order
+            UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+            // Note that FBX does not support shears as of writing
+            xform.explode(order, /*r*/ vec[1], /*s*/ vec[0], /*t*/ vec[2]);
+
+            UT_Vector3D& curr_rot = vec[1];
+            UT_VERIFY(UTcrackMatrixSmooth(order, curr_rot(0), curr_rot(1), curr_rot(2),
+                                          myPrevRot(0), myPrevRot(1), myPrevRot(2)));
+            myPrevRot = curr_rot;
+
+            curr_rot.radToDeg();
+
+            int c = 0;
+            for (int i = 0; i < 3; ++i)
+            {
+                for (int j = 0; j < 3; ++j, ++c)
+                {
+                    FbxAnimCurve* curve = myCurves[c];
+                    int key_i = curve->KeyAdd(fbx_time, &myLastKeys[c]);
+                    curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
+                    curve->KeySetValue(key_i, vec[i](j));
+                }
+            }
+        }
     };
     UT_ArrayStringMap<UT_UniquePtr<PathInfo>> info_from_path;
     TFbxNodeInfoVector node_infos;
     myNodeManager->findNodeInfos(node, node_infos);
+    UT_Array<PathInfo*> obj_infos;
     for (auto&& info : node_infos)
     {
         UT_UniquePtr<PathInfo>& path_info = info_from_path[info->getPathValue()];
         path_info = UTmakeUnique<PathInfo>();
 
         FbxNode *fbx_node = info->getFbxNode();
-        path_info->myFbxNode = fbx_node;
 
         // Use default XYZ rotation order, with normal parent transform inheritance
         fbx_node->SetRotationActive(false);
@@ -1743,6 +1787,10 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
                 ++c;
             }
         }
+
+        path_info->myHasPrimTransform = info->getHasPrimTransform();
+        if (obj_node && !path_info->myHasPrimTransform)
+            obj_infos.append(path_info.get());
     }
 
     FbxTime fbx_time;
@@ -1750,12 +1798,21 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
     fpreal end_time = myParentExporter->getEndTime();
     fpreal secs_per_sample = CHgetManager()->getSecsPerSample();
     fpreal time_step = secs_per_sample * myExportOptions->getResampleIntervalInFrames();
-    for (fpreal curr_time = start_time; curr_time < end_time; curr_time += time_step)
+    for (fpreal curr_time = start_time; SYSisLessOrEqual(curr_time, end_time); curr_time += time_step)
     {
         ropSetFbxTime(fbx_time, curr_time);
 
-        GU_DetailHandle gdh;
         OP_Context context(curr_time);
+        UT_Matrix4D parent_xform(1.0); // identity
+        if (obj_node)
+        {
+            (void) obj_node->getLocalToWorldTransform(context, parent_xform);
+
+            for (PathInfo* path_info : obj_infos)
+                path_info->addTransformKey(fbx_time, parent_xform);
+        }
+
+        GU_DetailHandle gdh;
         ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh);
         GU_DetailHandleAutoReadLock gdl(gdh);
         const GU_Detail* gdp = gdl.getGdp();
@@ -1776,6 +1833,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
             continue;
         }
 
+        // Export prim transforms
         for (GA_Offset primoff : gdp->getPrimitiveRange())
         {
             auto item = info_from_path.find(path_attrib.get(primoff));
@@ -1789,6 +1847,10 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
                 continue;
             }
 
+            PathInfo& path_info = *(item->second);
+            if (!path_info.myHasPrimTransform)
+                continue;
+
             UT_Matrix4D xform;
             int type_id = gdp->getPrimitiveTypeId(primoff);
             if (GU_PrimPacked::isPackedPrimitive(type_id))
@@ -1797,7 +1859,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
                 const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
                 packed_prim->getFullTransform4(xform);
             }
-            else if (gdp->getPrimitiveVertexCount(primoff) == 1)
+            else if (ropHasLocalTransform(*gdp, type_id))
             {
                 const GA_Primitive *prim = gdp->getPrimitive(primoff);
                 prim->getLocalTransform4(xform);
@@ -1807,24 +1869,9 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
                 continue;
             }
 
-            UT_Vector3D vec[3]; // S, R, T order
-            UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
-            // Note that FBX does not support shears as of writing
-            xform.explode(order, /*r*/ vec[1], /*s*/ vec[0], /*t*/ vec[2]);
-            vec[1].radToDeg();
+            xform *= parent_xform;
 
-            PathInfo& path_info = *(item->second);
-            int c = 0;
-            for (int i = 0; i < 3; ++i)
-            {
-                for (int j = 0; j < 3; ++j, ++c)
-                {
-                    FbxAnimCurve* curve = path_info.myCurves[c];
-                    int key_i = curve->KeyAdd(fbx_time, &path_info.myLastKeys[c]);
-                    curve->KeySetInterpolation(key_i, FbxAnimCurveDef::eInterpolationLinear);
-                    curve->KeySetValue(key_i, vec[i](j));
-                }
-            }
+            path_info.addTransformKey(fbx_time, xform);
         }
     }
 

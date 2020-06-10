@@ -213,13 +213,16 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     }
 
     string lookat_parm_name("lookatpath");
+    OBJ_Node *obj_node = node->castToOBJNode();
 
     bool is_visible;
-    OBJ_Node *obj_node = node->castToOBJNode();
-    if (obj_node)
+    // For SOPs and the starting node, always treat as visible or else we won't export the contents
+    if (is_sop_export || !parent_info)
+        is_visible = true;
+    else if (obj_node)
 	is_visible = obj_node->getObjectDisplay(start_time);
     else 
-	is_visible = is_sop_export ? true : node->getVisible();
+	is_visible = node->getVisible();
 
     // Consider all nodes visible
     if ( myParentExporter->getExportOptions()->getInvisibleNodeExportMethod() == ROP_FBXInvisibleNodeExportAsVisible )
@@ -503,7 +506,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
 	setFbxNodeVisibility(*new_node, hd_node, is_visible);
 
 	OBJ_Node *obj_node = hd_node->castToOBJNode();
-        if (obj_node)
+        if (constr_info.getExportObjTransform() && obj_node)
         {
             if (ROP_FBXUtil::mapsToFBXTransform(myStartTime, obj_node))
             {
@@ -570,6 +573,7 @@ ROP_FBXMainVisitor::finalizeNewNode(ROP_FBXConstructionInfo& constr_info, OP_Nod
     res_node_pair_info->setVisitResultType(res_type);
     res_node_pair_info->setSourcePrimitive(constr_info.getHdPrimitiveIndex());
     res_node_pair_info->setPathValue(constr_info.getPathValue());
+    res_node_pair_info->setHasPrimTransform(constr_info.getHasPrimTransform());
     res_node_pair_info->setTraveledInputIndex(node_info->getTraveledInputIndex());
     for (int curr_blend_index = 0; curr_blend_index < node_info->getBlendShapeNodeCount(); curr_blend_index++)
 	res_node_pair_info->addBlendShapeNode(node_info->getBlendShapeNodeAt(curr_blend_index));
@@ -797,7 +801,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     if(!sop_node)
 	return false;
 
-    UT_StringRef path_attrib_name = is_sop_export ? options.getSopExportPathAttrib() : UT_StringRef();
+    UT_StringRef path_attrib_name = options.getSopExportPathAttrib();
 
     bool temp_bool, found_particles;
     bool is_vertex_cacheable = false;
@@ -884,8 +888,11 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     if (path_attrib_name)
     {
-        return outputSOPNodeByPath(parent_node, path_attrib_name, sop_node, node_info, v_cache_out,
-                                   did_cancel_out, res_nodes);
+        OBJ_Node *obj_node = CAST_OBJNODE(sop_node->getCreator());
+        if (obj_node != op_net)
+            obj_node = nullptr;
+        return outputSOPNodeByPath(parent_node, path_attrib_name, obj_node, sop_node, node_info,
+                                   v_cache_out, did_cancel_out, res_nodes);
     }
 
     if (is_vertex_cacheable)
@@ -901,8 +908,18 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     return true;
 }
 /********************************************************************************************************/
+static inline bool
+ropHasLocalTransform(const GA_Detail& geo, GA_Offset primoff)
+{
+    GA_PrimitiveTypeId type = geo.getPrimitiveTypeId(primoff);
+    const GA_PrimitiveDefinition* defn = geo.getPrimitiveFactory().lookupDefinition(type);
+    UT_ASSERT(defn);
+    return defn->hasLocalTransform();
+}
+/********************************************************************************************************/
 bool
 ROP_FBXMainVisitor::outputShapePrimitives(
+        const UT_Matrix4D& parent_xform,
         SOP_Node* sop_node,
         const char* node_name,
         const UT_StringHolder& path_value,
@@ -921,8 +938,8 @@ ROP_FBXMainVisitor::outputShapePrimitives(
     shape.baseMerge(*gdp, options);
 
     // Handle packed primitives
-    UT_Matrix4D prim_xform(1);
-    bool have_prim_xform = false;
+    UT_Matrix4D prim_xform(parent_xform);
+    bool has_prim_xform = false;
     if (GU_PrimPacked::hasPackedPrimitives(shape))
     {
         GU_PackedContext packed_context;
@@ -933,30 +950,34 @@ ROP_FBXMainVisitor::outputShapePrimitives(
         GA_Size npacked_end = shape.getNumPrimitives();
 
         // If we only have 1 packed primitive, then save its transform for the FbxNode
-        bool need_undo_xform = false;
         if (npacked_end == 1)
         {
             const GEO_Primitive *prim = shape.getGEOPrimitive(shape.primitiveOffset(0));
             const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
 
             packed_prim->getFullTransform4(prim_xform);
-            have_prim_xform = true;
+            prim_xform *= parent_xform;
+            has_prim_xform = true;
 
-            // We can avoid untransforming if we've got a packed detail
             GU_ConstDetailHandle packed_gdh = packed_prim->getPackedDetail();
             const GU_Detail *packed_gdp = packed_gdh.gdp();
-            if (!packed_gdp)
+            if (packed_gdp)
             {
-                need_undo_xform = true;
-            }
-            else
-            {
-                need_undo_xform = false;
                 shape.replaceWith(*packed_gdp);
                 if (GU_PrimPacked::hasPackedPrimitives(shape))
                     npacked_end = shape.getNumPrimitives();
                 else
                     npacked_end = npacked_beg;
+            }
+            else // do the first level of unpacking without the packed prim's xform
+            {
+                old_prims.append(prim->getMapOffset());
+                for (GA_Size i = 0, n = prim->getVertexCount(); i < n; ++i)
+                    old_pts.append(prim->getPointOffset(i));
+
+                npacked_beg = npacked_end;
+                packed_prim->implementation()->unpack(shape, (const UT_Matrix4D*)nullptr);
+                npacked_end = shape.getNumPrimitives();
             }
         }
 
@@ -980,7 +1001,7 @@ ROP_FBXMainVisitor::outputShapePrimitives(
                 if (!packed_prim->unpackWithContext(shape, packed_context))
                     return false;
                 old_prims.append(prim->getMapOffset());
-                for(exint i = 0, n = prim->getVertexCount(); i < n; ++i)
+                for (GA_Size i = 0, n = prim->getVertexCount(); i < n; ++i)
                     old_pts.append(prim->getPointOffset(i));
             }
             npacked_end = shape.getNumPrimitives();
@@ -990,22 +1011,20 @@ ROP_FBXMainVisitor::outputShapePrimitives(
             shape.destroyPrimitiveOffsets(GA_Range(shape.getPrimitiveMap(), old_prims));
             shape.destroyPointOffsets(GA_Range(shape.getPointMap(), old_pts));
         }
-
-        // Untransform if needed
-        if (need_undo_xform)
+    }
+    else if (shape.getNumPrimitives() == 1)
+    {
+        const GA_Offset prim_off = shape.primitiveOffset(0);
+        if (ropHasLocalTransform(shape, prim_off))
         {
-            UT_ASSERT(have_prim_xform);
-            UT_Matrix4D inverse = prim_xform;
+            const GA_Primitive* prim = shape.getPrimitive(prim_off);
+            prim->getLocalTransform4(prim_xform);
+            UT_Matrix4D inverse(prim_xform);
             inverse.invert();
             shape.transform(inverse);
+            prim_xform *= parent_xform;
+            has_prim_xform = true;
         }
-    }
-    else if (shape.getNumPrimitives() == 1
-             && shape.getPrimitiveVertexCount(shape.primitiveOffset(0)) == 1)
-    {
-        const GA_Primitive *prim = shape.getPrimitive(shape.primitiveOffset(0));
-        prim->getLocalTransform4(prim_xform);
-        have_prim_xform = true;
     }
 
     // Convert geometry to only accepted types
@@ -1036,17 +1055,19 @@ ROP_FBXMainVisitor::outputShapePrimitives(
         outputNURBSCurves(out_gdp, node_name, nullptr, 0, res_nodes, &prim_cntr);
 
     // Set transforms on created FbxNodes
-    if (have_prim_xform)
+    UT_Vector3D r, s, t;
+    UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
+    prim_xform.explode(order, r, s, t); // NB: FBX does not support shears right now
+    r.radToDeg();
+    for (int i = beg_i, end_i = res_nodes.size(); i < end_i; ++i)
     {
-        UT_Vector3D r, s, t;
-        UT_XformOrder order(UT_XformOrder::SRT, UT_XformOrder::XYZ);
-        prim_xform.explode(order, r, s, t); // NB: FBX does not support shears right now
-        r.radToDeg();
-        for (int i = beg_i, end_i = res_nodes.size(); i < end_i; ++i)
-        {
-            ROP_FBXConstructionInfo &info = res_nodes[i];
-            info.setPathValue(path_value);
+        ROP_FBXConstructionInfo &info = res_nodes[i];
+        info.setPathValue(path_value);
+        info.setExportObjTransform(false);
+        info.setHasPrimTransform(has_prim_xform);
 
+        if (has_prim_xform)
+        {
             FbxNode *fbx_node = info.getFbxNode();
             fbx_node->LclScaling.Set(FbxVector4(s(0), s(1), s(2)));
             fbx_node->LclRotation.Set(FbxVector4(r(0), r(1), r(2)));
@@ -1082,6 +1103,7 @@ bool
 ROP_FBXMainVisitor::outputSOPNodeByPath(
         FbxNode* fbx_root,
         const UT_StringRef& path_attrib_name,
+        OBJ_Node* obj_node,
         SOP_Node* sop_node,
         ROP_FBXMainNodeVisitInfo* node_info,
         ROP_FBXGDPCache *&v_cache_out,
@@ -1095,8 +1117,14 @@ ROP_FBXMainVisitor::outputSOPNodeByPath(
     v_cache_out = nullptr;
     node_info->setVertexCacheMethod(ROP_FBXVertexCacheMethodNone);
 
-    GU_DetailHandle gdh;
     OP_Context context(myParentExporter->getStartTime());
+
+    // Determine parent xform from obj_node when given
+    UT_Matrix4D parent_xform(1.0); // identity
+    if (obj_node)
+        (void) obj_node->getLocalToWorldTransform(context, parent_xform);
+
+    GU_DetailHandle gdh;
     if (!ROP_FBXUtil::getGeometryHandle(sop_node, context, gdh))
         return false;
 
@@ -1153,7 +1181,8 @@ ROP_FBXMainVisitor::outputSOPNodeByPath(
     for (auto&& s : shapes)
     {
         int i = res_nodes.size();
-        if (!outputShapePrimitives(sop_node, s.myNodeName, s.myPathValue, gdp, s.myPrims, res_nodes))
+        if (!outputShapePrimitives(parent_xform, sop_node, s.myNodeName, s.myPathValue, gdp, s.myPrims,
+                                   res_nodes))
         {
             UT_WorkBuffer msg;
             msg.format("Failed to output shape for path {}", s.myPathValue);

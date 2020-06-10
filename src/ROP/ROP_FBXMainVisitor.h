@@ -160,11 +160,19 @@ public:
     bool getNeedMaterialExport() const { return myNeedMaterialExport; }
     void setNeedMaterialExport(bool need) { myNeedMaterialExport = need; }
 
+    bool getExportObjTransform() const { return myExportObjTransform; }
+    void setExportObjTransform(bool flag) { myExportObjTransform = flag; }
+
+    bool getHasPrimTransform() const { return myHasPrimTransform; }
+    void setHasPrimTransform(bool flag) { myHasPrimTransform = flag; }
+
 private:
     FbxNode* myNode = nullptr;
     UT_StringHolder myPathValue;
     int myHdPrimCnt = -1;
     bool myNeedMaterialExport = true;
+    bool myExportObjTransform = true;
+    bool myHasPrimTransform = false;
 };
 typedef std::vector < ROP_FBXConstructionInfo > TFbxNodesVector;
 /********************************************************************************************************/
@@ -195,6 +203,7 @@ private:
     void setProperName(FbxLayerElement* fbx_layer_elem, const GU_Detail* gdp, const GA_Attribute* attr);
     bool outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_info, FbxNode* parent_node, ROP_FBXGDPCache* &v_cache_out, bool& did_cancel_out, TFbxNodesVector& res_nodes);
     bool outputShapePrimitives(
+            const UT_Matrix4D& parent_xform,
             SOP_Node* sop_node,
             const char* node_name,
             const UT_StringHolder& path_value,
@@ -204,7 +213,8 @@ private:
     bool outputSOPNodeByPath(
             FbxNode* fbx_root,
             const UT_StringRef& path_attrib_name,
-            SOP_Node* node,
+            OBJ_Node* obj_node,
+            SOP_Node* sop_node,
             ROP_FBXMainNodeVisitInfo* node_info,
             ROP_FBXGDPCache *&v_cache_out,
             bool& did_cancel_out,
