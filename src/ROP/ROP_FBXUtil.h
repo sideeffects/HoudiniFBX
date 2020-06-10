@@ -184,12 +184,16 @@ public:
     void setPathValue(const UT_StringHolder& path) { myPathValue = path; }
     const UT_StringHolder& getPathValue() const { return myPathValue; }
 
+    void setHasPrimTransform(bool flag) { myHasPrimTransform = flag; }
+    bool getHasPrimTransform() const { return myHasPrimTransform; }
+
 private:
     FbxNode* myFbxNode;
 
     // Used for vertex caching
     int myMaxObjectPoints;
     bool myIsSurfacesOnly;
+    bool myHasPrimTransform;
     ROP_FBXVertexCacheMethodType myVertexCacheMethod;
     ROP_FBXGDPCache* myVertexCache;
     OP_Node* myHdNode;
