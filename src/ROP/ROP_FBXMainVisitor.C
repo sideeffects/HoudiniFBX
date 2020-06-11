@@ -216,8 +216,8 @@ ROP_FBXMainVisitor::visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info_in)
     OBJ_Node *obj_node = node->castToOBJNode();
 
     bool is_visible;
-    // For SOPs and the starting node, always treat as visible or else we won't export the contents
-    if (is_sop_export || !parent_info)
+    // Make SOP export as visible so that we will export it
+    if (is_sop_export)
         is_visible = true;
     else if (obj_node)
 	is_visible = obj_node->getObjectDisplay(start_time);
