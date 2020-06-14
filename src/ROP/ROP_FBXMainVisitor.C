@@ -792,12 +792,22 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
     OP_Network* op_net = dynamic_cast<OP_Network*>(node);
     if(!op_net)
 	return false;
+
+    SOP_Node* sop_node;
     auto&& options = *myParentExporter->getExportOptions();
     bool is_sop_export = options.isSopExport();
-    OP_Node *rend_node = is_sop_export ? node : op_net->getRenderNodePtr();
-    if(!rend_node)
-	return false;
-    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(rend_node);
+    if (is_sop_export)
+    {
+        sop_node = CAST_SOPNODE(node);
+    }
+    else
+    {
+        // Ugly code to use getSOPNode() so that Output SOPs will be used.
+        auto prev = op_net->isCookingRender();
+        op_net->setCookingRender(true);
+        sop_node = op_net->getSOPNode(".");
+        op_net->setCookingRender(prev);
+    }
     if(!sop_node)
 	return false;
 
@@ -830,7 +840,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	// For now, only export skinning if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
 	const char *const skin_node_types[] = { "bonedeform", "deform", 0};
-	skin_deform_node = ROP_FBXUtil::findOpInput(rend_node, skin_node_types, true, ROP_FBXallowed_inbetween_node_types, &did_find_allowed_nodes_only);
+	skin_deform_node = ROP_FBXUtil::findOpInput(sop_node, skin_node_types, true, ROP_FBXallowed_inbetween_node_types, &did_find_allowed_nodes_only);
 
 	// Forcing will ignore the other nodes that deforms the mesh
 	if (skin_deform_node && force_skin_deform)
@@ -866,7 +876,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 	// For now, only export blend shapes if we're not vertex cacheable.
 	bool did_find_allowed_nodes_only = false;
 
-	blend_shape_node = ROP_FBXUtil::findOpInput(rend_node, theBlendShapeNodeTypes, true, theAllowedInBetweenNodeTypes, &did_find_allowed_nodes_only);
+	blend_shape_node = ROP_FBXUtil::findOpInput(sop_node, theBlendShapeNodeTypes, true, theAllowedInBetweenNodeTypes, &did_find_allowed_nodes_only);
 	
 	// Forcing will ignore the other nodes that modifies the mesh
 	if ( blend_shape_node && force_blend_shape )
@@ -883,7 +893,7 @@ ROP_FBXMainVisitor::outputGeoNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node_
 
     if (blend_shapes_out_only)
     {
-	return outputBlendShapesNodesIn(rend_node, node_name, skin_deform_node, did_cancel_out, res_nodes, NULL, node_info);
+	return outputBlendShapesNodesIn(sop_node, node_name, skin_deform_node, did_cancel_out, res_nodes, NULL, node_info);
     }	
 
     if (path_attrib_name)
