@@ -572,10 +572,10 @@ ROP_FBX::buildAxisMenu(
     const char *current_up = "Current (Y Up Right-handed)";
     switch (OPgetDirector()->getOrientationMode())
     {
-        case OP_Director::Y_UP:
+        case OP_OrientationMode::Y_UP:
             // use default
             break;
-        case OP_Director::Z_UP:
+        case OP_OrientationMode::Z_UP:
             current_up = "Current (Z Up Right-handed)";
             break;
     }

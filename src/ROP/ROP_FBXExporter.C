@@ -404,10 +404,10 @@ ROP_FBXExporter::doExport(void)
         FbxAxisSystem scene_axis_system = scene_settings.GetAxisSystem();
         switch (OPgetDirector()->getOrientationMode())
         {
-            case OP_Director::Y_UP:
+            case OP_OrientationMode::Y_UP:
                 scene_axis_system = FbxAxisSystem::MayaYUp;
                 break;
-            case OP_Director::Z_UP:
+            case OP_OrientationMode::Z_UP:
                 scene_axis_system = FbxAxisSystem::MayaZUp;
                 break;
         }
