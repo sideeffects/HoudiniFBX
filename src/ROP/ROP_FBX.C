@@ -104,7 +104,7 @@ static PRM_Name		sopOutput("sopoutput",	"Output File");
 static PRM_Name		startNode("startnode", "Export");
 static PRM_Name		createSubnetRoot("createsubnetroot", "Create Root for Subnet");
 static PRM_Name         buildFromPath("buildfrompath",
-                                       "Build Hierarchy From Attribute");
+                                       "Build Hierarchy from Attribute");
 static PRM_Name         pathAttrib("pathattrib", "Path Attribute");
 static PRM_Name		exportKind("exportkind", "Export in ASCII Format");
 static PRM_Name		exportClips("exportclips", "Export Animation Clips (Takes)");
