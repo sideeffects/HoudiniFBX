@@ -3329,7 +3329,7 @@ ROP_FBXMainVisitor::outputCameraNode(
 }
 /********************************************************************************************************/
 UT_Color 
-ROP_FBXMainVisitor::getAccumAmbientColor(void)
+ROP_FBXMainVisitor::getAccumAmbientColor()
 {
     return myAmbientColor;
 }
@@ -3994,7 +3994,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 }
 /********************************************************************************************************/
 ROP_FBXCreateInstancesAction* 
-ROP_FBXMainVisitor::getCreateInstancesAction(void)
+ROP_FBXMainVisitor::getCreateInstancesAction()
 {
     return myInstancesActionPtr;
 }
@@ -4093,7 +4093,7 @@ ROP_FBXMainNodeVisitInfo::~ROP_FBXMainNodeVisitInfo()
 }
 /********************************************************************************************************/
 double 
-ROP_FBXMainNodeVisitInfo::getBoneLength(void)
+ROP_FBXMainNodeVisitInfo::getBoneLength()
 {
     return myBoneLength;
 }
@@ -4105,7 +4105,7 @@ ROP_FBXMainNodeVisitInfo::setBoneLength(double b_length)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXMainNodeVisitInfo::getIsVisitingFromInstance(void)
+ROP_FBXMainNodeVisitInfo::getIsVisitingFromInstance()
 {
     return myIsVisitingFromInstance;
 }

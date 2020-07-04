@@ -147,35 +147,35 @@ public:
     ROP_FBXNodeInfo(FbxNode* main_node);
     ~ROP_FBXNodeInfo();
 
-    FbxNode* getFbxNode(void) const;
+    FbxNode* getFbxNode() const;
     void setFbxNode(FbxNode* node);
 
-    OP_Node* getHdNode(void) const;
+    OP_Node* getHdNode() const;
     void setHdNode(OP_Node* node);
 
-    int getMaxObjectPoints(void);
+    int getMaxObjectPoints();
     void setMaxObjectPoints(int num_points);
 
-    ROP_FBXVertexCacheMethodType getVertexCacheMethod(void);
+    ROP_FBXVertexCacheMethodType getVertexCacheMethod();
     void setVertexCacheMethod(ROP_FBXVertexCacheMethodType vc_method);
 
-    ROP_FBXGDPCache* getVertexCache(void);
+    ROP_FBXGDPCache* getVertexCache();
     void setVertexCache(ROP_FBXGDPCache* v_cache);
 
-    ROP_FBXVisitorResultType getVisitResultType(void);
+    ROP_FBXVisitorResultType getVisitResultType();
     void  setVisitResultType(ROP_FBXVisitorResultType res_type);
 
-    ROP_FBXMainNodeVisitInfo& getVisitInfo(void);
+    ROP_FBXMainNodeVisitInfo& getVisitInfo();
     void setVisitInfoCopy(ROP_FBXMainNodeVisitInfo& info);
 
     void setIsSurfacesOnly(bool value);
-    bool getIsSurfacesOnly(void);
+    bool getIsSurfacesOnly();
 
     void setSourcePrimitive(int prim_cnt);
-    int getSourcePrimitive(void);
+    int getSourcePrimitive();
 
     void setTraveledInputIndex(int idx);
-    int getTraveledInputIndex(void);
+    int getTraveledInputIndex();
 
     void addBlendShapeNode(OP_Node* node);
     int getBlendShapeNodeCount() const;
@@ -250,8 +250,8 @@ public:
     ROP_FBXGDPCacheItem(fpreal frame_num) { myFrame = frame_num; }
     ~ROP_FBXGDPCacheItem() { }
 
-    GU_Detail* getDetail(void) { return &myDetail; }
-    fpreal getFrame(void) { return myFrame; }
+    GU_Detail* getDetail() { return &myDetail; }
+    fpreal getFrame() { return myFrame; }
 
 private:
     fpreal myFrame;
@@ -269,18 +269,18 @@ public:
     GU_Detail* addFrame(fpreal frame_num);
     GU_Detail* getFrameGeometry(fpreal frame_num);
 
-    fpreal getFirstFrame(void);
+    fpreal getFirstFrame();
 
     void setNumConstantPoints(int num_points);
-    int getNumConstantPoints(void);
-    bool getIsNumPointsConstant(void);
+    int getNumConstantPoints();
+    bool getIsNumPointsConstant();
 
-    void clearFrames(void);
+    void clearFrames();
 
-    bool getSaveMemory(void);
+    bool getSaveMemory();
     void setSaveMemory(bool value);
 
-    int getNumFrames(void) { return myFrameItems.size(); }
+    int getNumFrames() { return myFrameItems.size(); }
 
 private:
     TGeomCacheItems myFrameItems;

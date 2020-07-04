@@ -490,7 +490,7 @@ ROP_FBXBaseVisitor::isNetworkVisitable(OP_Node* node)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXBaseVisitor::getDidCancel(void)
+ROP_FBXBaseVisitor::getDidCancel()
 {
     return myDidCancel;
 }
@@ -502,7 +502,7 @@ ROP_FBXBaseVisitor::addNodeVisitInfo(ROP_FBXBaseNodeVisitInfo* visit_info)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXBaseVisitor::clearVisitInfos(void)
+ROP_FBXBaseVisitor::clearVisitInfos()
 {
     TBaseNodeVisitInfos::iterator mi;
     for(mi = myAllVisitInfos.begin(); mi != myAllVisitInfos.end(); mi++)
@@ -635,19 +635,19 @@ ROP_FBXBaseNodeVisitInfo::setFbxNode(FbxNode* node)
 }
 /********************************************************************************************************/
 FbxNode* 
-ROP_FBXBaseNodeVisitInfo::getFbxNode(void)
+ROP_FBXBaseNodeVisitInfo::getFbxNode()
 {
     return myFbxNode;
 }
 /********************************************************************************************************/
 ROP_FBXBaseNodeVisitInfo* 
-ROP_FBXBaseNodeVisitInfo::getParentInfo(void)
+ROP_FBXBaseNodeVisitInfo::getParentInfo()
 {
     return myParentInfo;
 }
 /********************************************************************************************************/
 int 
-ROP_FBXBaseNodeVisitInfo::getMaxObjectPoints(void)
+ROP_FBXBaseNodeVisitInfo::getMaxObjectPoints()
 {
     return myMaxObjectPoints;
 }
@@ -659,7 +659,7 @@ ROP_FBXBaseNodeVisitInfo::setMaxObjectPoints(int num_points)
 }
 /********************************************************************************************************/
 ROP_FBXVertexCacheMethodType 
-ROP_FBXBaseNodeVisitInfo::getVertexCacheMethod(void)
+ROP_FBXBaseNodeVisitInfo::getVertexCacheMethod()
 {
     return myVertexCacheMethod;
 }
@@ -671,7 +671,7 @@ ROP_FBXBaseNodeVisitInfo::setVertexCacheMethod(ROP_FBXVertexCacheMethodType vc_m
 }
 /********************************************************************************************************/
 OP_Node* 
-ROP_FBXBaseNodeVisitInfo::getHdNode(void)
+ROP_FBXBaseNodeVisitInfo::getHdNode()
 {
     return myHdNode;
 }
@@ -689,7 +689,7 @@ ROP_FBXBaseNodeVisitInfo::setIsSurfacesOnly(bool value)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXBaseNodeVisitInfo::getIsSurfacesOnly(void)
+ROP_FBXBaseNodeVisitInfo::getIsSurfacesOnly()
 {
     return myIsSurfacesOnly; 
 }
@@ -701,7 +701,7 @@ ROP_FBXBaseNodeVisitInfo::setSourcePrimitive(int prim_cnt)
 }
 /********************************************************************************************************/
 int
-ROP_FBXBaseNodeVisitInfo::getSourcePrimitive(void)
+ROP_FBXBaseNodeVisitInfo::getSourcePrimitive()
 {
     return mySourcePrim;
 }
@@ -711,7 +711,7 @@ void ROP_FBXBaseNodeVisitInfo::setTraveledInputIndex(int index)
     myTraveledInputIndex = index;
 }
 /********************************************************************************************************/
-int ROP_FBXBaseNodeVisitInfo::getTraveledInputIndex(void)
+int ROP_FBXBaseNodeVisitInfo::getTraveledInputIndex()
 {
     return myTraveledInputIndex;
 }

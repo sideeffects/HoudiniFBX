@@ -132,10 +132,10 @@ public:
     ROP_FBXMainNodeVisitInfo(OP_Node* hd_node);
     ~ROP_FBXMainNodeVisitInfo() override;
 
-    double getBoneLength(void);
+    double getBoneLength();
     void setBoneLength(double b_length);
 
-    bool getIsVisitingFromInstance(void);
+    bool getIsVisitingFromInstance();
     void setIsVisitingFromInstance(bool value);
 
 private:
@@ -150,9 +150,9 @@ public:
     ROP_FBXConstructionInfo(FbxNode* fbx_node) : myNode(fbx_node) { }
 
     void setHdPrimitiveIndex(int prim_cnt) { myHdPrimCnt = prim_cnt; }
-    int getHdPrimitiveIndex(void) { return myHdPrimCnt; }
+    int getHdPrimitiveIndex() { return myHdPrimCnt; }
 
-    FbxNode* getFbxNode(void) { return myNode; }
+    FbxNode* getFbxNode() { return myNode; }
 
     const UT_StringHolder& getPathValue() const { return myPathValue; }
     void setPathValue(const UT_StringHolder &path) { myPathValue = path; }
@@ -186,8 +186,8 @@ public:
     ROP_FBXVisitorResultType visit(OP_Node* node, ROP_FBXBaseNodeVisitInfo* node_info) override;
     void onEndHierarchyBranchVisiting(OP_Node* last_node, ROP_FBXBaseNodeVisitInfo* last_node_info) override;
 
-    UT_Color getAccumAmbientColor(void);
-    ROP_FBXCreateInstancesAction* getCreateInstancesAction(void);
+    UT_Color getAccumAmbientColor();
+    ROP_FBXCreateInstancesAction* getCreateInstancesAction();
 
 private:
 

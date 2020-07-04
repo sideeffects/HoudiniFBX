@@ -52,13 +52,13 @@ public:
     ROP_FBXBaseAction(ROP_FBXActionManager& parent_manager);
     virtual ~ROP_FBXBaseAction();
 
-    virtual ROP_FBXActionType getType(void) = 0;
-    virtual void performAction(void) = 0;
+    virtual ROP_FBXActionType getType() = 0;
+    virtual void performAction() = 0;
 
     void setIsActive(bool value);
-    bool getIsActive(void);
+    bool getIsActive();
 
-    ROP_FBXActionManager& getParentManager(void);
+    ROP_FBXActionManager& getParentManager();
 
 private:
     ROP_FBXActionManager& myParentManager;
@@ -71,9 +71,9 @@ public:
     ROP_FBXBaseFbxNodeAction(FbxNode* acted_on_node, ROP_FBXActionManager& parent_manager);
     ~ROP_FBXBaseFbxNodeAction() override;
 
-    FbxNode* getActedOnNode(void);
-    ROP_FBXErrorManager& getErrorManager(void);
-    ROP_FBXNodeManager& getNodeManager(void);
+    FbxNode* getActedOnNode();
+    ROP_FBXErrorManager& getErrorManager();
+    ROP_FBXNodeManager& getNodeManager();
 
 private:
 

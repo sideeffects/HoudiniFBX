@@ -56,14 +56,14 @@ public:
     bool initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options);
 
     /// Performs the actual export process. ROP_FBXExporterWrapper::initializeExport() must be called first.
-    void doExport(void);
+    void doExport();
 
     /// This function cleans up after the export is done. It must be called after the 
     /// ROP_FBXExporterWrapper::doExport() function.
-    bool finishExport(void);
+    bool finishExport();
 
     /// Retrieves the error manager for this wrapper.
-    ROP_FBXErrorManager* getErrorManager(void);
+    ROP_FBXErrorManager* getErrorManager();
 
     /// Returns true if FBX is supported in the current Houdini build, false otherwise.
     static void getVersions(TStringVector& versions_out);

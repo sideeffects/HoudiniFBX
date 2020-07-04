@@ -153,37 +153,37 @@ private:
 //    int		INITSIM(void)
 //		    { INT_PARM("initsim", 0, 0) }
 
-    int EXPORTASCII(void)
-	{ INT_PARM("exportkind", 0, 0) }
+    int EXPORTASCII()
+    { INT_PARM("exportkind", 0, 0) }
 
-    float POLYLOD(void)
-	{ FBX_FLOAT_PARM("polylod", 0, 0) }
+    float POLYLOD()
+    { FBX_FLOAT_PARM("polylod", 0, 0) }
 
-    int DETECTCONSTOBJS(void)
-	{ INT_PARM("detectconstpointobjs", 0, 0) }
+    int DETECTCONSTOBJS()
+    { INT_PARM("detectconstpointobjs", 0, 0) }
 
-    int CONVERTSURFACES(void)
-	{ INT_PARM("convertsurfaces", 0, 0) }
+    int CONVERTSURFACES()
+    { INT_PARM("convertsurfaces", 0, 0) }
 
-    int DEFORMSASVCS(void)
+    int DEFORMSASVCS()
     { INT_PARM("deformsasvcs", 0, 0) }
 
-    int CONSERVEMEM(void)
+    int CONSERVEMEM()
     { INT_PARM("conservemem", 0, 0) }
 
-    int FORCEBLENDSHAPE(void)
+    int FORCEBLENDSHAPE()
     { INT_PARM("forceblendshape", 0, 0) }
 
-    int FORCESKINDEFORM(void)
+    int FORCESKINDEFORM()
     { INT_PARM("forceskindeform", 0, 0) }
 
-    int EXPORTENDEFFECTORS(void)
+    int EXPORTENDEFFECTORS()
     { INT_PARM("exportendeffectors", 0, 0) }
 
-    int VCFORMAT(void)
+    int VCFORMAT()
     { INT_PARM("vcformat", 0, 0) }
 
-    int INVISOBJ(void)
+    int INVISOBJ()
     { INT_PARM("invisobj", 0, 0) }
 
     int AXISSYSTEM(fpreal t) const
@@ -204,7 +204,7 @@ private:
     bool BUILD_FROM_PATH(fpreal t) const
     { INT_PARM("buildfrompath", 0, t); }
 
-    int EXPORTCLIPS(void)
+    int EXPORTCLIPS()
     {
 	INT_PARM("exportclips", 0, 0)
     }

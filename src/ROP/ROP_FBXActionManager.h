@@ -61,17 +61,17 @@ public:
 
     ROP_FBXLookAtAction* addLookAtAction(FbxNode* acted_on_node, OP_Node* look_at_node);
     ROP_FBXSkinningAction* addSkinningAction(FbxNode* acted_on_node, OP_Node* deform_node, fpreal capture_frame);
-    ROP_FBXCreateInstancesAction* addCreateInstancesAction(void);
+    ROP_FBXCreateInstancesAction* addCreateInstancesAction();
 
-    void performPostActions(void);
+    void performPostActions();
 
     /// Clears actions, deleting their objects.
-    void clear(void);
+    void clear();
 
-    ROP_FBXErrorManager& getErrorManager(void);
-    ROP_FBXNodeManager& getNodeManager(void);
-    ROP_FBXBaseAction* getCurrentAction(void);
-    ROP_FBXExporter& getExporter(void);
+    ROP_FBXErrorManager& getErrorManager();
+    ROP_FBXNodeManager& getNodeManager();
+    ROP_FBXBaseAction* getCurrentAction();
+    ROP_FBXExporter& getExporter();
 
 private:
     TActionsVector myPostActions;

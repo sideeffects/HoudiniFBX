@@ -64,14 +64,14 @@ ROP_FBXExporterWrapper::initializeExport(const char* output_name, fpreal tstart,
 }
 /********************************************************************************************************/
 void 
-ROP_FBXExporterWrapper::doExport(void)
+ROP_FBXExporterWrapper::doExport()
 {
     if(myFBXExporter)
 	myFBXExporter->doExport();
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExporterWrapper::finishExport(void)
+ROP_FBXExporterWrapper::finishExport()
 {
     if(myFBXExporter)
 	return myFBXExporter->finishExport();
@@ -80,7 +80,7 @@ ROP_FBXExporterWrapper::finishExport(void)
 }
 /********************************************************************************************************/
 ROP_FBXErrorManager* 
-ROP_FBXExporterWrapper::getErrorManager(void)
+ROP_FBXExporterWrapper::getErrorManager()
 {
     return myFBXExporter->getErrorManager();
 }

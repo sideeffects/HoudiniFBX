@@ -79,7 +79,7 @@ void ROP_FBXErrorManager::addError(const char* pcsErrorPart1, const char* pcsErr
 }
 /********************************************************************************************************/
 int 
-ROP_FBXErrorManager::getNumItems(void) const
+ROP_FBXErrorManager::getNumItems() const
 {
     return (int)myErrors.size();
 }
@@ -91,7 +91,7 @@ ROP_FBXErrorManager::getError(int err_index)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXErrorManager::reset(void)
+ROP_FBXErrorManager::reset()
 {
     deleteVectorContents<ROP_FBXError*>(myErrors);
     myErrors.clear();
@@ -99,7 +99,7 @@ ROP_FBXErrorManager::reset(void)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXErrorManager::getDidReportCriticalErrors(void) const
+ROP_FBXErrorManager::getDidReportCriticalErrors() const
 {
     return myDidReportCricialErrors;
 }
@@ -156,19 +156,19 @@ ROP_FBXError::~ROP_FBXError()
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXError::getIsCritical(void) const
+ROP_FBXError::getIsCritical() const
 {
     return myIsCritical;
 }
 /********************************************************************************************************/
 const char* 
-ROP_FBXError::getMessage(void) const
+ROP_FBXError::getMessage() const
 {
     return myMessage.c_str();
 }
 /********************************************************************************************************/
 ROP_FBXErrorType 
-ROP_FBXError::getType(void) const
+ROP_FBXError::getType() const
 {
     return myType;
 }

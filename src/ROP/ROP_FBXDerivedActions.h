@@ -52,8 +52,8 @@ public:
     ROP_FBXLookAtAction(FbxNode *acted_on_node, OP_Node* look_at_node, ROP_FBXActionManager& parent_manager);
     ~ROP_FBXLookAtAction() override;
 
-    ROP_FBXActionType getType(void) override;
-    void performAction(void) override;
+    ROP_FBXActionType getType() override;
+    void performAction() override;
 
 private:
     OP_Node* myLookAtHdNode;    
@@ -67,8 +67,8 @@ public:
     ROP_FBXSkinningAction(FbxNode *acted_on_node, OP_Node* deform_node, fpreal capture_frame, ROP_FBXActionManager& parent_manager);
     ~ROP_FBXSkinningAction() override;
 
-    ROP_FBXActionType getType(void) override;
-    void performAction(void) override;
+    ROP_FBXActionType getType() override;
+    void performAction() override;
 
 private:
     void createSkinningInfo(
@@ -102,8 +102,8 @@ public:
 
     void addInstance(OP_Node* instance_hd_node, FbxNode* instance_fbx_node);
 
-    ROP_FBXActionType getType(void) override;
-    void performAction(void) override;
+    ROP_FBXActionType getType() override;
+    void performAction() override;
 
 private:
     TInstanceBundleVector myItems;

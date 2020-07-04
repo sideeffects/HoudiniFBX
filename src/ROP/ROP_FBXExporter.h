@@ -59,30 +59,30 @@ public:
 
     // These are responsible for the actual conversion process.
     bool initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options);
-    void doExport(void);
-    bool finishExport(void);
+    void doExport();
+    bool finishExport();
 
-    FbxManager* getSDKManager(void);
-    FbxScene* getFBXScene(void);
-    ROP_FBXErrorManager* getErrorManager(void);
-    ROP_FBXNodeManager* getNodeManager(void);
-    ROP_FBXActionManager* getActionManager(void);
+    FbxManager* getSDKManager();
+    FbxScene* getFBXScene();
+    ROP_FBXErrorManager* getErrorManager();
+    ROP_FBXNodeManager* getNodeManager();
+    ROP_FBXActionManager* getActionManager();
 
-    ROP_FBXExportOptions* getExportOptions(void);
-    const char* getOutputFileName(void);
+    ROP_FBXExportOptions* getExportOptions();
+    const char* getOutputFileName();
 
-    fpreal getStartTime(void);
-    fpreal getEndTime(void);
-    bool getExportingAnimation(void);
+    fpreal getStartTime();
+    fpreal getEndTime();
+    bool getExportingAnimation();
 
     void queueStringToDeallocate(char* string_ptr);
     FbxNode* getFBXRootNode(OP_Node* asking_node, bool create_subnet_root);
-    UT_Interrupt* GetBoss(void);
+    UT_Interrupt* GetBoss();
 
     static void getVersions(TStringVector& versions_out);
 
 private:
-    void deallocateQueuedStrings(void);
+    void deallocateQueuedStrings();
 
 private:
 

@@ -145,7 +145,7 @@ ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal
 }
 /********************************************************************************************************/
 void 
-ROP_FBXExporter::doExport(void)
+ROP_FBXExporter::doExport()
 {
     UT_AutoDisableUndos disable_undos_scope;
     UT_AutoInterrupt progress("Exporting FBX");
@@ -464,7 +464,7 @@ ROP_FBXExporter::doExport(void)
 }
 /********************************************************************************************************/
 bool
-ROP_FBXExporter::finishExport(void)
+ROP_FBXExporter::finishExport()
 {
 #ifdef UT_DEBUG
     double write_time_start, write_time_end;
@@ -603,61 +603,61 @@ ROP_FBXExporter::finishExport(void)
 }
 /********************************************************************************************************/
 FbxManager* 
-ROP_FBXExporter::getSDKManager(void)
+ROP_FBXExporter::getSDKManager()
 {
     return mySDKManager;
 }
 /********************************************************************************************************/
 FbxScene* 
-ROP_FBXExporter::getFBXScene(void)
+ROP_FBXExporter::getFBXScene()
 {
     return myScene;
 }
 /********************************************************************************************************/
 ROP_FBXErrorManager* 
-ROP_FBXExporter::getErrorManager(void)
+ROP_FBXExporter::getErrorManager()
 {
     return myErrorManager;
 }
 /********************************************************************************************************/
 ROP_FBXNodeManager* 
-ROP_FBXExporter::getNodeManager(void)
+ROP_FBXExporter::getNodeManager()
 {
     return myNodeManager;
 }
 /********************************************************************************************************/
 ROP_FBXActionManager* 
-ROP_FBXExporter::getActionManager(void)
+ROP_FBXExporter::getActionManager()
 {
     return myActionManager;
 }
 /********************************************************************************************************/
 ROP_FBXExportOptions* 
-ROP_FBXExporter::getExportOptions(void)
+ROP_FBXExporter::getExportOptions()
 {
     return &myExportOptions;
 }
 /********************************************************************************************************/
 const char* 
-ROP_FBXExporter::getOutputFileName(void)
+ROP_FBXExporter::getOutputFileName()
 {
     return myOutputFile.c_str();
 }
 /********************************************************************************************************/
 fpreal 
-ROP_FBXExporter::getStartTime(void)
+ROP_FBXExporter::getStartTime()
 {
     return myStartTime;
 }
 /********************************************************************************************************/
 fpreal 
-ROP_FBXExporter::getEndTime(void)
+ROP_FBXExporter::getEndTime()
 {
     return myEndTime;
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExporter::getExportingAnimation(void)
+ROP_FBXExporter::getExportingAnimation()
 {
     return !SYSisEqual(myStartTime, myEndTime);
 }
@@ -669,7 +669,7 @@ ROP_FBXExporter::queueStringToDeallocate(char* string_ptr)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXExporter::deallocateQueuedStrings(void)
+ROP_FBXExporter::deallocateQueuedStrings()
 {
     int curr_str_idx, num_strings = myStringsToDeallocate.size();
     for(curr_str_idx = 0; curr_str_idx < num_strings; curr_str_idx++)
@@ -739,7 +739,7 @@ ROP_FBXExporter::getFBXRootNode(OP_Node* asking_node, bool create_subnet_root)
 }
 /********************************************************************************************************/
 UT_Interrupt* 
-ROP_FBXExporter::GetBoss(void)
+ROP_FBXExporter::GetBoss()
 {
     return myBoss;
 }

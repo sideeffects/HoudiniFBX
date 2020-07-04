@@ -73,28 +73,28 @@ public:
     virtual ~ROP_FBXBaseNodeVisitInfo();
 
     void setParentInfo(ROP_FBXBaseNodeVisitInfo* parent_info);
-    ROP_FBXBaseNodeVisitInfo* getParentInfo(void);
+    ROP_FBXBaseNodeVisitInfo* getParentInfo();
 
     void setFbxNode(FbxNode* node);
-    FbxNode* getFbxNode(void);
+    FbxNode* getFbxNode();
 
-    OP_Node* getHdNode(void);
+    OP_Node* getHdNode();
     void setHdNode(OP_Node* hd_node);
 
-    int getMaxObjectPoints(void);
+    int getMaxObjectPoints();
     void setMaxObjectPoints(int num_points);
 
-    ROP_FBXVertexCacheMethodType getVertexCacheMethod(void);
+    ROP_FBXVertexCacheMethodType getVertexCacheMethod();
     void setVertexCacheMethod(ROP_FBXVertexCacheMethodType vc_method);
 
     void setIsSurfacesOnly(bool value);
-    bool getIsSurfacesOnly(void);
+    bool getIsSurfacesOnly();
 
     void setSourcePrimitive(int prim_cnt);
-    int getSourcePrimitive(void);
+    int getSourcePrimitive();
 
     void setTraveledInputIndex(int index);
-    int getTraveledInputIndex(void);
+    int getTraveledInputIndex();
 
     void addBlendShapeNode(OP_Node* node);
     int getBlendShapeNodeCount() const;
@@ -139,7 +139,7 @@ public:
     /// Calls visitNodeAndChildren() on the root (given) node.
     void visitScene(OP_Node* start_node);
 
-    bool getDidCancel(void);
+    bool getDidCancel();
 
 private:
     /// Calls visit() on the specified node and then calls itself
@@ -156,7 +156,7 @@ private:
     int whichInputIs(OP_Node* source_node, int counter, OP_Node* target_node);
 
     void addNodeVisitInfo(ROP_FBXBaseNodeVisitInfo* visit_info);
-    void clearVisitInfos(void);
+    void clearVisitInfos();
     void findVisitInfos(OP_Node* hd_node, TBaseNodeVisitInfoVector &res_infos);
 
 private:

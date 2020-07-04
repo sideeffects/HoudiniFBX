@@ -51,9 +51,9 @@ public:
     ROP_FBXError(const char* pMessage, bool bIsCritical, ROP_FBXErrorType eType);
     virtual ~ROP_FBXError();
 
-    bool getIsCritical(void) const;
-    const char* getMessage(void) const;
-    ROP_FBXErrorType getType(void) const;
+    bool getIsCritical() const;
+    const char* getMessage() const;
+    ROP_FBXErrorType getType() const;
 
 private:
     std::string myMessage;
@@ -72,11 +72,11 @@ public:
     void addError(const char* pcsErrorPart1, const char* pcsErrorPart2, const char* pcsErrorPart3, bool bIsCritical = false, ROP_FBXErrorType eType = ROP_FBXErrorGeneric);
 
     ROP_FBXError* getError(int err_index);
-    int getNumItems(void) const;
+    int getNumItems() const;
 
-    bool getDidReportCriticalErrors(void) const;
+    bool getDidReportCriticalErrors() const;
 
-    void reset(void);
+    void reset();
 
     void appendAllErrors(UT_String& string_out) const;
     void appendAllWarnings(UT_String& string_out) const;

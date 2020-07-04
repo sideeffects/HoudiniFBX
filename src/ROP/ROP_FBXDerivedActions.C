@@ -64,13 +64,13 @@ ROP_FBXLookAtAction::~ROP_FBXLookAtAction()
 }
 /********************************************************************************************************/
 ROP_FBXActionType 
-ROP_FBXLookAtAction::getType(void)
+ROP_FBXLookAtAction::getType()
 {
     return ROP_FBXActionSetLookAtTarget;
 }
 /********************************************************************************************************/
 void 
-ROP_FBXLookAtAction::performAction(void)
+ROP_FBXLookAtAction::performAction()
 {
     FbxNode *acted_on_node = this->getActedOnNode();
 
@@ -103,7 +103,7 @@ ROP_FBXSkinningAction::~ROP_FBXSkinningAction()
 }
 /********************************************************************************************************/
 ROP_FBXActionType 
-ROP_FBXSkinningAction::getType(void)
+ROP_FBXSkinningAction::getType()
 {
     return ROP_FBXActionApplySkinning;
 }
@@ -131,7 +131,7 @@ fbxRecordBlendWeights(FbxSkin &fbx_skin, const GU_Detail &gdp,
 }
 
 void 
-ROP_FBXSkinningAction::performAction(void)
+ROP_FBXSkinningAction::performAction()
 {
     if(!myDeformNode)
 	return;
@@ -527,13 +527,13 @@ ROP_FBXCreateInstancesAction::addInstance(OP_Node* instance_hd_node, FbxNode* in
 }
 /********************************************************************************************************/
 ROP_FBXActionType 
-ROP_FBXCreateInstancesAction::getType(void)
+ROP_FBXCreateInstancesAction::getType()
 {
     return ROP_FBXActionCreateInstances;
 }
 /********************************************************************************************************/
 void 
-ROP_FBXCreateInstancesAction::performAction(void)
+ROP_FBXCreateInstancesAction::performAction()
 {
     // Go over all hd instance nodes. For each try to find its target hd node, then
     // a corresponding FBX node with an attribute set.

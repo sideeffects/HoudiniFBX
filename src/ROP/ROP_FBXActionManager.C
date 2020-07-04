@@ -65,7 +65,7 @@ ROP_FBXActionManager::addSkinningAction(FbxNode* acted_on_node, OP_Node* deform_
 }
 /********************************************************************************************************/
 ROP_FBXCreateInstancesAction* 
-ROP_FBXActionManager::addCreateInstancesAction(void)
+ROP_FBXActionManager::addCreateInstancesAction()
 {
     ROP_FBXCreateInstancesAction* new_action = new ROP_FBXCreateInstancesAction(*this);
     myPostActions.push_back(new_action);
@@ -73,7 +73,7 @@ ROP_FBXActionManager::addCreateInstancesAction(void)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXActionManager::performPostActions(void)
+ROP_FBXActionManager::performPostActions()
 {
     TActionsVector::size_type curr_action, num_actions = myPostActions.size();
     for(curr_action = 0; curr_action < num_actions; curr_action++)
@@ -87,7 +87,7 @@ ROP_FBXActionManager::performPostActions(void)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXActionManager::clear(void)
+ROP_FBXActionManager::clear()
 {
     TActionsVector::size_type curr_action, num_actions = myPostActions.size();
     for(curr_action = 0; curr_action < num_actions; curr_action++)
@@ -98,25 +98,25 @@ ROP_FBXActionManager::clear(void)
 }
 /********************************************************************************************************/
 ROP_FBXErrorManager& 
-ROP_FBXActionManager::getErrorManager(void)
+ROP_FBXActionManager::getErrorManager()
 {
     return myErrorManager;
 }
 /********************************************************************************************************/
 ROP_FBXNodeManager& 
-ROP_FBXActionManager::getNodeManager(void)
+ROP_FBXActionManager::getNodeManager()
 {
     return myNodeManager;
 }
 /********************************************************************************************************/
 ROP_FBXBaseAction* 
-ROP_FBXActionManager::getCurrentAction(void)
+ROP_FBXActionManager::getCurrentAction()
 {
     return myCurrentAction;
 }
 /********************************************************************************************************/
 ROP_FBXExporter& 
-ROP_FBXActionManager::getExporter(void)
+ROP_FBXActionManager::getExporter()
 {
     return myExporter;
 }

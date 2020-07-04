@@ -49,7 +49,7 @@ ROP_FBXBaseAction::~ROP_FBXBaseAction()
 }
 /********************************************************************************************************/
 ROP_FBXActionManager& 
-ROP_FBXBaseAction::getParentManager(void)
+ROP_FBXBaseAction::getParentManager()
 {
     return myParentManager;
 }
@@ -61,7 +61,7 @@ ROP_FBXBaseAction::setIsActive(bool value)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXBaseAction::getIsActive(void)
+ROP_FBXBaseAction::getIsActive()
 {
     return myIsActive;
 }
@@ -81,19 +81,19 @@ ROP_FBXBaseFbxNodeAction::~ROP_FBXBaseFbxNodeAction()
 }
 /********************************************************************************************************/
 FbxNode* 
-ROP_FBXBaseFbxNodeAction::getActedOnNode(void)
+ROP_FBXBaseFbxNodeAction::getActedOnNode()
 {
     return myActedOnNode;
 }
 /********************************************************************************************************/
 ROP_FBXErrorManager& 
-ROP_FBXBaseFbxNodeAction::getErrorManager(void)
+ROP_FBXBaseFbxNodeAction::getErrorManager()
 {
     return getParentManager().getErrorManager();
 }
 /********************************************************************************************************/
 ROP_FBXNodeManager& 
-ROP_FBXBaseFbxNodeAction::getNodeManager(void)
+ROP_FBXBaseFbxNodeAction::getNodeManager()
 {
     return getParentManager().getNodeManager();
 }

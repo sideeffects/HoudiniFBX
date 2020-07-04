@@ -1391,13 +1391,13 @@ ROP_FBXNodeInfo::setTraveledInputIndex(int idx)
 }
 /********************************************************************************************************/
 int 
-ROP_FBXNodeInfo::getTraveledInputIndex(void)
+ROP_FBXNodeInfo::getTraveledInputIndex()
 {
     return myTravelledIndex;
 }
 /********************************************************************************************************/
 OP_Node* 
-ROP_FBXNodeInfo::getHdNode(void) const
+ROP_FBXNodeInfo::getHdNode() const
 {
     return myHdNode;
 }
@@ -1408,7 +1408,7 @@ ROP_FBXNodeInfo::setHdNode(OP_Node* node)
     myHdNode = node;
 }
 /********************************************************************************************************/
-FbxNode* ROP_FBXNodeInfo::getFbxNode(void) const
+FbxNode* ROP_FBXNodeInfo::getFbxNode() const
 {
     return myFbxNode;
 }
@@ -1419,7 +1419,7 @@ void ROP_FBXNodeInfo::setFbxNode(FbxNode* node)
 }
 /********************************************************************************************************/
 int 
-ROP_FBXNodeInfo::getMaxObjectPoints(void)
+ROP_FBXNodeInfo::getMaxObjectPoints()
 {
     return myMaxObjectPoints;
 }
@@ -1431,7 +1431,7 @@ ROP_FBXNodeInfo::setMaxObjectPoints(int num_points)
 }
 /********************************************************************************************************/
 ROP_FBXVertexCacheMethodType 
-ROP_FBXNodeInfo::getVertexCacheMethod(void)
+ROP_FBXNodeInfo::getVertexCacheMethod()
 {
     return myVertexCacheMethod;
 }
@@ -1443,7 +1443,7 @@ ROP_FBXNodeInfo::setVertexCacheMethod(ROP_FBXVertexCacheMethodType vc_method)
 }
 /********************************************************************************************************/
 ROP_FBXGDPCache* 
-ROP_FBXNodeInfo::getVertexCache(void)
+ROP_FBXNodeInfo::getVertexCache()
 {
     return myVertexCache;
 }
@@ -1455,7 +1455,7 @@ ROP_FBXNodeInfo::setVertexCache(ROP_FBXGDPCache* v_cache)
 }
 /********************************************************************************************************/
 ROP_FBXVisitorResultType 
-ROP_FBXNodeInfo::getVisitResultType(void)
+ROP_FBXNodeInfo::getVisitResultType()
 {
     return myVisitResultType;
 }
@@ -1467,7 +1467,7 @@ ROP_FBXNodeInfo::setVisitResultType(ROP_FBXVisitorResultType res_type)
 }
 /********************************************************************************************************/
 ROP_FBXMainNodeVisitInfo& 
-ROP_FBXNodeInfo::getVisitInfo(void)
+ROP_FBXNodeInfo::getVisitInfo()
 {
     return myVisitInfoCopy;
 }
@@ -1486,7 +1486,7 @@ ROP_FBXNodeInfo::setIsSurfacesOnly(bool value)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXNodeInfo::getIsSurfacesOnly(void)
+ROP_FBXNodeInfo::getIsSurfacesOnly()
 {
     return myIsSurfacesOnly;
 }
@@ -1498,7 +1498,7 @@ ROP_FBXNodeInfo::setSourcePrimitive(int prim_cnt)
 }
 /********************************************************************************************************/
 int
-ROP_FBXNodeInfo::getSourcePrimitive(void)
+ROP_FBXNodeInfo::getSourcePrimitive()
 {
     return mySourcePrim;
 }
@@ -1537,7 +1537,7 @@ ROP_FBXGDPCache::~ROP_FBXGDPCache()
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXGDPCache::getSaveMemory(void)
+ROP_FBXGDPCache::getSaveMemory()
 {
     return mySaveMemory;
 }
@@ -1549,7 +1549,7 @@ ROP_FBXGDPCache::setSaveMemory(bool value)
 }
 /********************************************************************************************************/
 void 
-ROP_FBXGDPCache::clearFrames(void)
+ROP_FBXGDPCache::clearFrames()
 {
     int curr_item, num_items = myFrameItems.size();
     for(curr_item = 0; curr_item < num_items; curr_item++)
@@ -1589,13 +1589,13 @@ ROP_FBXGDPCache::getFrameGeometry(fpreal frame_num)
 }
 /********************************************************************************************************/
 fpreal 
-ROP_FBXGDPCache::getFirstFrame(void)
+ROP_FBXGDPCache::getFirstFrame()
 {
     return myMinFrame;
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXGDPCache::getIsNumPointsConstant(void)
+ROP_FBXGDPCache::getIsNumPointsConstant()
 {
     return (myNumConstantPoints > 0);
 }
@@ -1607,7 +1607,7 @@ ROP_FBXGDPCache::setNumConstantPoints(int num_points)
 }
 /********************************************************************************************************/
 int 
-ROP_FBXGDPCache::getNumConstantPoints(void)
+ROP_FBXGDPCache::getNumConstantPoints()
 {
     return myNumConstantPoints;
 }

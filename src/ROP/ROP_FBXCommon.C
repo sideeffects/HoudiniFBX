@@ -41,7 +41,7 @@ ROP_FBXExportOptions::setSaveMemory(bool value)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::getSaveMemory(void)
+ROP_FBXExportOptions::getSaveMemory()
 {
     return mySaveMemory;
 }
@@ -53,7 +53,7 @@ ROP_FBXExportOptions::setForceBlendShapeExport(bool value)
 }
 /********************************************************************************************************/
 bool
-ROP_FBXExportOptions::getForceBlendShapeExport(void)
+ROP_FBXExportOptions::getForceBlendShapeExport()
 {
     return myForceBlendShapeExport;
 }
@@ -65,13 +65,13 @@ ROP_FBXExportOptions::setForceSkinDeformExport(bool value)
 }
 /********************************************************************************************************/
 bool
-ROP_FBXExportOptions::getForceSkinDeformExport(void)
+ROP_FBXExportOptions::getForceSkinDeformExport()
 {
     return myForceSkinDeformExport;
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::getResampleAllAnimation(void)
+ROP_FBXExportOptions::getResampleAllAnimation()
 {
     return myResampleAllAnimation;
 }
@@ -83,7 +83,7 @@ ROP_FBXExportOptions::setResampleAllAnimation(bool value)
 }
 /********************************************************************************************************/
 fpreal 
-ROP_FBXExportOptions::getResampleIntervalInFrames(void)
+ROP_FBXExportOptions::getResampleIntervalInFrames()
 {
     return myResampleIntervalInFrames;
 }
@@ -101,13 +101,13 @@ ROP_FBXExportOptions::setVertexCacheFormat(ROP_FBXVertexCacheExportFormatType fo
 }
 /********************************************************************************************************/
 ROP_FBXVertexCacheExportFormatType 
-ROP_FBXExportOptions::getVertexCacheFormat(void)
+ROP_FBXExportOptions::getVertexCacheFormat()
 {
     return myVertexCacheFormat;
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::getExportInAscii(void)
+ROP_FBXExportOptions::getExportInAscii()
 {
     return myExportInAscii;
 }
@@ -141,13 +141,13 @@ ROP_FBXExportOptions::setStartNodePath(const char* node_path, bool autohandle_bu
 }
 /********************************************************************************************************/
 const char* 
-ROP_FBXExportOptions::getStartNodePath(void)
+ROP_FBXExportOptions::getStartNodePath()
 {
     return myStartNodePath.c_str();
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::getDetectConstantPointCountObjects(void)
+ROP_FBXExportOptions::getDetectConstantPointCountObjects()
 {
     return myDetectConstantPointCountObjects;
 }
@@ -167,13 +167,13 @@ ROP_FBXExportOptions::setPolyConvertLOD(float lod)
 }
 /********************************************************************************************************/
 float 
-ROP_FBXExportOptions::getPolyConvertLOD(void)
+ROP_FBXExportOptions::getPolyConvertLOD()
 {
     return myPolyConvertLOD;
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::getExportDeformsAsVC(void)
+ROP_FBXExportOptions::getExportDeformsAsVC()
 {
     return myExportDeformsAsVC;
 }
@@ -194,13 +194,13 @@ ROP_FBXExportOptions::setExportTakeName(const char* pcsName)
 }
 /********************************************************************************************************/
 const char* 
-ROP_FBXExportOptions::getExportTakeName(void)
+ROP_FBXExportOptions::getExportTakeName()
 {
     return myExportTakeName.c_str();
 }
 /********************************************************************************************************/
 ROP_FBXInvisibleNodeExportType 
-ROP_FBXExportOptions::getInvisibleNodeExportMethod(void)
+ROP_FBXExportOptions::getInvisibleNodeExportMethod()
 {
     return myInvisibleObjectsExportType;
 }
@@ -218,7 +218,7 @@ ROP_FBXExportOptions::setConvertSurfaces(bool value)
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::getConvertSurfaces(void)
+ROP_FBXExportOptions::getConvertSurfaces()
 {
     return myConvertSurfaces;
 }
@@ -238,7 +238,7 @@ ROP_FBXExportOptions::setVersion(const char* sdk_version)
 }
 /********************************************************************************************************/
 const char* 
-ROP_FBXExportOptions::getVersion(void)
+ROP_FBXExportOptions::getVersion()
 {
     return mySdkVersion.c_str();
 }
@@ -250,13 +250,13 @@ ROP_FBXExportOptions::setBundlesString(const char* bundles)
 }
 /********************************************************************************************************/
 const char* 
-ROP_FBXExportOptions::getBundlesString(void)
+ROP_FBXExportOptions::getBundlesString()
 {
     return myBundleNames.c_str();
 }
 /********************************************************************************************************/
 bool 
-ROP_FBXExportOptions::isExportingBundles(void)
+ROP_FBXExportOptions::isExportingBundles()
 {
     if(myBundleNames.length() > 0)
 	return true;
@@ -265,7 +265,7 @@ ROP_FBXExportOptions::isExportingBundles(void)
 }
 /********************************************************************************************************/
 bool
-ROP_FBXExportOptions::isSopExport(void)
+ROP_FBXExportOptions::isSopExport()
 {
     return mySopExport;
 }
@@ -277,7 +277,7 @@ ROP_FBXExportOptions::setSopExport(const bool& sopexport)
 }
 /********************************************************************************************************/
 bool
-ROP_FBXExportOptions::getExportBonesEndEffectors(void)
+ROP_FBXExportOptions::getExportBonesEndEffectors()
 {
     return myExportBonesEndEffectors;
 }
@@ -301,7 +301,7 @@ ROP_FBXExportOptions::getExportClip(int index)
 }
 /********************************************************************************************************/
 int 
-ROP_FBXExportOptions::getNumExportClips(void)
+ROP_FBXExportOptions::getNumExportClips()
 {
     return myExportClips.size();
 }
