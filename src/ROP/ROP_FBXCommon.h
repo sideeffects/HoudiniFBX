@@ -277,6 +277,12 @@ public:
     void setConvertAxisSystem(bool f) { myConvertAxisSystem = f; }
     /// @}
 
+    /// Should should convert to centimeters on export
+    /// @{
+    bool getConvertUnits() const { return myConvertUnits; }
+    void setConvertUnits(bool f) { myConvertUnits = f; }
+    /// @}
+
 private:
 
     /// Resampling frequency, in frames. A linear key frame will be exported
@@ -358,6 +364,8 @@ private:
 
     ROP_FBXAxisSystemType myAxisSystem = ROP_FBXAxisSystem_YUp_RightHanded;
     bool myConvertAxisSystem = false;
+
+    bool myConvertUnits = false;
 };
 /********************************************************************************************************/
 #endif

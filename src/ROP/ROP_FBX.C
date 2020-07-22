@@ -118,6 +118,7 @@ static PRM_Name		vcTypeName("vcformat", "Vertex Cache Format");
 static PRM_Name		invisObjTypeName("invisobj", "Export Invisible Objects");
 static PRM_Name		axisSystemName("axissystem", "Axis System");
 static PRM_Name		convertAxisName("convertaxis", "Convert to Specified Axis System");
+static PRM_Name		convertUnitsName("convertunits", "Convert Units");
 static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
 static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of Export Time");
@@ -186,6 +187,7 @@ static PRM_Template	 geoTemplates[] = {
                  0, &invisObjMenu),
     PRM_Template(PRM_ORD, 1, &axisSystemName, PRMzeroDefaults, &axisSystemMenu),
     PRM_Template(PRM_TOGGLE, 1, &convertAxisName, PRMzeroDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &convertUnitsName, PRMzeroDefaults),
     PRM_Template(PRM_FLT, 1, &polyLOD, &polyLODDefault, nullptr, &polyLODRange),
     PRM_Template(PRM_TOGGLE, 1, &detectConstPointObjs,
                  &detectConstPointObjsDefault, nullptr),
@@ -243,6 +245,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_INVISOBJ] = *tplates++;
     theTemplate[ROP_FBX_AXISSYSTEM] = *tplates++;
     theTemplate[ROP_FBX_CONVERTAXIS] = *tplates++;
+    theTemplate[ROP_FBX_CONVERTUNITS] = *tplates++;
     theTemplate[ROP_FBX_POLYLOD] = *tplates++;
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = *tplates++;
     theTemplate[ROP_FBX_CONVERTSURFACES] = *tplates++;
@@ -429,6 +432,8 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 
     export_options.setAxisSystem(ROP_FBXAxisSystemType(AXISSYSTEM(tstart)));
     export_options.setConvertAxisSystem(CONVERTAXIS(tstart));
+
+    export_options.setConvertUnits(CONVERTUNITS(tstart));
 
     myFBXExporter.initializeExport((const char*)mySavePath, tstart, tend, &export_options);
     myDidCallExport = false;
