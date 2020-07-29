@@ -460,6 +460,27 @@ ROP_FBXExporter::doExport(void)
                     break;
             }
         }
+
+        if (myExportOptions.getConvertUnits())
+        {
+            // FbxSystemUnit takes scale factor as number of centimeters
+            FbxSystemUnit hou_units(CHgetManager()->getUnitLength() * 100.0);
+            FbxSystemUnit fbx_units = scene_settings.GetSystemUnit();
+            if (hou_units != fbx_units)
+            {
+                UT_ASSERT(fbx_units == FbxSystemUnit::cm);
+
+                scene_settings.SetSystemUnit(hou_units);
+                scene_settings.SetOriginalSystemUnit(hou_units);
+
+                // Unlike the unit conversion on import, default conversion
+                // options are fine here because we currently never create
+                // nodes which have problems.
+                fbx_units.ConvertScene(myScene);
+
+                UT_ASSERT(fbx_units == scene_settings.GetSystemUnit());
+            }
+        }
     }
 }
 /********************************************************************************************************/

@@ -66,6 +66,7 @@ enum {
     ROP_FBX_INVISOBJ,
     ROP_FBX_AXISSYSTEM,
     ROP_FBX_CONVERTAXIS,
+    ROP_FBX_CONVERTUNITS,
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
     ROP_FBX_CONVERTSURFACES,
@@ -191,6 +192,9 @@ private:
 
     bool CONVERTAXIS(fpreal t) const
     { INT_PARM("convertaxis", 0, t) }
+
+    bool CONVERTUNITS(fpreal t) const
+    { INT_PARM("convertunits", 0, t) }
 
     void STARTNODE(UT_String& str)
     { STR_PARM("startnode",  0, 0); }
