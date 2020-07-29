@@ -222,7 +222,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_RENDER] = PRM_Template(
 		PRM_CALLBACK|PRM_TYPE_NOREFRESH|PRM_TYPE_JOIN_NEXT, 
 		PRM_TYPE_NONE, 1, &ropDoRender,
-		0, 0, 0, ROP_Node::doRenderCback, &theRopTakeAlways),
+		0, 0, 0, ROP_Node::doRenderCback, &theRopTakeAlways);
     theTemplate[ROP_FBX_RENDER_CTRL] = theRopTemplates[ROP_RENDERDIALOG_TPLATE];
     theTemplate[ROP_FBX_TRANGE] = theRopTemplates[ROP_TRANGE_TPLATE];
     theTemplate[ROP_FBX_FRANGE] = theRopTemplates[ROP_FRAMERANGE_TPLATE];
@@ -587,10 +587,10 @@ ROP_FBX::buildAxisMenu(
 
     // We must build these matching the ROP_FBXAxisSystemType enum
     int i = 0;
-    setMenu(menu[i++], "yupright", "Y Up (Right-handed)"),
-    setMenu(menu[i++], "yupleft", "Y Up (Left-handed)"),
-    setMenu(menu[i++], "zupright", "Z Up (Right-handed)"),
-    setMenu(menu[i++], "currentup", current_up),
+    setMenu(menu[i++], "yupright", "Y Up (Right-handed)");
+    setMenu(menu[i++], "yupleft", "Y Up (Left-handed)");
+    setMenu(menu[i++], "zupright", "Z Up (Right-handed)");
+    setMenu(menu[i++], "currentup", current_up);
     setMenu(menu[i], nullptr, nullptr);
 }
 
