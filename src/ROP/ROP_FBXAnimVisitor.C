@@ -373,7 +373,7 @@ ROP_FBXAnimVisitor::exportTRSAnimation(
 	ROP_FBX_SPIVOT,
 	ROP_FBX_N
     };
-    SYS_STATIC_ASSERT(SYScountof(hd_names) == SYScountof(props));
+    SYS_STATIC_ASSERT(SYSarraySize(hd_names) == SYSarraySize(props));
 
     const int NUM_COMPONENTS = 3;
     const char* components[NUM_COMPONENTS] =

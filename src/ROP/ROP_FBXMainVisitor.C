@@ -96,6 +96,7 @@
 #include <UT/UT_UniquePtr.h>
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_XformOrder.h>
+#include <SYS/SYS_TypeTraits.h>
 
 
 #ifdef UT_DEBUG
@@ -632,8 +633,8 @@ ROP_FBXMainVisitor::exportFBXTransform(fpreal t, const OBJ_Node *hd_node, FbxNod
 	ROP_FBX_SPIVOT,
 	ROP_FBX_N
     };
-    SYS_STATIC_ASSERT(SYScountof(hd_names) == ROP_FBX_N);
-    SYS_STATIC_ASSERT(SYScountof(hd_names) == SYScountof(props));
+    SYS_STATIC_ASSERT(SYSarraySize(hd_names) == ROP_FBX_N);
+    SYS_STATIC_ASSERT(SYSarraySize(hd_names) == SYSarraySize(props));
 
     const UT_StringHolder &node_type = hd_node->getOperator()->getName();
     const char* UNIFORM_SCALE = "scale";
