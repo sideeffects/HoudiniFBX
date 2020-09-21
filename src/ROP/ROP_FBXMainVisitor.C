@@ -2143,6 +2143,10 @@ inline void ROP_FBXassignValues(const UT_Vector3& hd_vec3, FbxVector2& fbx_vec2,
 {
     fbx_vec2.Set(hd_vec3[0],hd_vec3[1]);
 }
+inline void ROP_FBXassignValues(const UT_Vector2& hd_vec2, FbxVector2& fbx_vec2, float* extra_val)
+{
+    fbx_vec2.Set(hd_vec2[0],hd_vec2[1]);
+}
 inline void ROP_FBXassignValues(const UT_Vector3& hd_col, FbxColor& fbx_col, float* extra_val)
 {
     if(extra_val)
@@ -2395,17 +2399,32 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttrib
 	attr_layer->SetUVs(temp_layer);
 	new_elem = temp_layer;
 
-        GA_ROHandleV3 attrib(attr_offset);
         GA_ROHandleF extra_attrib(extra_attr_offset);
 
-	if(mapping_mode == FbxLayerElement::eByControlPoint)
-	    exportPointAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
-	    exportVertexAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eByPolygon)
-	    exportPrimitiveAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
-	else if(mapping_mode == FbxLayerElement::eAllSame)
-	    exportDetailAttribute<UT_Vector3, FbxVector2>(gdp, attrib, extra_attrib, temp_layer);
+        GA_ROHandleV3 attrib_v3(attr_offset);
+        GA_ROHandleV2 attrib_v2(attr_offset);
+        if (attrib_v3.isValid())
+        {
+            if(mapping_mode == FbxLayerElement::eByControlPoint)
+                exportPointAttribute<UT_Vector3, FbxVector2>(gdp, attrib_v3, extra_attrib, temp_layer);
+            else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
+                exportVertexAttribute<UT_Vector3, FbxVector2>(gdp, attrib_v3, extra_attrib, temp_layer);
+            else if(mapping_mode == FbxLayerElement::eByPolygon)
+                exportPrimitiveAttribute<UT_Vector3, FbxVector2>(gdp, attrib_v3, extra_attrib, temp_layer);
+            else if(mapping_mode == FbxLayerElement::eAllSame)
+                exportDetailAttribute<UT_Vector3, FbxVector2>(gdp, attrib_v3, extra_attrib, temp_layer);
+        }
+        else if (attrib_v2.isValid())
+        {
+            if(mapping_mode == FbxLayerElement::eByControlPoint)
+                exportPointAttribute<UT_Vector2, FbxVector2>(gdp, attrib_v2, extra_attrib, temp_layer);
+            else if(mapping_mode == FbxLayerElement::eByPolygonVertex)
+                exportVertexAttribute<UT_Vector2, FbxVector2>(gdp, attrib_v2, extra_attrib, temp_layer);
+            else if(mapping_mode == FbxLayerElement::eByPolygon)
+                exportPrimitiveAttribute<UT_Vector2, FbxVector2>(gdp, attrib_v2, extra_attrib, temp_layer);
+            else if(mapping_mode == FbxLayerElement::eAllSame)
+                exportDetailAttribute<UT_Vector2, FbxVector2>(gdp, attrib_v2, extra_attrib, temp_layer);
+        }
 
     }
     else if(attr_type == ROP_FBXAttributeVertexColor)
