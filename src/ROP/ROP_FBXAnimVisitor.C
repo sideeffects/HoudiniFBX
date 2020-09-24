@@ -1722,6 +1722,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
 
     struct PathInfo
     {
+        UT_Vector3D     myOrigin{0.0};
         UT_Vector3D     myPrevRot{0.0}; // in radians
         // These next two arrays are indexed in order of S, R, T
         FbxAnimCurve*   myCurves[9];
@@ -1769,6 +1770,10 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
         // Use default XYZ rotation order, with normal parent transform inheritance
         fbx_node->SetRotationActive(false);
         fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
+
+        // We had stashed the origin in the node's destination pivot in
+        // ROP_FBXMainVisitor::outputShapePrimitives()
+        path_info->myOrigin.assign(fbx_node->GetRotationPivot(FbxNode::eDestinationPivot).Buffer());
 
         using FbxDouble3Property = FbxPropertyT<FbxDouble3>;
         FbxDouble3Property* props[] =
@@ -1858,6 +1863,8 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
                 const GA_Primitive *prim = gdp->getPrimitive(primoff);
                 const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
                 packed_prim->getFullTransform4(xform);
+
+                xform.pretranslate(path_info.myOrigin);
             }
             else if (ropHasLocalTransform(*gdp, type_id))
             {

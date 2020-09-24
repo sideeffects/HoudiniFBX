@@ -949,6 +949,7 @@ ROP_FBXMainVisitor::outputShapePrimitives(
 
     // Handle packed primitives
     UT_Matrix4D prim_xform(parent_xform);
+    UT_Vector3D origin(0.0);
     bool has_prim_xform = false;
     if (GU_PrimPacked::hasPackedPrimitives(shape))
     {
@@ -966,6 +967,8 @@ ROP_FBXMainVisitor::outputShapePrimitives(
             const GU_PrimPacked *packed_prim = UTverify_cast<const GU_PrimPacked *>(prim);
 
             packed_prim->getFullTransform4(prim_xform);
+            origin = packed_prim->pivot();
+            prim_xform.pretranslate(origin);
             prim_xform *= parent_xform;
             has_prim_xform = true;
 
@@ -989,6 +992,10 @@ ROP_FBXMainVisitor::outputShapePrimitives(
                 packed_prim->implementation()->unpack(shape, (const UT_Matrix4D*)nullptr);
                 npacked_end = shape.getNumPrimitives();
             }
+
+            UT_Matrix4D translate(1.0);
+            translate.setTranslates(-origin);
+            shape.transform(translate);
         }
 
         // Iteratively unpack all packed prims and delete originals
@@ -1085,6 +1092,11 @@ ROP_FBXMainVisitor::outputShapePrimitives(
             // Use default XYZ rotation order, with normal parent transform inheritance
             fbx_node->SetRotationActive(false);
             fbx_node->SetTransformationInheritType(FbxTransform::eInheritRSrs);
+            // Stash the origin as the _destination pivot_ so that we can
+            // offset by it in ROP_FBXAnimVisitor::exportPackedPrimAnimation().
+            fbx_node->SetPivotState(FbxNode::eDestinationPivot, FbxNode::ePivotReference);
+            fbx_node->SetRotationPivot(FbxNode::eDestinationPivot,
+                                       FbxVector4(origin(0), origin(1), origin(2)));
         }
     }
 
