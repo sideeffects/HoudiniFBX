@@ -251,6 +251,11 @@ ROP_FBXExporter::doExport()
     scene_info->Original_ApplicationVendor.Set("SideFX Software");
     scene_info->Original_ApplicationName.Set("Houdini");
     scene_info->Original_ApplicationVersion.Set(SYS_Version::full());
+    UT_String outfile = myOutputFile.c_str();
+#if _WIN32
+    outfile.substitute("/", "\\");
+#endif
+    scene_info->Original_FileName.Set(outfile.c_str());
     {
         // Add ApplicationActiveProject and ApplicationNativeFile properties
         // despite the fact that there's no native SDK support for them. Both
@@ -286,6 +291,10 @@ ROP_FBXExporter::doExport()
     scene_info->LastSaved_ApplicationVendor.Set("SideFX Software");
     scene_info->LastSaved_ApplicationName.Set("Houdini");
     scene_info->LastSaved_ApplicationVersion.Set(SYS_Version::full());
+
+    auto now = FbxDateTime::currentDateTimeGMT();
+    scene_info->Original_DateTime_GMT.Set(now);
+    scene_info->LastSaved_DateTime_GMT.Set(now);
 
 
     bool exporting_single_frame = !getExportingAnimation();
