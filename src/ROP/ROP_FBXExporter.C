@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -45,12 +45,15 @@
 #include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_Vertex.h>
 
+#include <MOT/MOT_Director.h>
+
 #include <OP/OP_Bundle.h>
 #include <OP/OP_BundleList.h>
 #include <OP/OP_Director.h>
 #include <OP/OP_Network.h>
 #include <OP/OP_Node.h>
 #include <OP/OP_Take.h>
+#include <CH/CH_Manager.h>
 
 #include <TAKE/TAKE_Manager.h>
 #include <TAKE/TAKE_Take.h>
@@ -248,6 +251,37 @@ ROP_FBXExporter::doExport()
     scene_info->Original_ApplicationVendor.Set("SideFX Software");
     scene_info->Original_ApplicationName.Set("Houdini");
     scene_info->Original_ApplicationVersion.Set(SYS_Version::full());
+    {
+        // Add ApplicationActiveProject and ApplicationNativeFile properties
+        // despite the fact that there's no native SDK support for them. Both
+        // Maya and MotionBuilder seem to output them and Eidos Interactive
+        // needed it (Bug #107732).
+        CH_Manager *mgr = CHgetManager();
+        fpreal t = CHgetEvalTime();
+        UT_String job;
+        mgr->expandString("$JOB", job, t);
+        if (job.isstring())
+        {
+#if _WIN32
+            job.substitute("/", "\\");
+#endif
+            FbxPropertyT<FbxString> prop = FbxProperty::Create(
+                    scene_info->Original, FbxStringDT,
+                    "ApplicationActiveProject");
+            prop.Set(job.c_str());
+        }
+        UT_String hipfile;
+        mgr->expandString("$HIPFILE", hipfile, t);
+        if (hipfile.isstring())
+        {
+#if _WIN32
+            hipfile.substitute("/", "\\");
+#endif
+            FbxPropertyT<FbxString> prop = FbxProperty::Create(
+                    scene_info->Original, FbxStringDT, "ApplicationNativeFile");
+            prop.Set(hipfile.c_str());
+        }
+    }
 
     scene_info->LastSaved_ApplicationVendor.Set("SideFX Software");
     scene_info->LastSaved_ApplicationName.Set("Houdini");
