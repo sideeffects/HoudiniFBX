@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -3375,12 +3375,8 @@ ROP_FBXMainVisitor::exportMaterials(OP_Node* source_node, FbxNode* fbx_node, con
     if(main_mat_path.isstring())
 	main_mat_node = source_node->findNode(main_mat_path);
 
-    SOP_Node* sop_node = nullptr;
-    if (myParentExporter->getExportOptions()->isSopExport())
-    {
-        sop_node = dynamic_cast<SOP_Node*>(source_node);
-    }
-    else
+    SOP_Node* sop_node = dynamic_cast<SOP_Node*>(source_node);
+    if (!sop_node)
     {
         OP_Network* src_net = dynamic_cast<OP_Network*>(source_node);
         OP_Node* net_disp_node = nullptr;
