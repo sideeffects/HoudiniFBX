@@ -758,10 +758,18 @@ ROP_FBXMainVisitor::outputBoneNode(OP_Node* node, ROP_FBXMainNodeVisitInfo* node
 	    is_root = true;
     }
 
+    // It appears that Maya 2019 always outputs eLimbNode even for root joints.
+    // Mimic what Maya does by always outputting joints as eLimbNode.  If we
+    // don't, the skin weight information can get rejected when Maya tries to
+    // import a file with eRoot. See bug 111833.
+#if 0
     if(is_root)
 	res_attr->SetSkeletonType(FbxSkeleton::eRoot);
     else
 	res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);//eLimb);
+#else
+    res_attr->SetSkeletonType(FbxSkeleton::eLimbNode);
+#endif
 
     // Get the bone's length
     fpreal bone_length = 0.0;
