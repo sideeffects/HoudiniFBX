@@ -4304,7 +4304,9 @@ ROP_FBXMainVisitor::outputBlendShapeNode(OP_Node* node, const UT_String& node_na
 
 	// Add a blend shape channel for this input
 	UT_String channel_name(node_name, UT_String::ALWAYS_DEEP);
-	channel_name += "_channel";
+        // Don't append _channel. While Maya doesn't use these names, Unreal
+        // uses them instead of the shape names. See bug: 112432
+	//channel_name += "_channel";
 	FbxBlendShapeChannel* blend_shape_channel = FbxBlendShapeChannel::Create(mySDKManager, (const char*)channel_name);
 	if (!blend_shape_channel)
 	    continue;
