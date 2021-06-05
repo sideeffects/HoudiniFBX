@@ -2169,10 +2169,13 @@ inline void ROP_FBXassignValues(const UT_Vector2& hd_vec2, FbxVector2& fbx_vec2,
 }
 inline void ROP_FBXassignValues(const UT_Vector3& hd_col, FbxColor& fbx_col, float* extra_val)
 {
+    // We must directly assign to the member data to avoid clamping.
+    // See bug 113831
+    fbx_col.mRed = hd_col[0];
+    fbx_col.mGreen = hd_col[1];
+    fbx_col.mBlue = hd_col[2];
     if(extra_val)
-	fbx_col.Set(hd_col[0],hd_col[1],hd_col[2],*extra_val);
-    else
-	fbx_col.Set(hd_col[0],hd_col[1],hd_col[2]);
+        fbx_col.mAlpha = *extra_val;
 }
 /********************************************************************************************************/
 template <class HD_TYPE, class FBX_TYPE>
