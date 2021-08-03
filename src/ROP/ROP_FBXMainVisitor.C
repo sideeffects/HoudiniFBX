@@ -3651,6 +3651,30 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 	tex_params.append("basecolor_texture");
     }
 
+    int use_rough_texture = ROP_FBXUtil::getIntOPParm(surf_node, "rough_useTexture", myStartTime);
+    if (use_rough_texture)
+    {
+        FbxProperty prop = fbx_material->FindProperty(FbxSurfaceMaterial::sShininess);
+        if (prop.IsValid())
+        {
+	    fbx_texture = generateFbxTexture(mat_node, 0, "rough_texture", myTexturesMap);
+            if (fbx_texture)
+		prop.ConnectSrcObject(fbx_texture);
+        }
+    }
+
+    int use_reflect_texture = ROP_FBXUtil::getIntOPParm(surf_node, "reflect_useTexture", myStartTime);
+    if (use_reflect_texture)
+    {
+        FbxProperty prop = fbx_material->FindProperty(FbxSurfaceMaterial::sReflection);
+        if (prop.IsValid())
+        {
+	    fbx_texture = generateFbxTexture(mat_node, 0, "reflect_texture", myTexturesMap);
+            if (fbx_texture)
+		prop.ConnectSrcObject(fbx_texture);
+        }
+    }
+
     int num_textures = tex_params.entries();
     if(num_textures == 0)
 	return 0;
