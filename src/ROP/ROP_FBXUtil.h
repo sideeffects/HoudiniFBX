@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -105,6 +105,7 @@ public:
     static bool isDummyBone(OP_Node* bone_node, fpreal ftime);
     static bool isJointNullNode(OP_Node* null_node, fpreal ftime);
 
+    static bool isLODGroupNullNodeName(const char* name);
     static bool isLODGroupNullNode(OP_Node* null_node);
 
     static bool outputCustomProperties(OP_Node* node, FbxObject* fbx_node);

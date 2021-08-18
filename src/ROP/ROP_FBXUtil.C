@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -1002,6 +1002,12 @@ ROP_FBXUtil::isDummyBone(OP_Node* bone_node, fpreal ftime)
 }
 /********************************************************************************************************/
 bool
+ROP_FBXUtil::isLODGroupNullNodeName(const char* name)
+{
+    return UT_StringWrap(name).startsWith("LODGroup", false);
+}
+/********************************************************************************************************/
+bool
 ROP_FBXUtil::isLODGroupNullNode(OP_Node* null_node)
 {
     if (!null_node)
@@ -1022,10 +1028,7 @@ ROP_FBXUtil::isLODGroupNullNode(OP_Node* null_node)
 	    return true;
 
     // Also consider nodes named LODGroup
-    if ( null_node->getName().startsWith("LODGroup", false) )
-	return true;
-
-    return false;
+    return isLODGroupNullNodeName(null_node->getName());
 }
 /********************************************************************************************************/
 bool
