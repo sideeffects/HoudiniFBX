@@ -132,8 +132,6 @@ ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal
 
     FBXwrapAllocators();
 
-    // InitializeSdkObjects(mySDKManager, myScene); ???
-
     // Initialize the fbx scene manager
     mySDKManager = FbxManager::Create();
 
