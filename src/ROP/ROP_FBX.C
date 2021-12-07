@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -417,18 +417,20 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
 	export_options.appendExportClip(clip);
     }
 
-    export_options.setSopExport(sopNode != nullptr);
-
     // Decide whether we can build from path. We allow SOP nodes and Geometry
     // OBJ nodes. Notice that exact match for OBJ_GEOMETRY to disallow things
     // like Null OBJs.
     OP_Node* node = findNode(str_start_node);
     OBJ_Node* obj_node = CAST_OBJNODE(node);
+    if (!obj_node && !sopNode)
+        sopNode = CAST_SOPNODE(node);
     if (sopNode || (obj_node && obj_node->getObjectType() == OBJ_GEOMETRY))
     {
         if (BUILD_FROM_PATH(tstart))
             export_options.setSopExportPathAttrib(PATH_ATTRIB(tstart));
     }
+
+    export_options.setSopExport(sopNode != nullptr);
 
     export_options.setAxisSystem(ROP_FBXAxisSystemType(AXISSYSTEM(tstart)));
     export_options.setConvertAxisSystem(CONVERTAXIS(tstart));
