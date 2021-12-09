@@ -1130,6 +1130,54 @@ namespace {
     };
 }
 /********************************************************************************************************/
+
+/**
+ * Since we can influence the FBX node hierarchy via the path attribute, if a
+ * parent object is transformed and inserted, the children will also be
+ * transformed. This can result in objects being in the incorrect positions. We
+ * fix these incorrect transformations as a post-pass here.
+**/
+void
+ROP_FBXMainVisitor::compensateForParentTransforms(FbxNode *root)
+{
+    UT_ASSERT(root != nullptr);
+
+    UT_Array<FbxNode*> travstack;
+
+    FbxNode *node = root;
+
+    travstack.append(node);
+
+    while (!travstack.isEmpty())
+    {
+	node = travstack.last();
+	travstack.removeLast();
+
+	FbxNode *parent = node->GetParent();
+
+	if (parent != nullptr)
+	{
+	    const FbxAMatrix parentworldmat = parent->EvaluateGlobalTransform();
+	    const FbxAMatrix childlocalmat = node->EvaluateLocalTransform();
+
+	    // Left multiply due to FBX's column vector convention
+	    const FbxAMatrix r = parentworldmat.Inverse() * childlocalmat;
+
+	    node->LclTranslation.Set(r.GetT());
+	    node->LclRotation.Set(r.GetR());
+	    node->LclScaling.Set(r.GetS());
+	}
+
+	const int nchildren = node->GetChildCount(false);
+
+	// Insert in reverse order so that the first child is traversed first
+	for (int i = nchildren; i --> 0;)
+	{
+	    travstack.append(node->GetChild(i));
+	}
+    }
+}
+
 bool
 ROP_FBXMainVisitor::outputSOPNodeByPath(
         FbxNode* fbx_root,
@@ -1274,6 +1322,8 @@ ROP_FBXMainVisitor::outputSOPNodeByPath(
         if (fbx_root && !child->GetParent())
             fbx_root->AddChild(child);
     }
+
+    compensateForParentTransforms(fbx_root);
 
     return true;
 }
