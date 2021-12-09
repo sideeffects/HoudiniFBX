@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -1728,6 +1728,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
         FbxAnimCurve*   myCurves[9];
         int             myLastKeys[9] = { 0 };
         bool            myHasPrimTransform = false;
+        FbxNode*        myNode = nullptr;
 
         void addTransformKey(const FbxTime& fbx_time, const UT_Matrix4D& xform)
         {
@@ -1766,6 +1767,10 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
         path_info = UTmakeUnique<PathInfo>();
 
         FbxNode *fbx_node = info->getFbxNode();
+
+        // Stash the corresponding FBX node here so that we can use it to
+        // compensate for parent transformations later on
+        path_info->myNode = fbx_node;
 
         // Use default XYZ rotation order, with normal parent transform inheritance
         fbx_node->SetRotationActive(false);
@@ -1877,6 +1882,22 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
             }
 
             xform *= parent_xform;
+
+            // Compensate for animated parent transformations
+            FbxNode* fbx_node = path_info.myNode;
+
+            if (fbx_node)
+            {
+                FbxNode* parent_fbx_node = fbx_node->GetParent();
+
+                if (parent_fbx_node)
+                {
+                    UT_Matrix4D parentworldmat(parent_fbx_node->EvaluateGlobalTransform(fbx_time).Double44());
+                    parentworldmat.invert();
+
+                    xform *= parentworldmat;
+                }
+            }
 
             path_info.addTransformKey(fbx_time, xform);
         }
