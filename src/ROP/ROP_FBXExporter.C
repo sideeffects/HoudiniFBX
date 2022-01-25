@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -316,7 +316,6 @@ ROP_FBXExporter::doExport()
 
     if(!exporting_single_frame)
     {
-	// FBX doesn't support arbitrary frame rates.
         // NOTE: Using FbxTime::ConvertFrameRateToTimeMode() seems to not support everything here!
 	fpreal curr_fps = ch_manager->getSamplesPerSec();
 	FbxTime::EMode time_mode = FbxTime::eFrames24;
@@ -349,9 +348,10 @@ ROP_FBXExporter::doExport()
 	else if(SYSisEqual(curr_fps, 59.94))
 	    time_mode = FbxTime::eFrames59dot94;
 	else
-	    myErrorManager->addError("Unsupported scene frame rate found. Defaulting to 24 frames per second.",NULL,NULL,false);
+            time_mode = FbxTime::eCustom;
 	scene_settings.SetTimeMode(time_mode);
-	FbxTime::SetGlobalTimeMode(time_mode, curr_fps);
+        scene_settings.SetCustomFrameRate(curr_fps);     // sets frame rate in the scene
+	FbxTime::SetGlobalTimeMode(time_mode, curr_fps); // governs how time is converted
 
 	fbx_start.SetFrame(CHgetFrameFromTime(myStartTime), time_mode);
 	fbx_stop.SetFrame(CHgetFrameFromTime(myEndTime), time_mode);
