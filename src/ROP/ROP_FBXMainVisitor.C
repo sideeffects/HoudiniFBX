@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -3658,6 +3658,8 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 
     int curr_texture = 0;
     // Look for the ogl_tex params
+    // XXX: This code is pretty much out of date since we've long stopped
+    //      creating ogl_* parms on SHOPs.
     int num_spec_textures = ROP_FBXUtil::getIntOPParm(surf_node, "ogl_numtex", myStartTime);
     for(curr_texture = 0; curr_texture < num_spec_textures; curr_texture++)
     {
@@ -3672,6 +3674,7 @@ ROP_FBXMainVisitor::createTexturesForMaterial(OP_Node* mat_node, FbxSurfaceMater
 
     // Look for other texture parameters:
     // map, tex, texture, map_base, tex_base, map1, tex1, texture1, diffmap
+    // NOTE: This is now the *common* case!
     UT_StringArray poss_tex_params({"map%d", "tex%d", "texture%d"});
     for (int curr_texture = 0; curr_texture < 16; curr_texture++)
     {
@@ -3978,16 +3981,15 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	return NULL;
 
     bool did_find;
-    fpreal temp_col[3];
     bool is_specular = false;
     bool is_principled = false;
 
-    FbxDouble3 temp_fbx_col;
+    FbxDouble3 temp_col;
 
     UT_String mat_name;
     ROP_FBXUtil::getNodeName(mat_node, mat_name, myNodeManager, myStartTime);
 
-    ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 0, &did_find);
+    ROP_FBXUtil::getFloatOPParm(surface_node, "Cs", myStartTime, 0, &did_find);
     if(did_find)
 	is_specular = true;
 
@@ -4020,10 +4022,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "basecolor", myStartTime, 0);
 	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "basecolor", myStartTime, 1);
 	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "basecolor", myStartTime, 2);
-	temp_fbx_col[0] = temp_col[0];
-	temp_fbx_col[1] = temp_col[1];
-	temp_fbx_col[2] = temp_col[2];
-	lamb_new_mat->Diffuse.Set(temp_fbx_col);
+	lamb_new_mat->Diffuse.Set(temp_col);
 
 	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "albedomult", myStartTime, 0);
 	lamb_new_mat->DiffuseFactor.Set(temp_col[0]);
@@ -4032,10 +4031,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "emitcolor", myStartTime, 0);
 	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "emitcolor", myStartTime, 1);
 	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "emitcolor", myStartTime, 2);
-	temp_fbx_col[0] = temp_col[0];
-	temp_fbx_col[1] = temp_col[1];
-	temp_fbx_col[2] = temp_col[2];
-	lamb_new_mat->Emissive.Set(temp_fbx_col);
+	lamb_new_mat->Emissive.Set(temp_col);
 
 	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "emitint", myStartTime, 0);
 	lamb_new_mat->EmissiveFactor.Set(temp_col[0]);
@@ -4043,72 +4039,51 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     else 
     {
 	// Diffuse
-	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", myStartTime, 0);
-	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", myStartTime, 1);
-	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_diff", myStartTime, 2);
-	temp_fbx_col[0] = temp_col[0];
-	temp_fbx_col[1] = temp_col[1];
-	temp_fbx_col[2] = temp_col[2];
-	lamb_new_mat->Diffuse.Set(temp_fbx_col);
-	lamb_new_mat->DiffuseFactor.Set(1.0);
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "Cd", myStartTime, 0);
+	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "Cd", myStartTime, 1);
+	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "Cd", myStartTime, 2);
+	lamb_new_mat->Diffuse.Set(temp_col);
+	lamb_new_mat->DiffuseFactor.Set(
+            ROP_FBXUtil::getFloatOPParm(surface_node, "diffuse_mult", myStartTime, 0));
 
 	// Ambient
-	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", myStartTime, 0);
-	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", myStartTime, 1);
-	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_amb", myStartTime, 2);
-	temp_fbx_col[0] = temp_col[0];
-	temp_fbx_col[1] = temp_col[1];
-	temp_fbx_col[2] = temp_col[2];
-	lamb_new_mat->Ambient.Set(temp_fbx_col);
-	lamb_new_mat->AmbientFactor.Set(1.0);
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "Ca", myStartTime, 0);
+	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "Ca", myStartTime, 1);
+	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "Ca", myStartTime, 2);
+	lamb_new_mat->Ambient.Set(temp_col);
+	lamb_new_mat->AmbientFactor.Set(
+            ROP_FBXUtil::getFloatOPParm(surface_node, "ambient_mult", myStartTime, 0));
 
 	// Emissive
-	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", myStartTime, 0);
-	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", myStartTime, 1);
-	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_emit", myStartTime, 2);
-	temp_fbx_col[0] = temp_col[0];
-	temp_fbx_col[1] = temp_col[1];
-	temp_fbx_col[2] = temp_col[2];
-	lamb_new_mat->Emissive.Set(temp_fbx_col);
-	lamb_new_mat->EmissiveFactor.Set(1.0);
+	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "Ce", myStartTime, 0);
+	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "Ce", myStartTime, 1);
+	temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "Ce", myStartTime, 2);
+	lamb_new_mat->Emissive.Set(temp_col);
+	lamb_new_mat->EmissiveFactor.Set(
+            ROP_FBXUtil::getFloatOPParm(surface_node, "emission_mult", myStartTime, 0));
 
 	if (new_mat)
 	{
 	    // Specular
-	    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 0);
-	    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 1);
-	    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_spec", myStartTime, 2);
-	    temp_fbx_col[0] = temp_col[0];
-	    temp_fbx_col[1] = temp_col[1];
-	    temp_fbx_col[2] = temp_col[2];
-	    new_mat->Specular.Set(temp_fbx_col);
-	    new_mat->SpecularFactor.Set(1.0);
+	    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "Cs", myStartTime, 0);
+	    temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "Cs", myStartTime, 1);
+	    temp_col[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "Cs", myStartTime, 2);
+	    new_mat->Specular.Set(temp_col);
+	    new_mat->SpecularFactor.Set(
+                ROP_FBXUtil::getFloatOPParm(surface_node, "specular_mult", myStartTime, 0));
 
 	    // Shininess
-	    temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "shininess", myStartTime, 0, &did_find);
-	    if (did_find)
-		temp_col[0] /= 100.0;
-	    else
-	    {
-		temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_rough", myStartTime, 0, &did_find);
-		if (!did_find)
-		    temp_col[0] = 1.0;
-	    }
-	    new_mat->Shininess.Set(temp_col[0] * 100.0);
+	    new_mat->Shininess.Set(
+	        ROP_FBXUtil::getFloatOPParm(surface_node, "shininess", myStartTime, 0));
 	}
 
-	// Alpha
-	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "ogl_alpha", myStartTime, 0, &did_find);
-	if (!did_find)
-		temp_col[0] = 1.0;
-	lamb_new_mat->TransparencyFactor.Set(1.0 - temp_col[0]);
-	temp_col[0] = 1.0;
-	temp_col[1] = 1.0;
-	temp_col[2] = 1.0;
-	temp_fbx_col[0] = temp_col[0];
-	temp_fbx_col[1] = temp_col[1];
-	temp_fbx_col[2] = temp_col[2];
-	lamb_new_mat->TransparentColor.Set(temp_fbx_col);
+	// Opacity
+        temp_col[0] = 1.0 - ROP_FBXUtil::getFloatOPParm(surface_node, "opacity", myStartTime, 0);
+        temp_col[1] = 1.0 - ROP_FBXUtil::getFloatOPParm(surface_node, "opacity", myStartTime, 1);
+        temp_col[2] = 1.0 - ROP_FBXUtil::getFloatOPParm(surface_node, "opacity", myStartTime, 2);
+	lamb_new_mat->TransparentColor.Set(temp_col);
+	lamb_new_mat->TransparencyFactor.Set(
+            ROP_FBXUtil::getFloatOPParm(surface_node, "opacity_mult", myStartTime, 0));
     }
 
     // Add the new material to our map
