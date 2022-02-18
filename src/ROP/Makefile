@@ -30,9 +30,6 @@ INCDIRS = \
         -I$(HFS)/toolkit/include \
         -I$(HFS)/toolkit/include/fbx
 
-# These are needed for FBX SDK to link properly	
-INCEXTRA = -DK_PLUGIN -DK_FBXSDK -DK_NODLL
-
 HDEFINES += -DEXPORT_FBX
 
 #ifdef MBSD
