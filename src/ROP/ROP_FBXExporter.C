@@ -45,6 +45,8 @@
 #include <GEO/GEO_Primitive.h>
 #include <GEO/GEO_Vertex.h>
 
+#include <FBX/FBX_AllocWrapper.h>
+
 #include <MOT/MOT_Director.h>
 
 #include <OP/OP_Bundle.h>
@@ -127,6 +129,8 @@ ROP_FBXExporter::initializeExport(const char* output_name, fpreal tstart, fpreal
 
     myNodeManager = new ROP_FBXNodeManager;
     myActionManager = new ROP_FBXActionManager(*myNodeManager, *myErrorManager, *this);
+
+    FBXwrapAllocators();
 
     // Initialize the fbx scene manager
     mySDKManager = FbxManager::Create();
@@ -812,6 +816,8 @@ void
 ROP_FBXExporter::getVersions(TStringVector& versions_out)
 {
     versions_out.clear();
+
+    FBXwrapAllocators();
 
     FbxManager* tempSDKManager = FbxManager::Create();
     if(!tempSDKManager)
