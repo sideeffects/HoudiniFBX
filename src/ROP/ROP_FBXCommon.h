@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -277,7 +277,7 @@ public:
     void setConvertAxisSystem(bool f) { myConvertAxisSystem = f; }
     /// @}
 
-    /// Should should convert to centimeters on export
+    /// Should convert to centimeters on export?
     /// @{
     bool getConvertUnits() const { return myConvertUnits; }
     void setConvertUnits(bool f) { myConvertUnits = f; }
