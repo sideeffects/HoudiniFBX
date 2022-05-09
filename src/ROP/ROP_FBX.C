@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -125,6 +125,7 @@ static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of E
 static PRM_Name		forceBlendShape("forceblendshape", "Force Blend Shape Export");
 static PRM_Name		forceSkinDeform("forceskindeform", "Force Skin Deform Export");
 static PRM_Name		exportEndEffectors("exportendeffectors", "Export End Effectors");
+static PRM_Name		embedMedia("embedmedia", "Embed Media");
 
 static PRM_Range	polyLODRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5);
 
@@ -141,6 +142,7 @@ static PRM_Default	polyLODDefault(1.0);
 static PRM_Default	startNodeDefault(0, "/obj");
 static PRM_Default	sopOutputDefault(0, "$HIP/out.fbx");
 static PRM_Default	exportEndEffectorsDefault(1);
+static PRM_Default	embedMediaDefault(0);
 static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 					 &ROP_FBX::buildGeoSaveMenu);
 
@@ -201,6 +203,7 @@ static PRM_Template	 geoTemplates[] = {
                  nullptr),
     PRM_Template(PRM_TOGGLE, 1, &exportEndEffectors, &exportEndEffectorsDefault,
                  nullptr),
+    PRM_Template(PRM_TOGGLE, 1, &embedMedia, &embedMediaDefault, nullptr),
     PRM_Template(PRM_TOGGLE, 1, &exportClips, &exportClipsDefault, nullptr),
     PRM_Template(PRM_MULTITYPE_LIST, theMultiClipsTemplate, 2, &numclips),
 };
@@ -254,6 +257,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_FORCEBLENDSHAPE] = *tplates++;
     theTemplate[ROP_FBX_FORCESKINDEFORM] = *tplates++;
     theTemplate[ROP_FBX_EXPORTENDEFFECTORS] = *tplates++;
+    theTemplate[ROP_FBX_EMBEDMEDIA] = *tplates++;
     theTemplate[ROP_FBX_EXPORTCLIPS] = *tplates++;
     theTemplate[ROP_FBX_NUMCLIPS] = *tplates++;
     switcherDefs[0].setOrdinal(tplates - page_start);
@@ -402,6 +406,7 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setCreateSubnetRoot(create_subnet_root);
     export_options.setConvertSurfaces(CONVERTSURFACES());
     export_options.setExportBonesEndEffectors(EXPORTENDEFFECTORS());
+    export_options.setEmbedMedia(EMBEDMEDIA());
 
     int num_clips = NUM_CLIPS(tstart);
     for (int i = 1; i <= num_clips; ++i)

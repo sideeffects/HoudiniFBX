@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -75,6 +75,7 @@ enum {
     ROP_FBX_FORCEBLENDSHAPE,
     ROP_FBX_FORCESKINDEFORM,
     ROP_FBX_EXPORTENDEFFECTORS,
+    ROP_FBX_EMBEDMEDIA,
     ROP_FBX_EXPORTCLIPS,
     ROP_FBX_NUMCLIPS,
 
@@ -180,6 +181,9 @@ private:
 
     int EXPORTENDEFFECTORS()
     { INT_PARM("exportendeffectors", 0, 0) }
+
+    int EMBEDMEDIA()
+    { INT_PARM("embedmedia", 0, 0) }
 
     int VCFORMAT()
     { INT_PARM("vcformat", 0, 0) }
