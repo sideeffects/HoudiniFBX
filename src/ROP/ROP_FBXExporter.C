@@ -608,6 +608,10 @@ ROP_FBXExporter::finishExport()
 	if(fbx_exporter->Initialize(myOutputFile.c_str(), out_file_format, mySDKManager->GetIOSettings()) == false)
 	    return false;
 
+	// Embed media if option is enabled via the UI
+	FbxIOSettings* io_settings = fbx_exporter->GetIOSettings();
+	io_settings->SetBoolProp(EXP_FBX_EMBEDDED, myExportOptions.getEmbedMedia());
+
 	// Export the scene.
 	bSuccess = fbx_exporter->Export(myScene);
 	if (!bSuccess)

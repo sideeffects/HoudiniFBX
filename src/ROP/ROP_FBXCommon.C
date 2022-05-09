@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -286,6 +286,18 @@ void
 ROP_FBXExportOptions::setExportBonesEndEffectors(const bool& export_end_effectors)
 {
     myExportBonesEndEffectors = export_end_effectors;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXExportOptions::getEmbedMedia()
+{
+    return myEmbedMedia;
+}
+/********************************************************************************************************/
+void
+ROP_FBXExportOptions::setEmbedMedia(const bool& embed_media)
+{
+    myEmbedMedia = embed_media;
 }
 /********************************************************************************************************/
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -241,11 +241,17 @@ public:
     /// If true, Indicates that the export is being called from a SOP network
     void setSopExport(const bool& sopexport);
 
-    /// Indicates weither or not we want to export bones end effectors
+    /// Indicates wether or not we want to export bones end effectors
     bool getExportBonesEndEffectors();
 
-    /// Indicates weither or not we want to export bones end effectors
+    /// Indicates wether or not we want to export bones end effectors
     void setExportBonesEndEffectors(const bool& export_end_effectors);
+
+    /// Indicates wether or not we want to embed media (textures, sound, movies, etc) during export
+    bool getEmbedMedia();
+
+    /// Indicates wether or not we want to embed media (textures, sound, movies, etc) during export
+    void setEmbedMedia(const bool& embed_media);
 
     /// Adds an Export Clip to the list 
     void appendExportClip(ROP_FBXExportClip take);
@@ -354,8 +360,11 @@ private:
     /// Indicates that the export is being called from a SOP network
     bool mySopExport = false;
 
-    /// Indicates weither or not we want to export bones end effectors
+    /// Indicates wether or not we want to export bones end effectors
     bool myExportBonesEndEffectors = true;
+
+    /// Indicates wether or not we want to embed media (textures, sound, movies, etc) during export
+    bool myEmbedMedia = false;
 
 	// Exports animation clips (frame range tags) into the FBX 
     UT_Array<ROP_FBXExportClip> myExportClips;
