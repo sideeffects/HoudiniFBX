@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -256,8 +256,14 @@ private:
     bool isTexturePresent(OP_Node* mat_node, UT_StringRef text_parm_name, UT_String* texture_path_out);
 
     ROP_FBXAttributeType getAttrTypeByName(const GU_Detail* gdp, const char* attr_name);
-    FbxLayerElement* getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttributeType attr_type, 
-	const GU_Detail* gdp, const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset,  FbxLayerElement::EMappingMode mapping_mode, FbxLayerContainer* layer_container);
+    FbxLayerElement* getAndSetFBXLayerElement(
+            FbxLayer* attr_layer,
+            ROP_FBXAttributeType attr_type,
+            const GU_Detail* gdp,
+            const GA_ROAttributeRef& attr_offset,
+            const GA_ROAttributeRef& extra_attr_offset,
+            FbxLayerElement::EMappingMode mapping_mode,
+            FbxMesh* layer_container);
 
     void setFbxNodeVisibility(FbxNode &node, OP_Node *hd_node, bool visible);
 

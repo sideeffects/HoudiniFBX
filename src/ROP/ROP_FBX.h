@@ -76,6 +76,7 @@ enum {
     ROP_FBX_FORCESKINDEFORM,
     ROP_FBX_EXPORTENDEFFECTORS,
     ROP_FBX_EMBEDMEDIA,
+    ROP_FBX_COMPUTESMOOTHINGGROUPS,
     ROP_FBX_EXPORTCLIPS,
     ROP_FBX_NUMCLIPS,
 
@@ -184,6 +185,9 @@ private:
 
     int EMBEDMEDIA()
     { INT_PARM("embedmedia", 0, 0) }
+
+    int COMPUTESMOOTHINGGROUPS()
+    { INT_PARM("computesmoothinggroups", 0, 0) }
 
     int VCFORMAT()
     { INT_PARM("vcformat", 0, 0) }

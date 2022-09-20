@@ -2410,9 +2410,14 @@ void exportDetailAttribute(const GU_Detail *gdp, const GA_ROHandleT<HD_TYPE> &at
 }
 /********************************************************************************************************/
 FbxLayerElement* 
-ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttributeType attr_type, const GU_Detail* gdp,
-					     const GA_ROAttributeRef &attr_offset, const GA_ROAttributeRef &extra_attr_offset,
-					     FbxLayerElement::EMappingMode mapping_mode, FbxLayerContainer* layer_container)
+ROP_FBXMainVisitor::getAndSetFBXLayerElement(
+        FbxLayer* attr_layer,
+        ROP_FBXAttributeType attr_type,
+        const GU_Detail* gdp,
+        const GA_ROAttributeRef& attr_offset,
+        const GA_ROAttributeRef& extra_attr_offset,
+        FbxLayerElement::EMappingMode mapping_mode,
+        FbxMesh* layer_container)
 {
     FbxLayerElement::EReferenceMode ref_mode;
 
@@ -2439,6 +2444,16 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(FbxLayer* attr_layer, ROP_FBXAttrib
             nml_layer->SetReferenceMode(ref_mode);
             attr_layer->SetNormals(nml_layer);
             temp_layer = nml_layer;
+
+            // Compute smoothing group info from normals
+            if (myParentExporter->getExportOptions()->getComputeSmoothingGroups())
+            {
+                FbxGeometryConverter converter(mySDKManager);
+                // If you want to get smoothing group info, you must first
+                // compute soft/hard edge info
+                converter.ComputeEdgeSmoothingFromNormals(layer_container);
+                converter.ComputePolygonSmoothingFromEdgeSmoothing(layer_container);
+            }
         }
         else if (attr_type == ROP_FBXAttributeTangent)
         {
