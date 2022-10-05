@@ -2185,6 +2185,31 @@ ROP_FBXMainVisitor::outputPolygons(
     // Now do attributes, or at least some of them
     exportAttributes(gdp, mesh_attr);
 
+    // Compute smoothing group info from mesh normals
+    if (myParentExporter->getExportOptions()->getComputeSmoothingGroups())
+    {
+        FbxGeometryConverter converter(mySDKManager);
+        // If you want to get smoothing group info, you must first
+        // compute soft/hard edge info
+        if (converter.ComputeEdgeSmoothingFromNormals(mesh_attr))
+        {
+            if (!converter.ComputePolygonSmoothingFromEdgeSmoothing(mesh_attr))
+            {
+                UT_WorkBuffer msg;
+                msg.format("Failed to compute smoothing group "
+                           "information");
+                myErrorManager->addError(msg.buffer());
+            }
+        }
+        else
+        {
+            UT_WorkBuffer msg;
+            msg.format("Failed to compute soft/hard edge info "
+                       "used to convert to smoothing group information");
+            myErrorManager->addError(msg.buffer());
+        }
+    }
+
     // Create corresponding FbxNode
     finalizeGeoNode(mesh_attr, skin_deform_node, capture_frame, -1, res_nodes);
 }

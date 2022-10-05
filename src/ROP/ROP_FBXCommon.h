@@ -253,6 +253,12 @@ public:
     /// Indicates wether or not we want to embed media (textures, sound, movies, etc) during export
     void setEmbedMedia(const bool& embed_media);
 
+    /// Indicates wether or not we want to compute smoothing group info during export
+    bool getComputeSmoothingGroups();
+
+    /// Indicates wether or not we want to compute smoothing group info during export
+    void setComputeSmoothingGroups(const bool& compute_smoothing_groups);
+
     /// Adds an Export Clip to the list 
     void appendExportClip(ROP_FBXExportClip take);
 
@@ -366,7 +372,10 @@ private:
     /// Indicates wether or not we want to embed media (textures, sound, movies, etc) during export
     bool myEmbedMedia = false;
 
-	// Exports animation clips (frame range tags) into the FBX 
+    /// Indicates wether or not we want to compute smoothing group info during export
+    bool myComputeSmoothingGroups = false;
+
+    // Exports animation clips (frame range tags) into the FBX 
     UT_Array<ROP_FBXExportClip> myExportClips;
 
     UT_StringHolder mySopExportPathAttrib = "";

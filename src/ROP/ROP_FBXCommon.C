@@ -300,6 +300,18 @@ ROP_FBXExportOptions::setEmbedMedia(const bool& embed_media)
     myEmbedMedia = embed_media;
 }
 /********************************************************************************************************/
+bool
+ROP_FBXExportOptions::getComputeSmoothingGroups()
+{
+    return myComputeSmoothingGroups;
+}
+/********************************************************************************************************/
+void
+ROP_FBXExportOptions::setComputeSmoothingGroups(const bool& compute_smoothing_groups)
+{
+    myComputeSmoothingGroups = compute_smoothing_groups;
+}
+/********************************************************************************************************/
 void
 ROP_FBXExportOptions::appendExportClip(ROP_FBXExportClip clip)
 {
