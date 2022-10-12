@@ -148,12 +148,9 @@ static PRM_Default	computeSmoothingGroupsDefault(0);
 static PRM_ChoiceList	sopOutputMenu(PRM_CHOICELIST_REPLACE,
 					 &ROP_FBX::buildGeoSaveMenu);
 
-static PRM_ChoiceList	vcTypeMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
-				| PRM_CHOICELIST_REPLACE), vcType);
-static PRM_ChoiceList	skdVersionsMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
-				   | PRM_CHOICELIST_REPLACE), &ROP_FBX::buildVersionsMenu);
-static PRM_ChoiceList	invisObjMenu((PRM_ChoiceListType)(PRM_CHOICELIST_EXCLUSIVE
-				   | PRM_CHOICELIST_REPLACE), invisObj);
+static PRM_ChoiceList	vcTypeMenu(PRM_CHOICELIST_SINGLE, vcType);
+static PRM_ChoiceList	skdVersionsMenu(PRM_CHOICELIST_SINGLE, &ROP_FBX::buildVersionsMenu);
+static PRM_ChoiceList	invisObjMenu(PRM_CHOICELIST_SINGLE, invisObj);
 static PRM_ChoiceList	axisSystemMenu(PRM_CHOICELIST_SINGLE, &ROP_FBX::buildAxisMenu);
 
 static PRM_Name switcherName("switcher", "");
