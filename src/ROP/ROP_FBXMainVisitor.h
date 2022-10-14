@@ -263,7 +263,7 @@ private:
             const GA_ROAttributeRef& attr_offset,
             const GA_ROAttributeRef& extra_attr_offset,
             FbxLayerElement::EMappingMode mapping_mode,
-            FbxMesh* layer_container);
+            FbxLayerContainer* layer_container);
 
     void setFbxNodeVisibility(FbxNode &node, OP_Node *hd_node, bool visible);
 

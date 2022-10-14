@@ -2189,7 +2189,7 @@ ROP_FBXMainVisitor::outputPolygons(
     if (myParentExporter->getExportOptions()->getComputeSmoothingGroups())
     {
         FbxGeometryConverter converter(mySDKManager);
-	// If you want to get smoothing group info, you must first
+        // If you want to get smoothing group info, you must first
         // compute soft/hard edge info
         if (converter.ComputeEdgeSmoothingFromNormals(mesh_attr))
         {
@@ -2201,13 +2201,13 @@ ROP_FBXMainVisitor::outputPolygons(
                 myErrorManager->addError(msg.buffer());
             }
         }
-	else
-	{
+        else
+        {
             UT_WorkBuffer msg;
             msg.format("Failed to compute soft/hard edge info "
                        "used to convert to smoothing group information");
             myErrorManager->addError(msg.buffer());
-	}
+        }
     }
 
     // Create corresponding FbxNode
@@ -2442,7 +2442,7 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
         const GA_ROAttributeRef& attr_offset,
         const GA_ROAttributeRef& extra_attr_offset,
         FbxLayerElement::EMappingMode mapping_mode,
-        FbxMesh* layer_container)
+        FbxLayerContainer* layer_container)
 {
     FbxLayerElement::EReferenceMode ref_mode;
 
