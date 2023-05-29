@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -40,43 +40,30 @@ using namespace std;
 
 /********************************************************************************************************/
 ROP_FBXExporterWrapper::ROP_FBXExporterWrapper()
+    : myFBXExporter(UTmakeUnique<ROP_FBXExporter>())
 {
-    myFBXExporter = new ROP_FBXExporter();
 }
 /********************************************************************************************************/
 ROP_FBXExporterWrapper::~ROP_FBXExporterWrapper()
 {
-    delete myFBXExporter;
-    myFBXExporter = NULL;
 }
 /********************************************************************************************************/
 bool 
 ROP_FBXExporterWrapper::initializeExport(const char* output_name, fpreal tstart, fpreal tend, ROP_FBXExportOptions* options)
 {
-    if(myFBXExporter)
-	return myFBXExporter->initializeExport(output_name, tstart, tend, options);
-    else
-    {
-	if(this->getErrorManager())
-	    this->getErrorManager()->addError("FBX export is not supported in Houdini Apprentice.", true);
-	return false;
-    }
+    return myFBXExporter->initializeExport(output_name, tstart, tend, options);
 }
 /********************************************************************************************************/
 void 
 ROP_FBXExporterWrapper::doExport()
 {
-    if(myFBXExporter)
-	myFBXExporter->doExport();
+    myFBXExporter->doExport();
 }
 /********************************************************************************************************/
 bool 
 ROP_FBXExporterWrapper::finishExport()
 {
-    if(myFBXExporter)
-	return myFBXExporter->finishExport();
-    else
-	return false;
+    return myFBXExporter->finishExport();
 }
 /********************************************************************************************************/
 ROP_FBXErrorManager* 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -34,6 +34,8 @@
 
 #include "ROP_FBXCommon.h"
 #include "ROP_FBXErrorManager.h"
+#include <UT/UT_NonCopyable.h>
+#include <UT/UT_UniquePtr.h>
 
 #ifdef FBX_ENABLED
 
@@ -44,6 +46,8 @@ class ROP_FBXExporterWrapper
 public:
     ROP_FBXExporterWrapper();
     ~ROP_FBXExporterWrapper();
+
+    UT_NON_COPYABLE(ROP_FBXExporterWrapper)
 
     // These are responsible for the actual conversion process.
     /// This function must be called before doExport() is to initialize the exporter.
@@ -69,8 +73,7 @@ public:
     static void getVersions(TStringVector& versions_out);
 
 private:
-
-    ROP_FBXExporter* myFBXExporter;
+    UT_UniquePtr<ROP_FBXExporter> myFBXExporter;
 };
 /********************************************************************************************************/
 #else // FBX_ENABLED
