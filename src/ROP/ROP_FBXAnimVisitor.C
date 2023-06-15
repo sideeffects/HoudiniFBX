@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -783,7 +783,27 @@ ROP_FBXAnimVisitor::exportChannel(FbxAnimCurve* fbx_anim_curve, OP_Node* source_
 	    if(next_seg)
 	    { 
 	        UT_String str_expression = next_seg->getCHExpr()->getExpression();
-		if(str_expression == "bezier()" || str_expression == "cubic()")
+
+                // FBX doesn't support acceleration values that make the
+                // control point go past the next key
+                bool bezier_valid = true;
+                if (str_expression == "bezier()")
+                {
+                    if (full_key.k[0].myVValid[CH_ACCEL] && full_key.k[0].myVValid[CH_SLOPE])
+                    {
+                        CH_Segment *prev_seg = next_seg->getPrev();
+                        if (prev_seg && prev_seg->getOutAccelRatio() > 1)
+                            bezier_valid = false;
+                    }
+                    if (full_key.k[1].myVValid[CH_ACCEL] && full_key.k[1].myVValid[CH_SLOPE])
+                    {
+                        if (next_seg->getInAccelRatio() > 1)
+                            bezier_valid = false;
+                    }
+                }
+
+		if((str_expression == "bezier()" && bezier_valid) ||
+                    str_expression == "cubic()")
 		{
 		    fbx_anim_curve->KeySetInterpolation(fbx_key_idx, FbxAnimCurveDef::eInterpolationCubic);
 		    if(full_key.k[0].myVTied[CH_SLOPE] || full_key.k[1].myVTied[CH_SLOPE])
