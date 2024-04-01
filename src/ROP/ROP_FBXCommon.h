@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -192,6 +192,12 @@ public:
     /// Determines how invisible objects are to be exported.
     void setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type);
 
+    /// If true, the curve type and object count will not be added to the name of curve
+    /// primitives as a suffix on export.
+    void setPreserveCurveNames(bool value);
+    /// If true, the curve type and object count will not be added to the name
+    /// of curve primitives as a suffix on export.
+    bool getPreserveCurveNames();
     /// If true, NURBS and Bezier surfaces will be converted to polygons on export.
     void setConvertSurfaces(bool value);
     /// If true, NURBS and Bezier surfaces will be converted to polygons on export.
@@ -342,6 +348,10 @@ private:
 
     /// If true, NURBS and Bezier surfaces will be converted to polygons on export.
     bool myConvertSurfaces = false;
+
+    /// If true, the curve type and object count will not be added to the name
+    /// of curve primitives as a suffix on export.
+    bool myPreserveCurveNames = false;
 
     /// Specifies which version of the SDK to use for export. Defaults to an empty string,
     ///	meaning the most current version.
