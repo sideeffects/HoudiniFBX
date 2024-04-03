@@ -212,15 +212,15 @@ ROP_FBXExportOptions::setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportTyp
 }
 /********************************************************************************************************/
 void
-ROP_FBXExportOptions::setPreserveCurveNames(bool value)
+ROP_FBXExportOptions::setPreserveShapeNames(bool value)
 {
-    myPreserveCurveNames = value;
+    myPreserveShapeNames = value;
 }
 /********************************************************************************************************/
 bool
-ROP_FBXExportOptions::getPreserveCurveNames()
+ROP_FBXExportOptions::getPreserveShapeNames()
 {
-    return myPreserveCurveNames;
+    return myPreserveShapeNames;
 }
 /********************************************************************************************************/
 void 

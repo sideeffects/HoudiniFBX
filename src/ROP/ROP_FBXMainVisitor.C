@@ -1546,9 +1546,8 @@ void
 ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
 					 int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_bezier_surf";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
     GU_Detail copy_gdp;
@@ -1578,10 +1577,11 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
 	    continue;
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+        if (!keep_original_name)
+            curr_name.appendFormat("_bezier_surf{}", obj_cntr);
 
-	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+	obj_cntr++;
+	outputSingleNURBSSurface(hd_nurb, curr_name.buffer(), skin_deform_node, capture_frame, res_nodes, prim_cnt);
         skin_deform_node = nullptr;
     }
 
@@ -1593,7 +1593,7 @@ void
 ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame,
 				       TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveCurveNames();
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
     UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
@@ -1638,7 +1638,7 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 void 
 ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes)
 {
-    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveCurveNames();
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
     UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
@@ -1698,7 +1698,7 @@ void
 ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
 				      int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveCurveNames();
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
     UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
     FbxNurbsCurve *nurbs_curve_attr;
@@ -1892,9 +1892,8 @@ void
 ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node,
 					int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_nurbs_surf";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
     const GEO_Primitive* prim;
@@ -1936,10 +1935,11 @@ ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_n
 	const GU_PrimNURBSurf* hd_nurb = static_cast<const GU_PrimNURBSurf*>(prim);
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+        if (!keep_original_name)
+            curr_name.appendFormat("_nurbs_surf{}", obj_cntr);
 
-	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+	obj_cntr++;
+	outputSingleNURBSSurface(hd_nurb, curr_name.buffer(), skin_deform_node, capture_frame, res_nodes, prim_cnt);
         skin_deform_node = nullptr;
 
     }

@@ -120,7 +120,7 @@ static PRM_Name		axisSystemName("axissystem", "Axis System");
 static PRM_Name		convertAxisName("convertaxis", "Convert to Specified Axis System");
 static PRM_Name		convertUnitsName("convertunits", "Convert Units");
 static PRM_Name		convertSurfacesName("convertsurfaces", "Convert NURBS and Bezier Surfaces to Polygons");
-static PRM_Name		preserveCurveNames("preservecurvenames", "Preserve Names of Curve Primitives");
+static PRM_Name		preserveShapeNames("preserveshapenames", "Preserve Names of Shape Primitives");
 static PRM_Name		sdkVersionName("sdkversion", "FBX SDK Version");
 static PRM_Name		conserveMem("conservemem", "Conserve Memory at the Expense of Export Time");
 static PRM_Name		forceBlendShape("forceblendshape", "Force Blend Shape Export");
@@ -137,7 +137,7 @@ static PRM_Default	exportClipsDefault(0);
 static PRM_Default	detectConstPointObjsDefault(1);
 static PRM_Default	deformsAsVcsDefault(0);
 static PRM_Default	convertSurfacesDefault(0);
-static PRM_Default	preserveCurveNamesDefault(0);
+static PRM_Default	preserveShapeNamesDefault(0);
 static PRM_Default	conserveMemDefault(0);
 static PRM_Default	forceBlendShapeDefault(0);
 static PRM_Default	forceSkinDeformDefault(0);
@@ -196,7 +196,7 @@ static PRM_Template	 geoTemplates[] = {
                  &detectConstPointObjsDefault, nullptr),
     PRM_Template(PRM_TOGGLE, 1, &convertSurfacesName, &convertSurfacesDefault,
                  nullptr),
-    PRM_Template(PRM_TOGGLE, 1, &preserveCurveNames, &preserveCurveNamesDefault,
+    PRM_Template(PRM_TOGGLE, 1, &preserveShapeNames, &preserveShapeNamesDefault,
                  nullptr),
     PRM_Template(PRM_TOGGLE, 1, &conserveMem, &conserveMemDefault, nullptr),
     PRM_Template(PRM_TOGGLE, 1, &deformsAsVcs, &deformsAsVcsDefault, nullptr),
@@ -256,7 +256,7 @@ ROP_FBX::getTemplates()
     theTemplate[ROP_FBX_POLYLOD] = *tplates++;
     theTemplate[ROP_FBX_DETECTCONSTPOINTOBJS] = *tplates++;
     theTemplate[ROP_FBX_CONVERTSURFACES] = *tplates++;
-    theTemplate[ROP_FBX_PRESERVECURVENAMES] = *tplates++;
+    theTemplate[ROP_FBX_PRESERVESHAPENAMES] = *tplates++;
     theTemplate[ROP_FBX_CONSERVEMEM] = *tplates++;
     theTemplate[ROP_FBX_DEFORMSASVCS] = *tplates++;
     theTemplate[ROP_FBX_FORCEBLENDSHAPE] = *tplates++;
@@ -411,7 +411,7 @@ ROP_FBX::startRender(int /*nframes*/, fpreal tstart, fpreal tend)
     export_options.setStartNodePath((const char*)str_start_node, true);
     export_options.setCreateSubnetRoot(create_subnet_root);
     export_options.setConvertSurfaces(CONVERTSURFACES());
-    export_options.setPreserveCurveNames(PRESERVECURVENAMES());
+    export_options.setPreserveShapeNames(PRESERVESHAPENAMES());
     export_options.setExportBonesEndEffectors(EXPORTENDEFFECTORS());
     export_options.setEmbedMedia(EMBEDMEDIA());
     export_options.setComputeSmoothingGroups(COMPUTESMOOTHINGGROUPS());

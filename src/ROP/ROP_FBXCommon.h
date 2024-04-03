@@ -192,12 +192,12 @@ public:
     /// Determines how invisible objects are to be exported.
     void setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type);
 
-    /// If true, the curve type and object count will not be added to the name of curve
+    /// If true, the type and object count will not be added to the name of shape
     /// primitives as a suffix on export.
-    void setPreserveCurveNames(bool value);
-    /// If true, the curve type and object count will not be added to the name
-    /// of curve primitives as a suffix on export.
-    bool getPreserveCurveNames();
+    void setPreserveShapeNames(bool value);
+    /// If true, the type and object count will not be added to the name
+    /// of shape primitives as a suffix on export.
+    bool getPreserveShapeNames();
     /// If true, NURBS and Bezier surfaces will be converted to polygons on export.
     void setConvertSurfaces(bool value);
     /// If true, NURBS and Bezier surfaces will be converted to polygons on export.
@@ -349,9 +349,9 @@ private:
     /// If true, NURBS and Bezier surfaces will be converted to polygons on export.
     bool myConvertSurfaces = false;
 
-    /// If true, the curve type and object count will not be added to the name
-    /// of curve primitives as a suffix on export.
-    bool myPreserveCurveNames = false;
+    /// If true, the type and object count will not be added to the name
+    /// of shape primitives as a suffix on export.
+    bool myPreserveShapeNames = false;
 
     /// Specifies which version of the SDK to use for export. Defaults to an empty string,
     ///	meaning the most current version.
