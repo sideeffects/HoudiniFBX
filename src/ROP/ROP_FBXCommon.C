@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -209,6 +209,18 @@ void
 ROP_FBXExportOptions::setInvisibleNodeExportMethod(ROP_FBXInvisibleNodeExportType exp_type)
 {
     myInvisibleObjectsExportType = exp_type;
+}
+/********************************************************************************************************/
+void
+ROP_FBXExportOptions::setPreserveShapeNames(bool value)
+{
+    myPreserveShapeNames = value;
+}
+/********************************************************************************************************/
+bool
+ROP_FBXExportOptions::getPreserveShapeNames()
+{
+    return myPreserveShapeNames;
 }
 /********************************************************************************************************/
 void 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -1546,9 +1546,8 @@ void
 ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
 					 int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_bezier_surf";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
     GU_Detail copy_gdp;
@@ -1578,10 +1577,11 @@ ROP_FBXMainVisitor::outputBezierSurfaces(const GU_Detail* gdp, const char* node_
 	    continue;
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+        if (!keep_original_name)
+            curr_name.appendFormat("_bezier_surf{}", obj_cntr);
 
-	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+	obj_cntr++;
+	outputSingleNURBSSurface(hd_nurb, curr_name.buffer(), skin_deform_node, capture_frame, res_nodes, prim_cnt);
         skin_deform_node = nullptr;
     }
 
@@ -1593,9 +1593,8 @@ void
 ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame,
 				       TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_bezier_curve";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
     GU_Detail copy_gdp;
@@ -1622,10 +1621,11 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 	    continue;
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+	if (!keep_original_name)
+	    curr_name.appendFormat("_bezier_curve{}", obj_cntr);
 
-	FbxNurbsCurve *nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name);
+	obj_cntr++;
+	FbxNurbsCurve *nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name.buffer());
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
         skin_deform_node = nullptr;
@@ -1638,9 +1638,8 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 void 
 ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_polyline";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
     bool did_find_open = false;
@@ -1684,10 +1683,11 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 	    continue;
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+	if (!keep_original_name)
+	    curr_name.appendFormat("_polyline{}", obj_cntr);
 
-	FbxNurbsCurve *nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name);
+	obj_cntr++;
+	FbxNurbsCurve *nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name.buffer());
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
         skin_deform_node = nullptr;
@@ -1698,9 +1698,8 @@ void
 ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, 
 				      int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_nurbs_curve";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
     FbxNurbsCurve *nurbs_curve_attr;
     
@@ -1717,10 +1716,11 @@ ROP_FBXMainVisitor::outputNURBSCurves(const GU_Detail* gdp, const char* node_nam
 	const GU_PrimNURBCurve *hd_nurb = static_cast<const GU_PrimNURBCurve*>(prim);
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+	if (!keep_original_name)
+	    curr_name.appendFormat("_nurbs_curve{}", obj_cntr);
 
-	nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name);
+	obj_cntr++;
+	nurbs_curve_attr = FbxNurbsCurve::Create(mySDKManager, curr_name.buffer());
 	setNURBSCurveInfo(nurbs_curve_attr, hd_nurb);
 	finalizeGeoNode(nurbs_curve_attr, skin_deform_node, capture_frame, prim_cnt, res_nodes);
         skin_deform_node = nullptr;
@@ -1892,9 +1892,8 @@ void
 ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node,
 					int capture_frame, TFbxNodesVector& res_nodes, int* prim_cntr)
 {
-    UT_String orig_name(node_name, UT_String::ALWAYS_DEEP);
-    orig_name += "_nurbs_surf";
-    UT_String curr_name(UT_String::ALWAYS_DEEP);
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
     int obj_cntr = 0;
 
     const GEO_Primitive* prim;
@@ -1936,10 +1935,11 @@ ROP_FBXMainVisitor::outputNURBSSurfaces(const GU_Detail* gdp, const char* node_n
 	const GU_PrimNURBSurf* hd_nurb = static_cast<const GU_PrimNURBSurf*>(prim);
 
 	// Generate the name
-	curr_name.sprintf("%s%d", (const char*)orig_name, obj_cntr);
-	obj_cntr++;
+        if (!keep_original_name)
+            curr_name.appendFormat("_nurbs_surf{}", obj_cntr);
 
-	outputSingleNURBSSurface(hd_nurb, curr_name, skin_deform_node, capture_frame, res_nodes, prim_cnt);
+	obj_cntr++;
+	outputSingleNURBSSurface(hd_nurb, curr_name.buffer(), skin_deform_node, capture_frame, res_nodes, prim_cnt);
         skin_deform_node = nullptr;
 
     }

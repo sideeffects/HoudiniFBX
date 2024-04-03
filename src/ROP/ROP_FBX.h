@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -70,6 +70,7 @@ enum {
     ROP_FBX_POLYLOD,
     ROP_FBX_DETECTCONSTPOINTOBJS,
     ROP_FBX_CONVERTSURFACES,
+    ROP_FBX_PRESERVESHAPENAMES,
     ROP_FBX_CONSERVEMEM,
     ROP_FBX_DEFORMSASVCS,
     ROP_FBX_FORCEBLENDSHAPE,
@@ -167,6 +168,9 @@ private:
 
     int CONVERTSURFACES()
     { INT_PARM("convertsurfaces", 0, 0) }
+
+    int PRESERVESHAPENAMES()
+    { INT_PARM("preserveshapenames", 0, 0) }
 
     int DEFORMSASVCS()
     { INT_PARM("deformsasvcs", 0, 0) }
