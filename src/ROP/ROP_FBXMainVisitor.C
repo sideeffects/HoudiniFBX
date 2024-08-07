@@ -1638,12 +1638,7 @@ ROP_FBXMainVisitor::outputBezierCurves(const GU_Detail* gdp, const char* node_na
 void 
 ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name, OP_Node* skin_deform_node, int capture_frame, TFbxNodesVector& res_nodes)
 {
-    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
-    UT_WorkBuffer curr_name(node_name);
-    int obj_cntr = 0;
-
     bool did_find_open = false;
-
     const GEO_Primitive* const_prim;
     GA_FOR_ALL_PRIMITIVES(gdp, const_prim)
     {
@@ -1656,9 +1651,12 @@ ROP_FBXMainVisitor::outputPolylines(const GU_Detail* gdp, const char* node_name,
 	    break;
 	}
     }
-
     if(!did_find_open)
 	return;
+
+    bool keep_original_name = myParentExporter->getExportOptions()->getPreserveShapeNames();
+    UT_WorkBuffer curr_name(node_name);
+    int obj_cntr = 0;
 
     GU_Detail copy_gdp;
     copy_gdp.duplicate(*gdp);
@@ -2078,6 +2076,28 @@ ROP_FBXMainVisitor::outputPolygons(
         int capture_frame,
         TFbxNodesVector& res_nodes)
 {
+    // Polylines are handled separately and exported as NURBS curves.
+    // Check to see if closed polygonal data exists before creating a FbxMesh node.
+    bool only_polyline_prims = true;
+    const GEO_Primitive* const_prim;
+    GA_FOR_ALL_PRIMITIVES(gdp, const_prim)
+    {
+        if (const_prim->getTypeId() != GA_PRIMPOLY)
+        {
+            only_polyline_prims = false;
+            break;
+        }
+        const GU_PrimPoly* const_hd_line
+                = static_cast<const GU_PrimPoly*>(const_prim);
+        if (const_hd_line->isClosed())
+        {
+            only_polyline_prims = false;
+            break;
+        }
+    }
+    if (only_polyline_prims)
+        return;
+
     FbxMesh* mesh_attr = FbxMesh::Create(mySDKManager, node_name);
 
     int points_per_poly = 0;
