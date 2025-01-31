@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -353,8 +353,8 @@ ROP_FBXExporter::doExport()
         scene_settings.SetCustomFrameRate(curr_fps);     // sets frame rate in the scene
 	FbxTime::SetGlobalTimeMode(time_mode, curr_fps); // governs how time is converted
 
-	fbx_start.SetFrame(CHgetFrameFromTime(myStartTime), time_mode);
-	fbx_stop.SetFrame(CHgetFrameFromTime(myEndTime), time_mode);
+	fbx_start.SetFrame(CHgetIntegerFrameFromTime(myStartTime), time_mode);
+	fbx_stop.SetFrame(CHgetIntegerFrameFromTime(myEndTime), time_mode);
 
 	FbxTimeSpan time_span(fbx_start, fbx_stop);
 	scene_settings.SetTimelineDefaultTimeSpan(time_span);

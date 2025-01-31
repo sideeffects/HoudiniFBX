@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -1338,7 +1338,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithVC(SOP_Node* sop_node, const UT_String& nod
     fpreal start_time = myParentExporter->getStartTime();
     fpreal end_time = myParentExporter->getEndTime();
     fpreal geom_export_time = start_time;
-    fpreal capture_frame = CHgetFrameFromTime(start_time);
+    fpreal capture_frame = CHgetIntegerFrameFromTime(start_time);
 
     // We need this here so that the number of points in the static geometry
     // matches the number of points in the vertex cache files. Otherwise Maya
@@ -1460,7 +1460,7 @@ ROP_FBXMainVisitor::outputSOPNodeWithoutVC( SOP_Node* sop_node, const UT_String&
 	return false;
 
     fpreal geom_export_time = myParentExporter->getStartTime(); 
-    fpreal capture_frame = CHgetFrameFromTime(geom_export_time);
+    fpreal capture_frame = CHgetIntegerFrameFromTime(geom_export_time);
     if (skin_deform_node)
     {
 	// We're skinnable. Find the capture frame.
