@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of in source and binary forms, with or without
@@ -1849,7 +1849,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
         if (!gdp)
         {
             UT_WorkBuffer msg;
-            msg.format("No geometry found on frame {}.", CHgetFrameFromTime(curr_time));
+            msg.format("No geometry found on frame {}.", CHgetSampleFromTime(curr_time));
             myErrorManager->addError(msg.buffer());
             continue;
         }
@@ -1858,7 +1858,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
         {
             UT_WorkBuffer msg;
             msg.format("Missing path attrib '{}' on frame {}.",
-                       path_attrib_name, CHgetFrameFromTime(curr_time));
+                       path_attrib_name, CHgetSampleFromTime(curr_time));
             myErrorManager->addError(msg.buffer());
             continue;
         }
@@ -1871,7 +1871,7 @@ ROP_FBXAnimVisitor::exportPackedPrimAnimation(
             {
                 UT_WorkBuffer msg;
                 msg.format("Found invalid path attrib value '{}' on frame {} primitive {}.",
-                           path_attrib.get(primoff), CHgetFrameFromTime(curr_time),
+                           path_attrib.get(primoff), CHgetSampleFromTime(curr_time),
                            gdp->primitiveIndex(primoff));
 	        myErrorManager->addError(msg.buffer());
                 continue;
