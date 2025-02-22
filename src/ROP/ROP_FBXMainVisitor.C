@@ -3946,7 +3946,7 @@ ROP_FBXMainVisitor::generateFbxTexture(OP_Node* mat_node, int texture_idx, UT_St
     if(!isTexturePresent(mat_node, text_parm_name, &texture_path))
 	return NULL;
 
-    const UT_String& mat_name = mat_node->getName();
+    const UT_StringHolder &mat_name = mat_node->getName();
 
     // Find the texture if it is already created
     const char* full_name = (const char*)texture_path;
