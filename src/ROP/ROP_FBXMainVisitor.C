@@ -4018,7 +4018,7 @@ FbxSurfaceMaterial*
 ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& mat_map)
 {
     if(!mat_node)
-	return NULL;
+	return nullptr;
 
     // Find the material if it is already created
     THdFbxMaterialMap::iterator mi = mat_map.find(mat_node);
@@ -4028,7 +4028,7 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
     OP_Node* surface_node = getSurfaceNodeFromMaterialNode(mat_node);
     
     if(!surface_node)
-	return NULL;
+	return nullptr;
 
     bool did_find;
     bool is_specular = false;
@@ -4051,8 +4051,8 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 	is_principled = true;
     }
     // We got the surface SHOP node. Get its OGL properties.
-    FbxSurfacePhong* new_mat = NULL; 
-    FbxSurfaceLambert* lamb_new_mat = NULL;
+    FbxSurfacePhong* new_mat = nullptr; 
+    FbxSurfaceLambert* lamb_new_mat = nullptr;
     if(is_specular)
     {
 	new_mat = FbxSurfacePhong::Create(mySDKManager, (const char*)mat_name);
@@ -4066,8 +4066,6 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 
     if (is_principled)
     {
-	// TODO: Write this out as a StingRay material
-
 	// Diffuse
 	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "basecolor", myStartTime, 0);
 	temp_col[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "basecolor", myStartTime, 1);
@@ -4085,6 +4083,34 @@ ROP_FBXMainVisitor::generateFbxMaterial(OP_Node* mat_node, THdFbxMaterialMap& ma
 
 	temp_col[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "emitint", myStartTime, 0);
 	lamb_new_mat->EmissiveFactor.Set(temp_col[0]);
+
+	// Note that FbxSurfacePhong derives from FbxSurfaceLambert
+	if (new_mat)
+	{
+	    // Shininess
+	    fpreal rough;
+	    rough = ROP_FBXUtil::getFloatOPParm(surface_node, "rough", myStartTime, 0);
+	    new_mat->Shininess.Set(100.0 * (1.0 - rough));
+
+	    // Reflect
+	    fpreal reflect;
+	    reflect = ROP_FBXUtil::getFloatOPParm(surface_node, "reflect", myStartTime, 0);
+	    new_mat->Reflection.Set(FbxDouble3(reflect, reflect, reflect));
+	}
+
+	// Convert opacity to transparency
+	fpreal opac;
+	UT_Vector3R opac_color;
+	opac = ROP_FBXUtil::getFloatOPParm(surface_node, "opac", myStartTime, 0);
+	opac_color[0] = ROP_FBXUtil::getFloatOPParm(surface_node, "opaccolor", myStartTime, 0);
+	opac_color[1] = ROP_FBXUtil::getFloatOPParm(surface_node, "opaccolor", myStartTime, 1);
+	opac_color[2] = ROP_FBXUtil::getFloatOPParm(surface_node, "opaccolor", myStartTime, 2);
+
+	// Note that this matches the Maya FBX export behaviour
+	lamb_new_mat->TransparencyFactor.Set(1.0);
+
+	UT_Vector3R trans_color = 1.0 - opac * opac_color;
+	lamb_new_mat->TransparentColor.Set(FbxDouble3(trans_color(0), trans_color(1), trans_color(2)));
     }
     else 
     {
