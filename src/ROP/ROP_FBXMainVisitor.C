@@ -2472,7 +2472,7 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
     else
 	ref_mode = FbxLayerElement::eDirect;
     
-    FbxLayerElement* new_elem = NULL;
+    FbxLayerElement* new_elem = nullptr;
     if (attr_type == ROP_FBXAttributeNormal ||
         attr_type == ROP_FBXAttributeTangent ||
         attr_type == ROP_FBXAttributeBinormal)
@@ -2484,7 +2484,6 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
         if (attr_type == ROP_FBXAttributeNormal)
         {
             FbxLayerElementNormal* nml_layer = FbxLayerElementNormal::Create(layer_container, "");
-            //FbxLayerElementNormal* nml_layer = mySDKManager->CreateFbxLayerElementNormal("");
             nml_layer->SetMappingMode(mapping_mode);
             nml_layer->SetReferenceMode(ref_mode);
             attr_layer->SetNormals(nml_layer);
@@ -2493,7 +2492,6 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
         else if (attr_type == ROP_FBXAttributeTangent)
         {
             FbxLayerElementTangent* tan_layer = FbxLayerElementTangent::Create(layer_container, "");
-            //FbxLayerElementTangent* tan_layer = mySDKManager->CreateFbxLayerElementTangent("");
             tan_layer->SetMappingMode(mapping_mode);
             tan_layer->SetReferenceMode(ref_mode);
             attr_layer->SetTangents(tan_layer);
@@ -2503,7 +2501,6 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
         {
             UT_ASSERT(attr_type == ROP_FBXAttributeBinormal);
             FbxLayerElementBinormal* bin_layer = FbxLayerElementBinormal::Create(layer_container, "");
-            //FbxLayerElementBinormal* bin_layer = mySDKManager->CreateFbxLayerElementBinormal("");
             bin_layer->SetMappingMode(mapping_mode);
             bin_layer->SetReferenceMode(ref_mode);
             attr_layer->SetBinormals(bin_layer);
@@ -2525,7 +2522,6 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
     }
     else if(attr_type == ROP_FBXAttributeUV)
     {
-	//FbxLayerElementUV* temp_layer = mySDKManager->CreateFbxLayerElementUV("");
 	FbxLayerElementUV* temp_layer = FbxLayerElementUV::Create(layer_container, "");
 	temp_layer->SetMappingMode(mapping_mode);
 	temp_layer->SetReferenceMode(ref_mode);
@@ -2562,7 +2558,6 @@ ROP_FBXMainVisitor::getAndSetFBXLayerElement(
     }
     else if(attr_type == ROP_FBXAttributeVertexColor)
     {
-	//FbxLayerElementVertexColor* temp_layer = mySDKManager->CreateFbxLayerElementVertexColor("");
 	FbxLayerElementVertexColor* temp_layer = FbxLayerElementVertexColor::Create(layer_container, "");
 	temp_layer->SetMappingMode(mapping_mode);
 	temp_layer->SetReferenceMode(ref_mode);
